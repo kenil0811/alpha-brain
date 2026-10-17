@@ -172,7 +172,7 @@ is closed by the kind of thread the turn runs in.
 | `world_file` | Keep a file or a document, read one | No |
 | `ask_person` | A question with choices, as a card | — |
 | `tell_person` | A line on Home or Activity, or a Needs-you card; a Mac notification later | — |
-| `skill_keep` | Write or change a skill directory (§6) | No, said in a line |
+| `skill_keep` | Write or change a skill directory: its `SKILL.md`, its scripts, its check, its form (§6, §6.1) | No, said in a line |
 | `agent_keep` | Write or change an agent's brief, its trigger, what it may touch (§6) | No, said in a line |
 | `schedule_keep` | A time or an event that starts an agent (§9) | No, said in a line |
 | Subagents | The SDK's own `Agent` tool | No |
@@ -242,6 +242,58 @@ the thing again, says so in one line, and the window shows it.**
 - **A module** is made by the model without asking when a request needs a home; said in a line.
 
 What the window shows for each: the text itself, editable; its runs; its versions; Undo.
+
+### 6.1 The form of a skill: markdown, code, and the move between them
+
+Kenil, 17 Oct: "whether skills/agents should be md files or code … the user might need
+deterministic behaviour for certain things; maybe some mechanism to convert md skills into code
+if it's used a lot and is deterministic enough." Decided the same day (Q74). It is not markdown
+*or* code: the Agent Skills shape is both, and the design says which part is which, who decides,
+and how a skill moves between them.
+
+**Three forms.**
+1. **By reading**: `SKILL.md` only. The model reads the steps and does them with its tools each
+   run. Judgement included; flexible; model time every run; can drift.
+2. **By script**: `SKILL.md` + `scripts/` (Python in the module's environment, or a page script
+   in JS). The code does the work; the model hands it inputs, takes its outputs, and is called
+   only when it fails (Doc). Same inputs, same result. Readers and procedures are this today.
+3. **A pipeline**: an agent whose every step is a by-script skill. The scheduler runs it with no
+   model session at all; the model appears at a failure or at a step marked as judgement. This is
+   the rule of 2 October ("know-how as code; AI only for repair and judgement"), kept.
+
+**An agent stays markdown** (what it is for, when it runs, what it may touch, what to report,
+its judgement calls); determinism comes from the skills it calls, not from the brief.
+
+**Who decides the form.**
+- *At write time, one rule the model applies per step:* if the step's result must be identical
+  given the same inputs, it is a script from the first run: reading a list from a page, a
+  transform ("split title from company"), a save, the diff of new, changed and gone, a report
+  from a query. "Which of these emails matters", "is this headline a title at a company", "what
+  to say to Vikas": the model. (The tool-maker / tool-user split: a strong model writes the tool
+  once, a cheap run uses it; what Claude Code does when a skill carries `scripts/`.)
+- *A judgement point inside a script:* a script may call the small-model seam at one marked
+  step ("judge: does this row belong?"), named in `SKILL.md`, so a pipeline carries judgement
+  without becoming a by-reading skill.
+- *Promotion, by reading → by script, automatic.* For a skill run by reading, Alpha keeps its
+  run log: runs, whether the steps were the same each time, whether the outcome is checkable. A
+  scheduled pass (Doc's: whose fault becomes whose job) takes the ones that did the same steps
+  run after run with a checkable result, writes the script, **shadow-runs it beside the
+  by-reading version on the next real run**, and switches only when the two agree. The
+  by-reading text stays as the documentation and the fallback; every version kept, Undo; one
+  line in Activity (Q60). "The same steps three runs in a row" is a judgement, named, its
+  number in `limits.toml` with its why; no knob the person meets.
+- *Demotion.* A script that keeps failing on a source that keeps changing is repaired by Doc;
+  when it cannot be, the skill falls back to by reading and says so, rather than staying broken.
+- *The person's control, in words, on the skill's page:* "do this exactly the same every time"
+  (by script only; the model may not improvise at run time; a run the script cannot do fails
+  and says so) and "let Alpha use judgement here" (the reverse). The window shows every skill's
+  form (by reading / by script) beside its text. A kit ships with the form its maker chose.
+
+**Underneath.** Scripts run in the sandbox (§14), in the module's directory, in a per-module
+Python environment the model may add packages to without asking (PyPI on the network allowlist;
+journaled). Every by-script skill carries a **check** in its `SKILL.md` (the output's shape, a
+sample, "at least 95% of last time's count" for a list), so the scheduler judges a run without a
+model and Doc knows what repaired means: today's `reader_health`, generalised.
 
 ## 7. Conversations and parallel work
 
@@ -565,6 +617,7 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q71 | A freeze on new features until the five first-day sentences pass in the app; rechecked later. |
 | Q72 | A new design document (this one); the old kept as history. |
 | Q73 | First users: requirements shared, modules built by Kenil, shipped inside the app (§15). |
+| Q74 | The form of a skill (§6.1): by reading, by script, or a pipeline; mechanical steps are scripts from the first run, judgement stays with the model or at a marked point inside a script; promotion from reading to script is automatic after a shadow run, with Undo and a line; demotion when a script cannot be repaired; the person's sentence "do this exactly the same every time" binds; the form shown in the window; packages installed in the module's environment without asking, in the sandbox, journaled. |
 
 Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one
 approval is pending; the density of cards in Home (all items, or only what needs him); where

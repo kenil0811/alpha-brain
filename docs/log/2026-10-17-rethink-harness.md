@@ -48,6 +48,9 @@ model's judgement; all triggers on day one; proactive output on Home and Activit
 stay; a freeze on new features until five first-day sentences pass in the app; a new design
 document; first users onboarded by Kenil building their modules and shipping the app.
 
+Agreed by Kenil later the same day ("ok makes sense to me"), with one addition on his
+question: the form of a skill (markdown, code, the move between them; §6.1, Q74).
+
 ## What was written
 
 - `docs/design/alpha-harness-design.md` (571 lines): the proposal; Kenil agreed it the same day
