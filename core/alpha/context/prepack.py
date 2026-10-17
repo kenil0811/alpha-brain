@@ -428,8 +428,8 @@ def build(world: World, sentence: str, *, module: str | None = None,
         t = world.modules.thread(thread)
         lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
                  f"- Brief: {t['brief']}" if t.get("brief") else
-                 "- Brief: none yet. Write one with thread_brief when you learn how this work"
-                 " should go."]
+                 "- Brief: none yet. Keep one with agent_keep (its brief) when you learn how"
+                 " this work should go."]
         history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
         lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
         sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))

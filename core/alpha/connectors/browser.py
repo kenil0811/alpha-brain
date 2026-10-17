@@ -492,7 +492,8 @@ class Browser:
             conn = self.refresh(site)
         if conn is None or conn["status"] != "connected":
             return {"needs_signin": True, "done": 0, "site": site,
-                    "note": f"Acting on {site} needs the person's sign-in there (browser_signin)."}
+                    "note": f"Acting on {site} needs the person's sign-in there (connect, the "
+                            "site)."}
         job: dict[str, Any] = {
             "op": "act", "url": url, "channel": chrome_channel(), "profile": str(profile_of(conn)),
             "steps": procedure["steps"], "verify": procedure.get("verify") or [],

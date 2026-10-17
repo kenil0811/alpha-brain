@@ -606,7 +606,7 @@ def repair_prompt(sentence: str, reply: str, result: dict[str, Any],
         f"The person's own records disagree on:\n{held}\n\n"
         f"Records this turn made or changed: {made}.\n\n"
         "Where the independent answer rests on a source and is right, correct those records "
-        "with records_update (source = the page the values come from) and tell the person in "
+        "(their source the page the values come from) and tell the person in "
         "one or two lines what you corrected and where the number comes from. Where your own "
         "records disagree, say which is right and why. Where you stand by your own, say why in "
         "one line. If something should have been asked, ask it now. Plain words, no tool names."
