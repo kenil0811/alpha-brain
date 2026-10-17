@@ -97,6 +97,7 @@ def routes(app: FastAPI, s: Served) -> None:
         """A thread's turns: the one named, else Home. In Home the routing lines are turns
         too (the cards: a sentence that went to an item, with the item's id in `routed`)."""
         del module  # a thread is its own scope now; the parameter stays for older windows
+        home_id = conversations.home(world)["id"]  # a page or action with no thread is Home's
         chat = world.modules.thread(conversation) if conversation else conversations.home(world)
         turns_ = world.journal.recent(limit, thread=chat["id"],
                                       kinds=["said", "replied", "failed", "asked", "did"])
@@ -107,8 +108,13 @@ def routes(app: FastAPI, s: Served) -> None:
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
                 "threads": thread_views(world), "running": running.running(),
-                "workflows": world.workflows.recent(),
-                "actions": [action_view(world, a) for a in world.actions.all(limit=20)],
+                # the pages and actions of this thread only: an item's card is its own, and
+                # Home shows none of another item's (seen 18 Oct: a stopped page of a 16 Oct
+                # build sat in Home)
+                "workflows": [w for w in world.workflows.recent()
+                              if (w.get("conversation") or home_id) == chat["id"]],
+                "actions": [action_view(world, a) for a in world.actions.all(limit=20)
+                            if (a.get("thread") or home_id) == chat["id"]],
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
                           "options": a["data"].get("options", []), "thread": a["thread"],
                           "module": a["module"], "turn": a["data"].get("turn"),

@@ -92,7 +92,13 @@ continue the watch's item ("the user calls it 'that watch'"), the schedule chang
 existing agent, confirmed by the judge check. One item in all. Its two earlier runs found the
 two things the tests could not: the agent's own thread as a second item (fixed, Q76), and
 Watson's item counted as the person's (fixed). `track_then_log` (21 s) and `question_card`
-(5 s) still pass. The app was rebuilt and restarted on it; Kenil's three unrelated sentences in
+(5 s) still pass. The page check on Home, the Assistant page and Home's conversation, on a copy
+of Kenil's world (`../checks/2026-10-17-2346.md`): clean at both sizes, light and dark; its
+screenshots showed two things fixed after the commits: a stopped page of a 16 Oct build sat in
+Home (a thread's pages and actions are now that thread's; a thread-less one is Home's), and
+items from before had no line (the card falls back to the item's last step). The full page
+sweep hung before opening a page and was stopped; to look at. The app was rebuilt and
+restarted on it; Kenil's three unrelated sentences in
 Home, one card each, a follow-up landing in the right item, and one misroute corrected in words,
 are the acceptance still open (the proposal's words).
 

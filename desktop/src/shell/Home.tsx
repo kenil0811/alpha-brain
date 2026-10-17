@@ -372,7 +372,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                             <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
                           </div>
                         ) : (
-                          <div className="item__sub">{t.last_line ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : "Started")}</div>
+                          <div className="item__sub">{t.last_line ?? t.steps?.[t.steps.length - 1]?.text ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : "Started")}</div>
                         )}
                         <div className="item__sub faint">started {when(t.created_at)}{t.last_at && t.last_at !== t.created_at ? ` · last ${when(t.last_at)}` : ""}</div>
                       </div>
