@@ -5,7 +5,6 @@ served in-process. No model, no network: a scripted client stands in for the SDK
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -125,20 +124,6 @@ def test_a_stateless_run_keeps_no_session_and_a_judge_has_no_tools(tmp_path: Pat
     assert opts.mcp_servers == {}
     independent = engine.options_for(request(tmp_path, kind="independent"))
     assert independent.allowed_tools == ["WebSearch", "WebFetch"]
-
-
-def test_a_build_gets_the_workspace_tools_and_the_sandbox(tmp_path: Path) -> None:
-    ws = tmp_path / "ws"
-    ws.mkdir()
-    opts = engine.options_for(request(tmp_path, kind="turn", workspace=str(ws),
-                                      hosts=["api.census.gov"]))
-    assert opts.cwd == str(ws)
-    assert opts.tools == ["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebSearch", "WebFetch"]
-    assert "Bash" not in opts.disallowed_tools
-    settings = json.loads(opts.settings or "{}")
-    assert settings["sandbox"]["enabled"] and settings["sandbox"]["failIfUnavailable"]
-    assert "api.census.gov" in settings["sandbox"]["network"]["allowedDomains"]
-    assert opts.env["ALPHA_PYTHON"]
 
 
 def test_the_stream_is_shown_and_the_result_read(tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ def test_the_limits_load_typed_and_every_table_is_used() -> None:
     # every group is read somewhere in the code, by name
     code = "\n".join(p.read_text() for p in PACKAGE.rglob("*.py") if p.name != "config.py")
     for group in ("scheduler", "runs", "readers", "prepack", "conversations", "asking",
-                  "workflows", "browser", "files", "calendar", "views", "proxy", "accounts",
+                  "workflows", "browser", "files", "calendar", "views", "accounts",
                   "checks"):
         assert re.search(rf"(?:settings|limits)\.{group}\.", code), group
 
@@ -39,8 +39,8 @@ def test_a_wrong_or_missing_key_stops_the_start_with_a_plain_message(tmp_path: P
     broken.write_text(good.replace("check_every_s = 30", "check_every_sec = 30"))
     with pytest.raises(ConfigProblem, match="missing check_every_s; unknown check_every_sec"):
         config.load_settings(broken)
-    broken.write_text(good.replace("[proxy]", "[proxies]"))
-    with pytest.raises(ConfigProblem, match=r"\[proxy\] is missing"):
+    broken.write_text(good.replace("[browser]", "[browsers]"))
+    with pytest.raises(ConfigProblem, match=r"\[browser\] is missing"):
         config.load_settings(broken)
     with pytest.raises(ConfigProblem, match="missing"):
         config.load_settings(tmp_path / "nowhere.toml")

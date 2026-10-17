@@ -1,28 +1,26 @@
 /**
  * One record's own page (12 Oct, Q42 section 2a; the feature from pull request #5, the layout
  * main's own, an automation's page): a back button named for its table, the record's title and
- * when it was added and last changed, what Alpha can do with it (the parts run when asked, Try
- * again for one that could not fill its fields) and Remove, then its details: every field
+ * when it was added and last changed,  
  * editable in place with where its value came from. A related record opens its own page the same
  * way. It replaces the drawer that opened under the table. Under the details: the record's
  * History, with Undo, and the person's Notes (section 2b, `RecordHistory`).
  */
 import { useEffect, useState } from "react";
-import type { Client, Note, Part, RecordRow, Relations, TableDesc } from "../core/client";
+import type { Client, Note, RecordRow, Relations, TableDesc } from "../core/client";
 import type { Surface } from "../shell/Rail";
 import { Button, Confirm } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import { coerce, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
 import { RecordHistory, RecordNote } from "./RecordHistory";
-import { actionsFor, RecordFields, ThingActions } from "./views/RecordFields";
+import { RecordFields } from "./views/RecordFields";
 import { say } from "../core/client";
 
 export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [parts, setParts] = useState<Part[]>([]);
   const [asking, setAsking] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -41,13 +39,6 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
     };
   }, [client, table, id, version, tick]);
   const module = data?.table.module ?? null;
-  useEffect(() => {
-    if (!module) {
-      setParts([]);
-      return;
-    }
-    client.parts(module).then(setParts).catch(() => setParts([]));
-  }, [client, module, version]);
 
   const tableTitle = data ? humanize(data.table.title === data.table.name ? data.table.name : data.table.title) : humanize(table);
   /** Back to the table it belongs to (the module's page opens on the table last seen), or where the person came from. */
@@ -75,7 +66,6 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
   const titleField = titleFieldOf(fields, data.table.title_field);
   const title = (titleField && String(row.values[titleField] ?? "")) || "Untitled";
   const readonly = Boolean(data.table.readonly);
-  const actions = module ? actionsFor(parts, data.table.name, row) : [];
   const dates = [row.created_at ? `Added ${when(row.created_at)}` : "", row.updated_at && row.updated_at !== row.created_at ? `last changed ${when(row.updated_at)}` : ""].filter(Boolean).join(" · ");
 
   const commit = (field: FieldInfo, text: string) => {
@@ -101,11 +91,6 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
       setMessage({ ok: false, text: `Couldn't remove it: ${say(e)}` });
     }
   };
-  const run = (part: string) =>
-    client.runPart(module!, part, row.id).then(() => {
-      onChanged();
-      setTick((n) => n + 1);
-    });
 
   return (
     <div className="page">
@@ -120,7 +105,6 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
         </div>
         <div className="row">
           {readonly ? <span className="faint">Built by the module · read-only</span> : null}
-          {!readonly && actions.length ? <ThingActions actions={actions} onRun={run} /> : null}
           {!readonly ? (
             <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
               Remove
@@ -138,7 +122,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
           <RecordFields page row={row} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
         </div>
       </div>
-      <RecordHistory client={client} table={data.table.name} row={row} fields={fields} parts={parts} readonly={readonly} version={version} onUndone={(saved) => { setData({ ...data, record: saved }); onChanged(); }} />
+      <RecordHistory client={client} table={data.table.name} row={row} fields={fields} readonly={readonly} version={version} onUndone={(saved) => { setData({ ...data, record: saved }); onChanged(); }} />
       <RecordNote client={client} table={data.table.name} id={row.id} note={data.note} readonly={readonly} onSaved={() => { setTick((n) => n + 1); onChanged(); }} />
     </div>
   );

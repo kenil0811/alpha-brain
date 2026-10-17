@@ -30,8 +30,7 @@ import time
 from typing import Any
 
 from alpha.config import settings
-from alpha.runtime import acting, conversations, workflow_build
-from alpha.runtime import parts as parts_module
+from alpha.runtime import acting, conversations
 from alpha.runtime.agents import LOOKS, Work
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.route import run as model_run
@@ -60,8 +59,6 @@ class Scheduler:
         self.runner: Runner = runner or model_run
         self.lock = threading.Lock()
         self.running: set[str] = set()
-        self.building: set[str] = set()
-        self.crashes: dict[str, int] = {}  # a building workflow's crashed runs in a row
         self.stop_event = threading.Event()
         self.clock = clock
         self._last_tick: float | None = None
@@ -163,55 +160,9 @@ class Scheduler:
                 continue
             self._run(agent["id"], "event", work)
 
-    def builds(self) -> None:
-        """Start or continue every agreed workflow's build."""
-        for wf in self.world.workflows.waiting():
-            if self.stop_event.is_set():
-                return
-            with self.lock:
-                if wf["id"] in self.building:
-                    continue
-                self.building.add(wf["id"])
-            threading.Thread(target=self._build_workflow, args=(wf["id"],), daemon=True,
-                             name=f"workflow-{wf['id']}").start()
-
-    def _build_workflow(self, wid: str) -> None:
-        self._hold()
-        crashed = False
-        try:
-            workflow_build.run(self.world, wid, runner=self.runner)
-        except Exception:
-            crashed = True
-            log.exception("workflow build failed")
-        finally:
-            self._release()
-            with self.lock:
-                self.building.discard(wid)
-        wf = self.world.workflows.get(wid)
-        if wf["state"] != "building" or self.stop_event.is_set():
-            self.crashes.pop(wid, None)
-            return
-        if crashed:
-            n = self.crashes.get(wid, 0) + 1
-            self.crashes[wid] = n
-            if self.stop_event.wait(backoff_s(n)):
-                return
-        else:
-            self.crashes.pop(wid, None)
-        self.builds()
-
-    def parts(self) -> None:
-        """Run every part that is due on every row (a row that arrived, a part after another)."""
-        try:
-            parts_module.run_due(self.world)
-        except Exception:
-            log.exception("parts due")
-
     def kick(self) -> None:
-        """What a turn starts at once rather than at the next tick: a workflow agreed in it,
-        a row that arrived, an agent whose kind looks at what the turn left in the journal."""
-        self.builds()
-        self.parts()
+        """What a turn starts at once rather than at the next tick: an agent whose kind looks
+        at what the turn left in the journal."""
         self.looks()
 
     def acts(self) -> None:
@@ -237,8 +188,6 @@ class Scheduler:
         if not settled:
             # Just woke, or only in a maintenance wake: nothing starts yet.
             return
-        self.builds()
-        self.parts()
         self.acts()
         for agent in self.world.agents.due():
             if self.stop_event.is_set():

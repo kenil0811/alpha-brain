@@ -1,9 +1,9 @@
 """Doc, the healer (design Q49; built on Q50's substrate, 16 Oct 2026).
 
 Doc keeps what Alpha has built for the person working. It is the one fixer of Alpha's own
-know-how: readers, procedures and workflow parts. The agent whose run broke calls it and
-waits (a reader, a procedure); parts have no agent, so Doc's `look` finds their failures in
-the journal. Whose fault comes first, by code where the failure's shape tells and by the model
+know-how: readers and procedures. The agent whose run broke calls it and waits; the Mac's own
+failures it finds in the journal. Whose fault comes first, by code where the failure's shape tells
+and by the model
 where it does not: a passing failure is retried by its caller, as before; a fault of the
 person's (a sign-in, a key, a setting) stays with the mechanisms that already ask once; a
 fault in Alpha's know-how is repaired, in the thing's own place, then rerun and judged by
@@ -19,21 +19,17 @@ Before 16 Oct the reader repair lived in `pipeline._repair` and the procedure re
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import threading
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from alpha import config
 from alpha.config import settings
 from alpha.runtime import route, turn
-from alpha.runtime import workspace as workspace_module
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor
-from alpha.runtime.claude_cli import TurnRequest
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -105,39 +101,6 @@ def diagnose(text: str) -> tuple[str, str]:
     if YOURS_SIGNS.search(text):
         return "yours", "it needs something only you can give"
     return "know_how", "a mistake in what Alpha wrote"
-
-
-def diagnose_part(world: World, module_id: str, part: dict[str, Any], tail: str,
-                  runner: turn.Runner) -> tuple[str, str]:
-    """A part's crash: the shape where it tells, the model's judgement where it does not
-    (a traceback can mean a bug, a missing key the person must give, or the Mac)."""
-    if ALPHA_SIGNS.search(tail) and "parts/" not in tail:
-        return "alpha", "the program the part runs in did not start"
-    settings_names = []
-    try:
-        from alpha.runtime.parts import settings_of
-
-        settings_names = sorted(settings_of(world, module_id))
-    except Exception:
-        pass
-    result = runner(TurnRequest(
-        sentence=(f"The part \"{part.get('title') or part['id']}\" of the person's workflow"
-                  f" (command {part.get('command')}) failed on a row. The module's settings are"
-                  f" named: {', '.join(settings_names) or '(none)'}.\n\nWhat it printed last:\n"
-                  f"{tail[-1500:]}"),
-        system=config.prompt("doc_diagnose"), world_path=world.path,
-        turn_id=f"doc:{part['id']}", kind="judge", model=config.model_for("judge")))
-    if result.ok:
-        m = re.search(r"\{.*\}", result.reply, re.S)
-        try:
-            data = json.loads(m.group(0)) if m else {}
-        except json.JSONDecodeError:
-            data = {}
-        fault = str(data.get("fault") or "").strip()
-        if fault in FAULTS:
-            why = " ".join(str(data.get("why") or "").split())[:300]
-            return fault, why or "the model's judgement"
-    return "know_how", "a crash in the part's own code"
 
 
 # ---- readers ----
@@ -320,7 +283,7 @@ def repair_procedure(world: World, action: dict[str, Any], why: str,
             lock.release()
 
 
-# ---- parts ----
+# ---- causes ----
 
 
 def _cause(text: str) -> str:
@@ -328,72 +291,6 @@ def _cause(text: str) -> str:
     tail = text.split("(exit", 1)[-1] if "(exit" in text else text
     lines = [ln.strip() for ln in tail.replace("): ", "):\n", 1).splitlines() if ln.strip()]
     return (lines[-1] if lines else text.strip())[:200]
-
-
-def repaired_before(world: World, doc: dict[str, Any], part_id: str, cause: str) -> bool:
-    return any(d["about"].get("cause") == cause
-               for d in world.decisions.about("part", part_id) if d["by"] == doc["id"])
-
-
-def repair_part(world: World, doc: dict[str, Any], module_id: str, part_id: str,
-                record: str, failure: str, runner: turn.Runner = route.run,
-                *, run_id: str | None = None) -> Repair:
-    """Fix a part's code in the module's walled workspace (file tools, the module's hosts, as
-    the build has), committed as "Doc: <why>", then rerun on the row that failed; the row's
-    problem clearing is the proof."""
-    from alpha.runtime import parts as parts_module
-
-    module = world.modules.get(module_id)
-    ws = module.get("workspace")
-    part = next((p for p in parts_module.parts_of(ws) if p["id"] == part_id), None)
-    if not ws or part is None:
-        raise Problem(f"The module has no part '{part_id}' to repair.")
-    cause = _cause(failure)
-    lock = _lock(f"part:{module_id}/{part_id}")
-    got = lock.acquire(timeout=settings.doc.wait_s)
-    try:
-        hosts = workspace_module.hosts_for(list(part.get("reaches") or []))
-        prompt = (f"The part \"{part.get('title') or part_id}\" (id {part_id}, command"
-                  f" {part.get('command')}) failed on the row {record} of the thing"
-                  f" {part['reads']['thing']}:\n{failure[-1500:]}\n\nFind the cause in the"
-                  f" part's code, fix it, try it, and commit.{_notes_for(world, doc, part_id)}")
-        outcome = turn.ask(world, prompt, thread=doc.get("thread"), runner=runner,
-                           rules=config.prompt("repair_part"), actor=doc["id"], agent=doc["id"],
-                           module=module_id, workspace=str(ws), hosts=hosts,
-                           journal_as=f"Doc looks at the part {part.get('title') or part_id}:"
-                                      f" {cause}")
-        words = " ".join(outcome.reply.split())[:300]
-        try:  # the model commits; if it forgot, the code does, so every fix is a version
-            workspace_module._git(Path(ws), "add", "-A")
-            workspace_module._git(Path(ws), "commit", "-q", "-m", f"Doc: {words or cause}"[:200])
-        except Problem:
-            pass  # nothing to commit
-        rerun: dict[str, Any]
-        try:
-            rerun = parts_module.run_part(world, module_id, part_id, record)
-        except Problem as e:
-            rerun = {"ok": False, "why": str(e)}
-        ok = bool(rerun.get("ok")) and outcome.ok
-        world.decisions.record(
-            by=doc["id"], what=f"Repaired the part {part.get('title') or part_id}: {cause}",
-            why=words or None, evidence={"failure": failure[-500:], "rerun": ok},
-            about={"agent": doc["id"], "module": module_id, "part": part_id, "cause": cause},
-            state="open")
-        repair = Repair("part", part_id, 0, 1 if ok else 0, run_id,
-                        model_ms=int(outcome.result.duration_ms or 0), ok=ok, words=words)
-        line = (f"Doc fixed the part {part.get('title') or part_id}: {words or 'repaired'}" if ok
-                else f"Doc couldn't fix the part {part.get('title') or part_id}:"
-                     f" {rerun.get('why') or rerun.get('output', '')[-200:] or cause}")
-        world.journal.append("changed" if ok else "did", line, actor=doc["id"],
-                             module=module_id, thread=doc.get("thread"),
-                             data={"agent": doc["id"], "part": part_id, "record": record,
-                                   "module": module_id, "repair": run_id})
-        _note(world, doc, part_id, f"crashed ({cause[:100]}); "
-                                   + (f"fixed ({words[:120]})" if ok else "a fix did not take"))
-        return repair
-    finally:
-        if got:
-            lock.release()
 
 
 # ---- reports ----
@@ -419,22 +316,16 @@ def report(world: World, doc: dict[str, Any], fault: str, why: str, about: str,
 
 
 def look(world: World, agent: dict[str, Any]) -> Work | None:
-    """Failures since Doc last looked that nobody called it for: a part that crashed on a row,
-    and an agent's run that failed because the hand or the Mac did not run."""
+    """Failures since Doc last looked that nobody called it for: an agent's run that failed
+    because the hand or the Mac did not run."""
     entries = since_cursor(world, agent, kinds=["failed"])
     upto = journal_rowid(world)
-    parts: list[dict[str, Any]] = []
     alpha: list[dict[str, Any]] = []
     for e in entries:
         d = e["data"]
-        if d.get("part") and d.get("record") and e["module"]:
-            parts.append({"entry": e["id"], "module": e["module"], "part": d["part"],
-                          "record": d["record"], "text": e["text"]})
-        elif d.get("run") and diagnose(e["text"])[0] == "alpha":
+        if d.get("run") and diagnose(e["text"])[0] == "alpha":
             alpha.append({"entry": e["id"], "agent": d.get("agent"), "text": e["text"]})
     about: dict[str, Any] = {}
-    if parts:
-        about["parts"] = parts
     if alpha:
         about["alpha"] = alpha
     return Work(upto, about)
@@ -442,8 +333,7 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
 
 def run(world: World, agent: dict[str, Any], work: Work | None, *,
         runner: turn.Runner = route.run) -> Outcome:
-    """Doc's own run over what `look` found: parts repaired or reported, the Mac's failures
-    reported, each once."""
+    """Doc's own run over what `look` found: the Mac's failures reported, each once."""
     if work is None:
         work = look(world, agent) or Work(journal_rowid(world))
     about = work.about
@@ -451,43 +341,6 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     failed: list[str] = []
     reported = 0
     model_ms = 0
-    from alpha.runtime import parts as parts_module
-
-    seen_parts: set[tuple[str, str, str]] = set()
-    for item in about.get("parts") or []:
-        cause = _cause(item["text"])
-        key = (item["module"], item["part"], cause)
-        if key in seen_parts:
-            continue  # the same crash on another row, or a second attempt: one repair
-        seen_parts.add(key)
-        module = world.modules.get(item["module"])
-        part = next((p for p in parts_module.parts_of(module.get("workspace"))
-                     if p["id"] == item["part"]), None)
-        title = (part or {}).get("title") or item["part"]
-        if part is None:
-            continue
-        fault, why = diagnose_part(world, item["module"], part, item["text"], runner)
-        if fault == "know_how" and repaired_before(world, agent, item["part"], cause):
-            report(world, agent, "alpha", f"the part {title} crashed the same way again after a"
-                                          f" repair ({cause})", f"the part {title}",
-                   [item["entry"]])
-            reported += 1
-            continue
-        if fault != "know_how":
-            report(world, agent, fault, why, f"the part {title}", [item["entry"]])
-            reported += 1
-            continue
-        try:
-            rep = repair_part(world, agent, item["module"], item["part"], item["record"],
-                              item["text"], runner)
-        except Problem as e:
-            failed.append(f"{title} ({e})")
-            continue
-        model_ms += rep.model_ms
-        (fixed if rep.ok else failed).append(title)
-        if rep.ok:
-            # the rows the part failed on before are tried again now that it is fixed
-            parts_module.retry(world, item["module"])
     if about.get("alpha"):
         by_cause: dict[str, list[dict[str, Any]]] = {}
         for item in about["alpha"]:
@@ -518,8 +371,7 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
 
 register(KIND, look, run, words={
     "works": "when a run of another agent meets a broken reader or procedure (it is called"
-             " and the run waits), and after a workflow part crashes on a row or a run fails"
-             " the way the Mac fails",
+             " and the run waits), and after a run fails the way the Mac fails",
     "good_run": "what it repaired worked on the rerun, or what it could not touch was"
                 " reported; partial when a fix did not take beside one that did; failed when"
                 " no fix took"})

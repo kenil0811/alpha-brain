@@ -332,8 +332,8 @@ def _findings_page(world: World, agent: dict[str, Any], subject: dict[str, Any],
 def land(world: World, agent: dict[str, Any], subject: dict[str, Any],
          findings: dict[str, Any]) -> dict[str, Any]:
     """Where a look's findings go: the findings page always; the suggestions onto the
-    workflow page as a new version marked Sherlock's (a proposal when the person already said
-    yes; kept for the draft when there is no page yet); the questions as cards in the
+    workflow page as a new version marked Sherlock's while it is a draft, and nowhere else
+    (nothing lands after the person's yes, harness 2a); the questions as cards in the
     conversation, Sherlock's pick first."""
     page = _findings_page(world, agent, subject, findings)
     out: dict[str, Any] = {"page": page["id"], "landed": "page", "suggestions": 0,
@@ -348,16 +348,7 @@ def land(world: World, agent: dict[str, Any], subject: dict[str, Any],
         out["questions"] += 1
     if not findings["suggestions"]:
         return out
-    if wf is None:
-        # the page is not drafted yet: kept, and landed the moment it is
-        world.journal.append("did", f"Sherlock keeps {len(findings['suggestions'])} suggestions"
-                             f" for \"{subject['title']}\" until the page is drafted.",
-                             actor=agent["id"], thread=agent.get("thread"),
-                             data={"agent": agent["id"], "conversation": cid,
-                                   "sherlock_findings": findings})
-        out["landed"] = "kept"
-        return out
-    if wf["state"] == "drafted":
+    if wf is not None and wf["state"] == "drafted":
         world.workflows.add_suggestions(wf["id"], findings["suggestions"], by=agent["id"],
                                         by_name=agent["name"])
         world.journal.append("changed", f"Sherlock added {len(findings['suggestions'])}"
@@ -365,35 +356,17 @@ def land(world: World, agent: dict[str, Any], subject: dict[str, Any],
                              thread=cid, data={"agent": agent["id"], "workflow": wf["id"]})
         out["landed"] = "page"
     else:
-        words = "; ".join(f"{s['title']} ({s['why']})" for s in findings["suggestions"])
-        world.journal.append(
-            "proposed", f"Sherlock found {len(findings['suggestions'])} things worth adding to"
-                        f" {wf['title']}: {words}"[:900],
-            actor=agent["id"], module=wf.get("module"), thread=cid,
-            data={"agent": agent["id"], "workflow": wf["id"],
-                  "why": "its look finished after you said yes to the page",
-                  "sherlock_findings": findings})
-        out["landed"] = "proposal"
+        # No page to land on, or the person already said yes (harness 2a: nothing lands after
+        # a yes): the findings stay on their page, a line in Activity, nothing in the
+        # conversation.
+        world.journal.append("did", f"Sherlock kept {len(findings['suggestions'])} suggestions"
+                             f" for \"{subject['title']}\" on its findings page.",
+                             actor=agent["id"], thread=agent.get("thread"),
+                             data={"agent": agent["id"], "conversation": cid, "page": page["id"],
+                                   "sherlock_findings": findings})
+        out["landed"] = "findings"
     out["suggestions"] = len(findings["suggestions"])
     return out
-
-
-def pending_findings(world: World, cid: str | None) -> dict[str, Any] | None:
-    """Findings kept for a conversation whose page was not drafted yet."""
-    if not cid:
-        return None
-    row = world.store.one(
-        "SELECT data FROM journal WHERE kind = 'did' AND deleted_at IS NULL"
-        " AND json_extract(data, '$.conversation') = ?"
-        " AND json_extract(data, '$.sherlock_findings') IS NOT NULL ORDER BY rowid DESC LIMIT 1",
-        (cid,))
-    if row is None:
-        return None
-    from alpha.world.store import loads
-
-    data = loads(row["data"], {})
-    findings: dict[str, Any] | None = data.get("sherlock_findings")
-    return findings
 
 
 # ---- the frame: look, run, mention ----
@@ -409,14 +382,13 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
     conversations: list[str] = []
     for e in entries:
         d = e["data"]
-        if e["kind"] == "proposed" and d.get("workflow") and e["actor"] != agent["id"]:
-            wid = str(d["workflow"])
-            if wid not in workflows:
-                workflows.append(wid)
-        elif e["kind"] == "asked" and e["thread"] and e["actor"] != agent["id"] \
+        # Since the harness (17 Oct, 2a) a drafted page no longer starts a look of its own:
+        # nothing lands after the person's yes. Sherlock looks when asked (@Sherlock), and at
+        # an interview begun in a conversation with no page yet.
+        if e["kind"] == "asked" and e["thread"] and e["actor"] != agent["id"] \
                 and not d.get("columbo") and not d.get("routing"):
             cid = str(e["thread"])
-            if cid in conversations or world.workflows.of_thread(cid):
+            if cid in conversations:
                 continue
             try:
                 if world.modules.thread(cid)["kind"] != "chat":
@@ -448,20 +420,6 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     stopped = False
     model_ms = 0
     subjects: list[dict[str, Any]] = []
-    for wid in about.get("workflows") or []:
-        try:
-            wf = world.workflows.get(wid)
-        except Problem:
-            continue
-        subject = subject_of_workflow(world, wf)
-        kept = pending_findings(world, wf.get("conversation"))
-        if kept and kept.get("suggestions") and wf["state"] == "drafted" and not any(
-                s.get("by") == agent["id"] for s in wf["body"].get("suggestions") or []):
-            # a look that finished before the page: it lands now, no new look
-            landed = land(world, agent, subject, {**kept, "questions": []})
-            brought["suggestions"] += landed["suggestions"]
-            continue
-        subjects.append(subject)
     for cid in about.get("conversations") or []:
         try:
             subjects.append(subject_of_conversation(world, cid))

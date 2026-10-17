@@ -28,7 +28,6 @@ from alpha.world.store import Problem, local_midnight_utc
 
 def routes(app: FastAPI, s: Served) -> None:
     world = s.world
-    scheduler = s.scheduler
     running = s.running
     live = s.live
     api = s.api
@@ -139,8 +138,8 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.post("/api/workflows/{wid}/agree", dependencies=[api])
     def agree_workflow(wid: str, body: AgreeWorkflowBody | None = None) -> dict[str, Any]:
-        """The yes on the page (§12): suggestions decided, answers kept, then agreed; the
-        build follows in the background (`scheduler.builds`)."""
+        """The yes on the page (§12): suggestions decided, answers kept, then agreed; Alpha
+        does the work in the conversation at once (harness 2a)."""
         if body:
             for sid, decision in (body.suggestions or {}).items():
                 world.workflows.decide_suggestion(wid, sid, decision)
@@ -150,16 +149,16 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("did", f"You agreed your workflow: {agreed['title']}.",
                              actor="person", thread=agreed.get("conversation"),
                              data={"workflow": wid})
-        if live:
-            scheduler.builds()
+        # Alpha does the work in the conversation, now, as one piece (harness 2a): a turn of
+        # its own there, the window following it like any other.
+        if agreed.get("conversation"):
+            running.start(AskBody(
+                text=f"The person agreed the page \"{agreed['title']}\" in the app. Do the"
+                     " work now, here, as one piece: make what the page says, run it once,"
+                     " and report what it holds.",
+                conversation=agreed["conversation"]), actor="alpha",
+                journal_as=f"Agreed in the app: {agreed['title']}. Doing it now.")
         return agreed
-
-    @app.post("/api/workflows/{wid}/resume", dependencies=[api])
-    def resume_workflow(wid: str) -> dict[str, Any]:
-        out = world.workflows.resume(wid)
-        if live:
-            scheduler.builds()
-        return out
 
     @app.post("/api/workflows/{wid}/decline", dependencies=[api])
     def decline_workflow(wid: str) -> dict[str, Any]:

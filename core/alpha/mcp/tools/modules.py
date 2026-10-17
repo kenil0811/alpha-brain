@@ -27,9 +27,6 @@ class Modules(Base):
         search, Cold calls). Name it the way the person would; goal in their words. parent: the
         module it sits inside, when the person's area has parts (Job holds Search and Resume);
         a parent's page and conversation reach everything inside it."""
-        refused = self._gate("Making a module")
-        if refused:
-            return refused
         module = self.world.modules.create(name, goal, parent=parent)
         where = f" inside {self.world.modules.path_words(module['parent'])}" \
             if module.get("parent") else ""

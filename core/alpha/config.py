@@ -58,7 +58,6 @@ class Runs:
     part_attempts: int
     silence_s: int
     partial_chars: int
-    script_timeout_s: int
 
 
 @dataclass(frozen=True)
@@ -131,12 +130,6 @@ class Views:
 
 
 @dataclass(frozen=True)
-class Proxy:
-    connect_timeout_s: int
-    idle_s: int
-
-
-@dataclass(frozen=True)
 class Accounts:
     status_timeout_s: int
 
@@ -183,7 +176,6 @@ class Settings:
     files: Files
     calendar: Calendar
     views: Views
-    proxy: Proxy
     accounts: Accounts
     doc: Doc
     columbo: Columbo

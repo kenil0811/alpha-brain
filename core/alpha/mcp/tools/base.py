@@ -200,29 +200,6 @@ class Base:
             return True  # no such table: the tool says so itself
         return owner is None or owner in self.world.modules.subtree(module)
 
-    def _building(self) -> dict[str, Any] | None:
-        """The build thread this turn runs in, if it is one that may make lasting things: a
-        thread of kind build that is not a workflow's walled session (that session writes
-        files; the core makes the tables from the page, §12). Since 12 Oct 2026 (Q40) no
-        code opens such a thread (a plan's old ones became topics on 14 Oct): lasting things
-        come from the page; the door for agents and readers of their own is the agent's page
-        question."""
-        if not self.thread:
-            return None
-        thread = self.world.modules.thread(self.thread)
-        if thread["kind"] != "build" or self.world.workflows.of_thread(self.thread):
-            return None
-        return thread
-
-    def _gate(self, what: str) -> dict[str, Any] | None:
-        """Lasting things are made only in a build the person said yes to."""
-        if self._building():
-            return None
-        return {"error": f"{what} happens only in a build the person said yes to. Understand"
-                " their workflow first (the interview), write it with workflow_draft, and the"
-                " build starts after their yes on the page. For a plain log with nowhere to"
-                " keep it, use table_start."}
-
     def _provenance(self, source: str, assumed: str | None) -> dict[str, Any]:
         return provenance_of(source, assumed, turn=self.turn)
 

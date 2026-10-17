@@ -4,21 +4,17 @@ be undone; whose fault first; the Mac's and Alpha's own faults reported, never t
 
 from __future__ import annotations
 
-import json
 import threading
 import time
-from pathlib import Path
 from typing import Any
 
 from conftest import building
 from fastapi.testclient import TestClient
 from test_actions import PAYLOAD, Driver, gmail_connected, keep_procedure, restore, said, with_fake
 from test_agents import connections_table
-from test_workflow_build import agreed_page, builder, home  # noqa: F401  (the fixture)
 
 from alpha.api.server import create_app
-from alpha.runtime import acting, pipeline, workflow_build
-from alpha.runtime import parts as parts_module
+from alpha.runtime import acting, pipeline
 from alpha.runtime.agents import builtin, doc, look_and_run
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
@@ -185,63 +181,6 @@ def test_doc_repairs_a_procedure_after_an_approved_action_failed(world: World) -
         restore()
 
 
-CRASH_PY = """import json, sys
-row = json.load(sys.stdin)
-raise RuntimeError("boom: no column households")
-"""
-
-
-def test_doc_fixes_a_part_in_its_workspace_once_per_cause(world: World, home: Path) -> None:  # noqa: F811
-    wf = agreed_page(world)
-    built = workflow_build.run(world, wf["id"], runner=builder())
-    module = world.modules.get(built["module"])
-    ws = Path(module["workspace"])
-    good = (ws / "parts" / "checks.py").read_text()
-    (ws / "parts" / "checks.py").write_text(CRASH_PY)
-    me = with_doc(world)
-    c = TestClient(create_app(world, live=False))
-    rec = c.post("/api/tables/site/records", json={"values": {"address": "1 Main St"}}).json()
-    parts_module.run_due(world, module_id=module["id"])
-    failed = world.journal.recent(5, kinds=["failed"])[-1]
-    assert failed["data"]["part"] == "checks" and "RuntimeError: boom" in failed["text"]
-    turns: list[TurnRequest] = []
-
-    def fixer(req: TurnRequest) -> RunResult:
-        if req.kind == "judge":  # whose fault, from the traceback
-            return RunResult(ok=True, reply=json.dumps({"fault": "know_how",
-                                                        "why": "a bug in the part"}))
-        turns.append(req)
-        assert req.workspace == str(ws) and req.actor == me["id"]
-        assert "repairing one part of their workflow" in req.system
-        (ws / "parts" / "checks.py").write_text(good)
-        return RunResult(ok=True, reply="The part read a column that isn't there; fixed.")
-
-    out = look_and_run(world, "doc", runner=fixer)
-    assert out and out["last_result"] == "Fixed Trade area checks."
-    assert len(turns) == 1  # one repair, though the part failed twice (two attempts) on the row
-    run = world.runs.last(me["id"])
-    assert run and run["trigger"] == "event" and run["verdict"] == "succeeded"
-    row = world.collections.get("site", rec["id"])
-    assert row["households"] == 52000  # the rerun filled the row
-    fixed = world.journal.recent(5, kinds=["changed"])[-1]
-    assert fixed["actor"] == me["id"] and fixed["text"].startswith("Doc fixed the part Trade area")
-    assert fixed["data"]["part"] == "checks"
-    [d] = world.decisions.about("part", "checks")
-    assert d["by"] == me["id"] and d["about"]["cause"].startswith("RuntimeError: boom")
-    # the workspace has Doc's commit
-    from alpha.runtime import workspace as workspace_module
-
-    assert "Doc:" in workspace_module._git(ws, "log", "--oneline", "-1")
-    # the same crash again is not repaired twice: it is reported
-    (ws / "parts" / "checks.py").write_text(CRASH_PY)
-    rec2 = c.post("/api/tables/site/records", json={"values": {"address": "2 Main St"}}).json()
-    parts_module.run_due(world, module_id=module["id"])
-    out = look_and_run(world, "doc", runner=fixer)
-    assert out and out["last_result"].startswith("Reported 1 failure that is not Alpha's know-how")
-    assert len(turns) == 1
-    report = world.journal.recent(3, kinds=["did"])[-1]
-    assert report["actor"] == me["id"] and "crashed the same way again" in report["text"]
-    assert world.collections.get("site", rec2["id"]).get("households") is None
 
 
 def test_the_macs_own_failures_are_reported_not_fixed(world: World) -> None:

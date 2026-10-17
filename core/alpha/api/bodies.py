@@ -113,10 +113,6 @@ class AgreeWorkflowBody(BaseModel):
     answers: dict[str, str] | None = None
 
 
-class RunPartBody(BaseModel):
-    """The row a part runs on (§12)."""
-    row: str
-
 
 class AddFieldBody(BaseModel):
     """A field the person adds (slice 2 B1): its name in their words and its kind."""

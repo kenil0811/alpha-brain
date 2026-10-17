@@ -17,10 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import getpass
-import json
 import logging
-import os
-import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -45,7 +42,6 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import McpSdkServerConfig, SyncHookJSONOutput
 
 from alpha import config
-from alpha.runtime import workspace as workspace_module
 from alpha.runtime.claude_cli import (
     DENIED,
     LIVE,
@@ -54,7 +50,6 @@ from alpha.runtime.claude_cli import (
     SILENCE_S,
     STALLED,
     STOPPED,
-    WORKSPACE_TOOLS,
     RunResult,
     TurnRequest,
     parse_result,
@@ -73,14 +68,9 @@ ClientFactory = Callable[[ClaudeAgentOptions], Any]
 
 
 def environment(req: TurnRequest) -> dict[str, str]:
-    """What the session's process gets on top of the core's own environment. The SDK merges
-    this over `os.environ`, so a variable cannot be removed, only blanked: a build's shell sees
-    no `ALPHA_*` secret of the core's, as before."""
-    env = {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "false"}
-    if req.workspace:
-        env["ALPHA_PYTHON"] = sys.executable
-        env.update({k: "" for k in os.environ if k.startswith("ALPHA_") and k != "ALPHA_PYTHON"})
-    return env
+    """What the session's process gets on top of the core's own environment (the SDK merges it
+    over `os.environ`)."""
+    return {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "false"}
 
 
 def sessions_dir(world_path: Path) -> Path:
@@ -97,7 +87,7 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
     """The SDK's options for a request: the same tools, walls and session rules the CLI route
     passed as flags."""
     allowed = tools_allowed(req)
-    denied = ([d for d in DENIED if d not in WORKSPACE_TOOLS] if req.workspace else list(DENIED))
+    denied = list(DENIED)
     if not allowed:
         denied += ["WebSearch", "WebFetch"]
     extra: dict[str, str | None] = {"permission-prompts": "none"}
@@ -120,16 +110,11 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         "mcp_servers": {"alpha": server} if server is not None else {},
         "env": environment(req),
         "extra_args": extra,
-        "cwd": req.workspace or str(sessions_dir(req.world_path)),
+        "cwd": str(sessions_dir(req.world_path)),
         "resume": req.resume,
     }
     if hooks:
         kw["hooks"] = hooks
-    if req.workspace:
-        settings = workspace_module.sandbox_settings(Path(req.workspace), req.hosts,
-                                                     req.world_path)
-        kw["tools"] = [*WORKSPACE_TOOLS, "WebSearch", "WebFetch"]
-        kw["settings"] = json.dumps(settings)
     return ClaudeAgentOptions(**kw)
 
 

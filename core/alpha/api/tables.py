@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import csv
 import tempfile
-import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,6 @@ from alpha.api.bodies import (
     RecordBody,
     RelabelFieldBody,
     RenameModuleBody,
-    RunPartBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -33,7 +31,6 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
-from alpha.runtime import parts
 from alpha.world.knowledge import RECORD_NOTE
 from alpha.world.modtables import is_qualified
 from alpha.world.purge import document_removal, removal_plan, remove_document, remove_module
@@ -80,18 +77,6 @@ def routes(app: FastAPI, s: Served) -> None:
         card["decisions"] = [d for i in ids for d in world.decisions.about("module", i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
-
-    @app.post("/api/modules/{ref}/parts/{part}/run", dependencies=[api])
-    def run_part(ref: str, part: str, body: RunPartBody) -> dict[str, Any]:
-        """A part run when asked, from a thing's page (§12): the row's values go in, what it
-        fills comes back into the row with its sources."""
-        m = world.modules.get(ref)
-        return parts.run_part(world, m["id"], part, body.row)
-
-    @app.get("/api/modules/{ref}/parts", dependencies=[api])
-    def list_parts(ref: str) -> list[dict[str, Any]]:
-        m = world.modules.get(ref)
-        return parts.parts_of(m.get("workspace"))
 
     @app.post("/api/modules", dependencies=[api])
     def create_module(body: CreateModuleBody) -> dict[str, Any]:
@@ -411,12 +396,6 @@ def routes(app: FastAPI, s: Served) -> None:
         rec = world.collections.add(name, body.values, {"by": "person"})
         person_did("did", f"You added a row to {world.collections.describe(name)['title']}.",
                    name, {"record": rec["id"]})
-        module_id = world.collections.describe(name)["module"]
-        if live and module_id and scheduler is not None:
-            # A part that runs when a row arrives runs now, in the background (§12).
-            threading.Thread(target=parts.run_due, args=(world,),
-                             kwargs={"module_id": module_id}, daemon=True,
-                             name=f"parts-{module_id}").start()
         return rec
 
     @app.patch("/api/tables/{name}/records/{rid}", dependencies=[api])
@@ -436,15 +415,6 @@ def routes(app: FastAPI, s: Served) -> None:
                    f"{world.collections.describe(name)['title']}.", name,
                    {"record": rid, "before": {k: before.get(k) for k in body.values},
                     "after": body.values})
-        module_id = world.collections.describe(name)["module"]
-        if module_id and parts.parts_of(world.modules.get(module_id).get("workspace")):
-            # A changed setting, or a changed row, is a reason to try the parts again (§12).
-            is_setting = parts.table_of(world, module_id, "settings") == name
-            parts.retry(world, module_id, row=None if is_setting else (name, rid))
-            if live and scheduler is not None:
-                threading.Thread(target=parts.run_due, args=(world,),
-                                 kwargs={"module_id": module_id}, daemon=True,
-                                 name=f"parts-{module_id}").start()
         return rec
 
     @app.delete("/api/tables/{name}/records/{rid}", dependencies=[api])

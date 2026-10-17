@@ -43,9 +43,6 @@ class Tables(Base):
         rows_are: "person" or "organisation" when each row is one (a contact, a company), with
         identity_field the field holding what identifies it for sure (an email address or a
         profile URL): every row is then linked to that person or organisation across Alpha."""
-        refused = self._gate("Making a table")
-        if refused:
-            return refused
         module_id = self.world.modules.get(module)["id"] if module else None
         identity = ({"rows_are": rows_are, "field": identity_field or ""}
                     if rows_are else None)

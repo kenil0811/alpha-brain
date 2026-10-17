@@ -122,10 +122,6 @@ class Reading(Base):
         (then rows that drop off it are not counted as gone). When the page shows more pages
         you must say which. when_to_use: one line on when this skill is the right one (it is
         in every turn's context, so you reuse it instead of writing another)."""
-        if name not in self.world.readers.names():
-            refused = self._gate("Writing a new reader")
-            if refused:
-                return refused
         browser = Browser(self.world)
         out = browser.script(url, script, to_end=to_end, turn=self.turn, module=self.module,
                              label=f"the new reader {name}")
@@ -234,16 +230,11 @@ class Reading(Base):
         it), unavailable (nothing to read: a dead link, no list on the page) or skipped (the
         person chose not to read it), with detail in plain words. reader: the reader that
         reads it. Working and broken are set by the reader's runs."""
-        refused = self._gate("Recording a source")
-        if refused:
-            return refused
         if status not in ALPHA_SETS:
             return {"error": f"Set status {', '.join(ALPHA_SETS)}; the others"
                     f" ({', '.join(s for s in SOURCE_STATUSES if s not in ALPHA_SETS)}) come"
                     " from the reader's runs."}
-        build = self._building()
-        module_id = (self.world.modules.get(module)["id"] if module
-                     else self.module or (build["module"] if build else None))
+        module_id = self.world.modules.get(module)["id"] if module else self.module
         return self.world.sources.add(title, url, module=module_id, reader=reader,
                                       status=status, detail=detail)
 

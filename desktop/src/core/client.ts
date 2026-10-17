@@ -293,15 +293,6 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   sources: Source[];
 }
 
-export interface Part {
-  id: string;
-  step: string;
-  title: string;
-  reads: { thing: string; fields: string[] };
-  fills: { thing: string; fields: string[] };
-  when: string;
-  reaches: string[];
-}
 
 /** A place a module reads from, and whether it works (kept by the platform from what happened). */
 export interface Source {
@@ -1003,10 +994,6 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
-  /** The parts a program module declared (§12): the steps Alpha does, each with when it runs. */
-  parts = (module: string) => this.call<Part[]>("GET", `/api/modules/${encodeURIComponent(module)}/parts`);
-  runPart = (module: string, part: string, row: string) =>
-    this.call<{ ok: boolean; exit: number; values?: Record<string, unknown>; problems?: Record<string, string>; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/parts/${encodeURIComponent(part)}/run`, { row });
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
@@ -1226,7 +1213,6 @@ export class Client {
   agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
     this.call<Workflow>("POST", `/api/workflows/${id}/agree`, suggestions || answers ? { suggestions, answers } : undefined);
   declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
-  resumeWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/resume`);
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null; open?: string | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   /** What Alpha knows, changed by the person (13 Oct, slice 2 D1, D11, D1b). */

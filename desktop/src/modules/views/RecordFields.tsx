@@ -1,15 +1,10 @@
 /** One record's fields: every field editable in place, the long texts under, when it was
  *  added and last changed, and beside each value where it came from (§12). The record's own
- *  page shows them (`RecordPage`), and so does the form view. `ThingActions` are the buttons for
- *  what Alpha can do with the record: the parts that run when asked, and Try again for a part
- *  that could not fill its fields. */
-import type { Part, Provenance, RecordRow, Relations } from "../../core/client";
+ *  page shows them (`RecordPage`), and so does the form view. */
+import type { Provenance, RecordRow, Relations } from "../../core/client";
 import { fieldLabel, type FieldInfo } from "../fields";
 import { dayText, when as whenText } from "../format";
-import { useState } from "react";
-import { Button } from "../../ui";
 import { Cell, CheckMark, LongText } from "./cells";
-import { say } from "../../core/client";
 
 /** `page`: on the record's own page the title is a field like the rest (it is edited there) and
  *  the dates are in the page's header, so neither repeats here. */
@@ -80,37 +75,3 @@ function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[str
   );
 }
 
-/** What Alpha can do with this thing (§12): the parts that run when asked, and a run again
- *  for a part that could not fill its fields. */
-export interface ThingAction {
-  id: string;
-  title: string;
-  again?: boolean;
-}
-
-/** The parts of `table`'s module that work on this row: the ones run when asked, and Try
- *  again for any that left a field with a problem. */
-export function actionsFor(parts: Part[], table: string, row: RecordRow): ThingAction[] {
-  const mine = parts.filter((p) => p.fills.thing === table || table.endsWith(`_${p.fills.thing}`));
-  const asked = mine.filter((p) => p.when === "asked").map((p) => ({ id: p.id, title: p.title }));
-  const failed = new Set(Object.values(row.provenance.fields ?? {}).filter((o) => o.problem && o.part).map((o) => o.part as string));
-  const again = mine.filter((p) => failed.has(p.id) && p.when !== "asked").map((p) => ({ id: p.id, title: p.title, again: true }));
-  return [...asked, ...again];
-}
-
-/** A button per action; one runs at a time and says how it went beside the buttons. */
-export function ThingActions({ actions, onRun }: { actions: ThingAction[]; onRun: (part: string) => Promise<unknown> }) {
-  const [running, setRunning] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  if (!actions.length) return null;
-  return (
-    <div className="row thing__actions" role="group" aria-label="What Alpha can do">
-      {actions.map((a) => (
-        <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setNote(null); void onRun(a.id).then(() => setNote(`${a.title}: done.`)).catch((e: unknown) => setNote(say(e))).finally(() => setRunning(null)); }}>
-          {running === a.id ? "Running…" : a.again ? `Try again: ${a.title}` : a.title}
-        </Button>
-      ))}
-      {note ? <span className="faint" role="status">{note}</span> : null}
-    </div>
-  );
-}

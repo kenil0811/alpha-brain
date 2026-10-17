@@ -14,7 +14,7 @@ from alpha.api.bodies import AskBody
 from alpha.api.served import Served
 from alpha.context.again import again, failures_view
 from alpha.context.entry_page import entry_page
-from alpha.runtime import acting, parts
+from alpha.runtime import acting
 from alpha.world.store import Problem
 
 
@@ -70,12 +70,6 @@ def routes(app: FastAPI, s: Served) -> None:
                                                           if k not in ("words", "asks")}})
         if how in ("agent", "automation"):
             s.scheduler.run_now(plan.get("agent") or plan["automation"], trigger="again")
-        elif how == "part":
-            def part_failed(why: str) -> None:
-                world.journal.append("failed", f"It couldn't run again: {why}", module=e["module"],
-                                     data={"part": plan["part"], "record": plan["record"]})
-            background(f"again-{jid}", lambda: parts.run_part(
-                world, plan["module"], plan["part"], plan["record"]), part_failed)
         elif how == "turn":
             s.running.start(AskBody(text=plan["text"], thread=plan["thread"], module=e["module"]))
         elif how == "action":

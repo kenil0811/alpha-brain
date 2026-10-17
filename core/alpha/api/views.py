@@ -221,7 +221,10 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
         "SELECT at, text FROM journal WHERE module = ? AND kind IN ('did','changed','made','saw')"
         " AND deleted_at IS NULL ORDER BY at DESC LIMIT 1", (m["id"],),
     )
-    return {**m, "tables": tables, "records": sum(t["records"] for t in tables),
+    # The person's rows: a module's settings table is Alpha's bookkeeping, not their data
+    # (16 Oct: a card said "2 rows" of a table that held none).
+    return {**m, "tables": tables,
+            "records": sum(t["records"] for t in tables if t.get("name") != "settings"),
             "last_at": last["at"] if last else None, "last_text": last["text"] if last else None,
             "threads": [t for t in world.modules.threads() if t["module"] == m["id"]],
             "path": [p["name"] for p in world.modules.path(m["id"])],

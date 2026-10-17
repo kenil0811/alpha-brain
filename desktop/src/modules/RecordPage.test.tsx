@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Client, Part, RecordRow, TableDesc } from "../core/client";
+import type { Client, RecordRow, TableDesc } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { RecordPage } from "./RecordPage";
 
@@ -12,11 +12,6 @@ const site: RecordRow = {
   provenance: { by: "alpha", fields: { traffic_aadt: { source: "Travis County GIS", fetched_at: "2026-10-11T19:00:00+00:00", part: "traffic" }, households_3mi: { problem: "Census API key required", part: "households" } } },
   seen_at: null, gone_at: null, entity: null,
 };
-const parts: Part[] = [
-  { id: "households", step: "s1", title: "Households within 3 miles", reads: { thing: "site", fields: ["address"] }, fills: { thing: "sites", fields: ["households_3mi"] }, when: "added", reaches: [] },
-  { id: "memo", step: "s2", title: "Write the memo", reads: { thing: "site", fields: [] }, fills: { thing: "sites", fields: [] }, when: "asked", reaches: [] },
-];
-
 function mount(table: TableDesc = sites) {
   const client = {
     record: vi.fn(async () => ({ table, record: site, relations: {}, note: null as null | { id: string; scope: string; title: string; body: string; updated_at: string } })),
@@ -28,10 +23,8 @@ function mount(table: TableDesc = sites) {
           ], more: true, added: null }
         : { changes: [{ revision: 2, at: "2026-10-11T17:59:00+00:00", by: { by: "alpha", reader: "census_sites" }, fields: [{ field: "households_3mi", before: 1, after: null }] }], more: false, added: { at: "2026-10-11T17:59:00+00:00", by: { by: "alpha", reader: "census_sites" } } }),
     writeNote: vi.fn(async () => ({})),
-    parts: vi.fn(async () => parts),
     editRecord: vi.fn(async (_t: string, _id: string, values: Record<string, unknown>) => ({ ...site, revision: 5, values: { ...site.values, ...values } })),
     deleteRecord: vi.fn(async () => ({ removed: "r1" })),
-    runPart: vi.fn(async () => ({ ok: true, exit: 0, output: "" })),
   };
   const onGo = vi.fn();
   render(
@@ -52,15 +45,6 @@ describe("a record's own page", () => {
     expect(screen.getByText(/not filled: Census API key required/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Car wash sites" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1", table: "car_wash_sites" });
-  });
-
-  it("offers the parts run when asked and Try again for one that could not fill", async () => {
-    const user = userEvent.setup();
-    const { client } = mount();
-    const acts = await screen.findByRole("group", { name: "What Alpha can do" });
-    expect(within(acts).getAllByRole("button").map((b) => b.textContent)).toEqual(["Write the memo", "Try again: Households within 3 miles"]);
-    await user.click(within(acts).getByRole("button", { name: "Try again: Households within 3 miles" }));
-    await waitFor(() => expect(client.runPart).toHaveBeenCalledWith("m1", "households", "r1"));
   });
 
   it("edits a value in place with the record's revision, the title among them", async () => {

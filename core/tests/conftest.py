@@ -12,9 +12,9 @@ from alpha.world.world import World
 
 
 def building(world: World, *, turn: str | None = None, module: str | None = None) -> Tools:
-    """Tools acting inside a build that may make lasting things (modules, tables, readers,
-    agents, sources): a thread of kind build that is no workflow's walled session. No
-    code opens one since 12 Oct 2026 (Q40); the tests use it to make what they test on."""
+    """Tools bound to a thread of their own, to make what a test needs. (Until 17 Oct 2026 a
+    gate let lasting things be made only in a build thread; the gate is gone with the harness's
+    slice 2a, and any turn may make them. The name stays for the tests that call it.)"""
     thread = world.modules.open_thread("Test build", "build", module)
     world.modules.update_thread(thread["id"], state="done")
     return Tools(world, turn=turn, thread=thread["id"], module=module)

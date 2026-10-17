@@ -1,0 +1,12 @@
+name: watch_from_words
+title: "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows"
+why: The harness design's §17, sentence 3 (17 Oct 2026). A public job board, read from words
+  into a table kept by an agent on a schedule, in one turn; the first rows are what the person
+  sees. Before 17 Oct, saving the reader and the schedule was refused everywhere (the gate).
+fresh: true
+steps:
+  - say: "watch We Work Remotely for back-end roles"
+checks:
+  - made_since: {tables: 1, readers: 1, agents: 1}
+  - rows_since: {at_least: 1}
+  - agent_is_pipeline: {}

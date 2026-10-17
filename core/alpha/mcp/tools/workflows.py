@@ -66,10 +66,11 @@ class WorkflowTools(Base):
                        answers: str | None = None) -> dict[str, Any]:
         """The person said yes to their workflow page: quote their words from this message;
         suggestions: what they said about each ({suggestion id: "accept" | "skip"}); answers:
-        their answers to the questions, if any. The build then runs in the background and
-        says so here; tell them in one line. Only for a page drafted before this message."""
+        their answers to the questions, if any. Then do the work in this same turn, with the
+        tools, as one piece, and report what it holds. Only for a page drafted before this
+        message (or one that stopped: a yes again picks it up)."""
         current = self.world.workflows.get(workflow)
-        if current["state"] != "drafted":
+        if current["state"] not in ("drafted", "stopped"):
             return {"workflow": workflow, "state": current["state"],
                     "note": f"It is already {current['state']}; nothing to agree again."}
         problem = self._persons_words(quote)
@@ -100,7 +101,8 @@ class WorkflowTools(Base):
                                                  "suggestion": sg.get("id"), "turn": said},
                     about={**about, "suggestion": sg.get("id")})
         return {"workflow": workflow, "state": agreed["state"],
-                "note": "The build starts in the background and reports here."}
+                "note": "Agreed. Do the work now, in this turn: make what the page says, run it"
+                        " once, and report what it holds."}
 
     @tool(writes="workflows")
     def workflow_decline(self, workflow: str) -> dict[str, Any]:
@@ -108,15 +110,3 @@ class WorkflowTools(Base):
         declined = self.world.workflows.decline(workflow)
         self._did("did", f"Set aside the workflow {declined['title']}.", {"workflow": workflow})
         return {"workflow": workflow, "state": declined["state"]}
-
-    @tool(writes="workflows")
-    def workflow_resume(self, workflow: str, quote: str) -> dict[str, Any]:
-        """The person wants a build that stopped to carry on ("continue"): quote their words
-        from this message. It picks up in the background from the workspace."""
-        problem = self._persons_words(quote) if len(quote.split()) >= 3 else (
-            None if self._said_contains(quote) else "quote must be the person's own words.")
-        if problem:
-            return {"error": problem}
-        out = self.world.workflows.resume(workflow)
-        return {"workflow": workflow, "state": out["state"],
-                "note": "The build carries on in the background and reports here."}

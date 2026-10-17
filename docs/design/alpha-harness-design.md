@@ -200,6 +200,12 @@ the new shape both are skill directories with a `SKILL.md` and a script, written
 run by the model (or by the scheduler without a model when the skill says it needs none). Doc's
 repair is editing the file. Versions are git in the directory.
 
+| Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
+|---|---|
+| Built | Slice 2a: no tool is closed by the kind of thread the turn runs in. `Tools._gate` and `_building` are gone; `module_create`, `collection_create`, `reader_save`, `agent_create` and `source_add` work in any turn and journal what they made. |
+| Differs | The 73 tools keep their names and shapes until slice 2b (`world_*`, `browser_*`, `skill_keep`, `agent_keep`, `schedule_keep`, `act_outward`). |
+| Not built | The fifteen tools; the SDK's shell, files and subagents in a turn; `act_outward` through the permission callback (acting outward keeps its card, Q24). |
+
 ## 5. The world
 
 The world store is the part of Alpha that is right and stays: one SQLite file per person; the
@@ -304,6 +310,12 @@ journaled). Every by-script skill carries a **check** in its `SKILL.md` (the out
 sample, "at least 95% of last time's count" for a list), so the scheduler judges a run without a
 model and Doc knows what repaired means: today's `reader_health`, generalised.
 
+| Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
+|---|---|
+| Built | Slice 2a: a standing thing (a table, a reader, an agent with its schedule, a module) is made in the turn, said in a line, run once and reported (`turn.md` rule 6); the workflow page stays as plan mode for a big job or "plan it first" (rule 7), and after the yes Alpha does the work in the same conversation; the build machinery (the walled session, parts, the proxy, "Say continue") is gone. |
+| Differs | Skills are still rows in the `skills` table (readers, procedures, pipelines), not directories; the form of a skill (§6.1) is not marked yet; Doc still edits rows. Slice 2b. |
+| Not built | Skills as Agent Skills directories with the migration, `agent_keep` and `schedule_keep` as files and rows the model writes, standing permissions in `ALPHA.md`, promotion and demotion between the forms (§6.1). |
+
 ## 7. Conversations and parallel work
 
 Kenil, 17 Oct: "the user may be working on multiple conversations / topics / projects in
@@ -398,6 +410,12 @@ added directories. The whole Mac is a toggle the person sets, off by default.
 
 **Implementation:** the SDK's permission callback decides every tool call by these rules, in code;
 the prompt repeats them. A hook journals every call. There is no other gate.
+
+| Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
+|---|---|
+| Built | Slice 2a: the scope gate is gone; the only gates are the actions that ask (acting outward through its card, Q24; deleting the person's own entries; sign-ins). The prompt's rule: say in a line what is about to be made, make it, ask only when the answer changes what gets made and cannot be defaulted. |
+| Differs | The questions still go through `ask_person` cards and the permission for outward actions through `action_propose`'s card, not yet the SDK's permission callback. The person's folders and the whole-Mac toggle are not in Settings yet. |
+| Not built | The permission callback path (`default` mode, the sensitive tools out of `allowed_tools`, `defer` across restarts), the granted folders, the whole-Mac toggle (slices 2b, 6). |
 
 ## 9. Proactiveness
 

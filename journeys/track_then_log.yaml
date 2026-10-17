@@ -1,0 +1,13 @@
+name: track_then_log
+title: "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row"
+why: The harness design's §17, sentence 2 (17 Oct 2026). Before, a tracker ask went to an
+  interview and a page; a plain log with nowhere to go was the one thing done at once. Now a
+  standing thing is made in the turn, said in a line, and the log lands in it.
+fresh: true
+steps:
+  - say: "track what I eat"
+  - say: "log two eggs"
+checks:
+  - made_since: {tables: 1}
+  - rows_since: {at_least: 1}
+  - reply: {matches: "egg"}

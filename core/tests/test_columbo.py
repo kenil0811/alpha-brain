@@ -13,13 +13,11 @@ import pytest
 from conftest import building
 from fastapi.testclient import TestClient
 from test_actions import PAYLOAD, Driver, gmail_connected, keep_procedure, restore, with_fake
-from test_workflow_build import agreed_page, builder, home  # noqa: F401  (the fixture)
 
 from alpha import config
 from alpha.api.server import create_app
 from alpha.mcp.tools import Tools, provenance_of, provenance_words
-from alpha.runtime import claude_cli, workflow_build
-from alpha.runtime import parts as parts_module
+from alpha.runtime import claude_cli
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.claude_cli import RunResult, TurnRequest
@@ -473,83 +471,6 @@ def test_one_way_failing_makes_the_run_partial(world: World,
 
 
 # ---- a part's values ----
-
-
-def test_a_parts_first_filled_row_is_checked_once_and_again_after_a_repair(
-        world: World, home: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
-    an_hour_later(monkeypatch)
-    wf = agreed_page(world)
-    built = workflow_build.run(world, wf["id"], runner=builder())
-    module = world.modules.get(built["module"])
-    me = with_columbo(world)
-    c = TestClient(create_app(world, live=False))
-    seen: list[TurnRequest] = []
-    verdict = {"judge": AGREE}
-
-    def runner(req: TurnRequest) -> RunResult:
-        seen.append(req)
-        if triage_call(req):
-            assert "A workflow part filled a row" in req.sentence
-            return RunResult(reply='{"check": "both", "why": "public figures"}', ok=True)
-        if req.kind == "independent":
-            assert "checking values on your own" in req.system
-            assert "households = 52000" in req.sentence and "Census ACS" in req.sentence
-            return RunResult(reply="52,000 households (census.gov); 31,000 cars a day (txdot.gov).",
-                             ok=True)
-        return RunResult(reply=verdict["judge"], ok=True)
-
-    rec = c.post("/api/tables/site/records", json={"values": {"address": "1 Main St"}}).json()
-    parts_module.run_due(world, module_id=module["id"])
-    out = look_and_run(world, "columbo", runner=runner)
-    # the checks part filled two numbers (checked); the memo part filled words (not a number)
-    assert out and out["last_result"] == "Looked at 1 part: 1 checked; it agrees."
-    # the triage, the outside way; no rows before it, so no world judge
-    assert [r.kind for r in seen] == ["judge", "independent", "judge"]
-    row = world.collections.get("site", rec["id"])
-    marks = row["_provenance"]["fields"]
-    assert marks["households"]["checked"]["agree"] and marks["traffic"]["checked"]["agree"]
-    assert marks["households"]["source"].startswith("Census ACS")  # the origin stays
-    checked = world.journal.recent(1, kinds=["checked"])[0]
-    assert checked["data"]["part"] == "checks" and checked["module"] == module["id"]
-    assert checked["text"].startswith("The part Trade area checks on 1 Main St: checked against")
-    # a second row the part fills is not checked again
-    c.post("/api/tables/site/records", json={"values": {"address": "2 Main St"}})
-    parts_module.run_due(world, module_id=module["id"])
-    assert look_and_run(world, "columbo", runner=runner) is None
-    # after Doc repairs the part, its next filled row is checked again, this time with the
-    # rows before it for the world way; a difference asks the person
-    world.journal.append("changed", "Doc fixed the part Trade area checks: a wrong column.",
-                         actor="a_doc", module=module["id"],
-                         data={"part": "checks", "repair": "run_x", "module": module["id"]})
-    verdict["judge"] = json.dumps({"agree": False, "differences": [
-        {"what": "households", "alpha": "52000", "independent": "48,100", "source": "census.gov"}],
-        "unstated": []})
-    seen.clear()
-    third = c.post("/api/tables/site/records", json={"values": {"address": "3 Main St"}}).json()
-    parts_module.run_due(world, module_id=module["id"])
-    out = look_and_run(world, "columbo", runner=runner)
-    assert out and out["last_result"] == ("Looked at 1 part: 1 checked; 0 agree, 1 differs;"
-                                          " asked you about 1.")
-    assert [r.kind for r in seen] == ["judge", "independent", "judge", "judge"]
-    assert "Other rows the part" in seen[3].sentence and "1 Main St" in seen[3].sentence
-    row3 = world.collections.get("site", third["id"])
-    assert row3["households"] == 52000  # Columbo never changes a value
-    assert row3["_provenance"]["fields"]["households"]["checked"]["agree"] is False
-    assert row3["_provenance"]["fields"]["traffic"]["checked"]["agree"] is True
-    [ask] = world.journal.open_asks()
-    assert ask["actor"] == me["id"] and ask["data"]["options"] == ["52000", "48,100"]
-    assert ask["text"] == ("Households of 3 Main St: the part Trade area checks has 52000,"
-                           " census.gov says 48,100. Which should Alpha keep?")
-    # the person's pick binds the field, as their own edit
-    c.post(f"/api/asks/{ask['id']}/answer", json={"text": "48,100"})
-    row3 = world.collections.get("site", third["id"])
-    assert row3["households"] == 48100 and row3["_provenance"]["by"] == "person"
-    assert row3["_provenance"]["fields"]["households"]["checked"]["agree"] is True
-    [d] = world.decisions.about("record", third["id"])
-    assert d["what"] == "Keep households = 48,100 for 3 Main St (census.gov)"
-
-
-# ---- an outward card ----
 
 
 def test_an_outward_cards_numbers_are_checked_before_the_yes_and_never_block(

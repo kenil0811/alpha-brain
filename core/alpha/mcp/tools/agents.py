@@ -33,9 +33,6 @@ class AgentTools(Base):
         anything that sends, posts or submits.
         goal: what it is for, in the person's words. name: a short name for it (the title
         when not given); the person can rename it."""
-        refused = self._gate("Setting up an agent")
-        if refused:
-            return refused
         clean = pipeline.check_steps(self.world, steps) if steps else None
         if not clean and not brief.strip():
             raise Problem("Give the agent steps (or, for judgement work, a brief).")

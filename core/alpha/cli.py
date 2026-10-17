@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("names", nargs="*", help="journeys to run (default: all)")
     p.add_argument("--world", help="the world file to copy (default: the app's)")
     p.add_argument("--keep", action="store_true", help="keep the scratch copy afterwards")
+    p.add_argument("--fresh", action="store_true",
+                   help="start from an empty world with the app's sign-ins (the first-day"
+                        " sentences), not a copy of the world")
     p.add_argument("--list", action="store_true", help="list the journeys and stop")
     p = sub.add_parser("check-desktop",
                        help="open every page of the window on a copy of the world and report")
@@ -123,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             failures, path = suite.run_suite(args.names or None,
                                              world_path=Path(args.world) if args.world else None,
-                                             keep=args.keep)
+                                             keep=args.keep, fresh=args.fresh)
         except Problem as e:
             print(str(e), file=sys.stderr)
             return 2

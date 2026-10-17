@@ -9,28 +9,26 @@
  * a change Undo can take back), only while the fields still hold what the change wrote.
  */
 import { useEffect, useState } from "react";
-import type { Client, Note, Part, Provenance, RecordChange, RecordHistory as History, RecordRow } from "../core/client";
+import type { Client, Note, Provenance, RecordChange, RecordHistory as History, RecordRow } from "../core/client";
 import { Button } from "../ui";
 import { showValue, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
 import { say } from "../core/client";
 
 /** Who made a change, in words: you, a reader, a part of the module, or Alpha. */
-export function whoChanged(by: Provenance, fields: string[], parts: Part[]): string {
+export function whoChanged(by: Provenance, fields: string[]): string {
   if (by.by === "person") return "You";
   if (by.reader) return `Reader ${humanize(by.reader)}`;
+  // Rows filled by a workflow's part before 17 Oct 2026 keep the part's id in their provenance.
   const partIds = new Set(fields.map((f) => by.fields?.[f]?.part).filter((p): p is string => Boolean(p)));
-  if (partIds.size === 1) {
-    const id = [...partIds][0];
-    return parts.find((p) => p.id === id)?.title ?? humanize(id);
-  }
+  if (partIds.size === 1) return humanize([...partIds][0]);
   return "Alpha";
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const LONG = 80;
 
-function Change({ change, row, fields, parts, readonly, onUndo }: { change: RecordChange; row: RecordRow; fields: Map<string, FieldInfo>; parts: Part[]; readonly: boolean; onUndo: (c: RecordChange) => Promise<void> }) {
+function Change({ change, row, fields, readonly, onUndo }: { change: RecordChange; row: RecordRow; fields: Map<string, FieldInfo>; readonly: boolean; onUndo: (c: RecordChange) => Promise<void> }) {
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   // the field's own label when it has one, else its name in words, as the details above say it
@@ -44,7 +42,7 @@ function Change({ change, row, fields, parts, readonly, onUndo }: { change: Reco
   };
   const isLong = (name: string) => fields.get(name)?.kind === "long_text" || [change.fields.find((x) => x.field === name)?.before, change.fields.find((x) => x.field === name)?.after].some((v) => String(v ?? "").length > LONG);
   const current = change.fields.every((f) => same(row.values[f.field], f.after));
-  const who = whoChanged(change.by, change.fields.map((f) => f.field), parts);
+  const who = whoChanged(change.by, change.fields.map((f) => f.field));
   return (
     <div className="item">
       <span className="item__when num">{change.at ? when(change.at) : ""}</span>
@@ -80,7 +78,7 @@ function Change({ change, row, fields, parts, readonly, onUndo }: { change: Reco
   );
 }
 
-export function RecordHistory({ client, table, row, fields, parts, readonly, version, onUndone }: { client: Client; table: string; row: RecordRow; fields: FieldInfo[]; parts: Part[]; readonly: boolean; version: number; onUndone: (saved: RecordRow) => void }) {
+export function RecordHistory({ client, table, row, fields, readonly, version, onUndone }: { client: Client; table: string; row: RecordRow; fields: FieldInfo[]; readonly: boolean; version: number; onUndone: (saved: RecordRow) => void }) {
   const [pages, setPages] = useState<History | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -132,12 +130,12 @@ export function RecordHistory({ client, table, row, fields, parts, readonly, ver
       {error ? <p className="notice" role="alert">{error}</p> : null}
       <div className="card list">
         {!pages ? <p className="empty">Loading…</p> : null}
-        {pages?.changes.map((c) => <Change key={c.revision} change={c} row={row} fields={byName} parts={parts} readonly={readonly} onUndo={undo} />)}
+        {pages?.changes.map((c) => <Change key={c.revision} change={c} row={row} fields={byName} readonly={readonly} onUndo={undo} />)}
         {pages && !pages.more && pages.added ? (
           <div className="item">
             <span className="item__when num">{when(pages.added.at)}</span>
             <div className="item__body">
-              <b>Added</b> <span className="faint">by {whoChanged(pages.added.by, [], parts).replace(/^You$/, "you")}</span>
+              <b>Added</b> <span className="faint">by {whoChanged(pages.added.by, []).replace(/^You$/, "you")}</span>
             </div>
           </div>
         ) : null}

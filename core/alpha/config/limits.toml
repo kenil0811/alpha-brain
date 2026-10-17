@@ -16,7 +16,6 @@ part_timeout_s = 600               # a workflow part that hasn't answered in ten
 part_attempts = 2                  # a part that failed on a row twice leaves the problem on the row until something changes
 silence_s = 600                    # a model run with no output at all for ten minutes hung (a run that keeps working is never cut)
 partial_chars = 20000              # the most of a reply kept while it is written (the whole lands in the journal after)
-script_timeout_s = 1800            # a build's own script run, in its walled workspace, has half an hour before it hung
 
 [readers]
 drop = 0.5                         # a reader returning fewer than half the rows of its last good run is broken
@@ -83,9 +82,6 @@ trouble_window_h = 24              # the companion speaks of runs that went wron
 changes_most = 500                 # the window's one poll carries at most this many changes
 most_rows = 5000                   # a workflow table's rows shown in a module's view, at most
 
-[proxy]
-connect_timeout_s = 20             # the build's one road out: a connection that hasn't opened in 20 s
-idle_s = 120                       # and one idle for two minutes is closed
 
 [accounts]
 status_timeout_s = 20              # asking Claude Code or Codex who is signed in: 20 s before it's "not answering"

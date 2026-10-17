@@ -1,0 +1,13 @@
+name: sync_from_words
+title: "First day · \"keep my LinkedIn connections in sync\" fills the table and schedules the next check"
+why: The harness design's §17, sentence 1 (17 Oct 2026). On 16 Oct this sentence took 44
+  minutes, seven sessions and four threads and left no rows, because the gate opened nowhere.
+  Reads the person's own connections in Alpha's signed-in profile, read-only, on their say.
+fresh: true
+steps:
+  - say: "keep my LinkedIn connections in sync"
+checks:
+  - made_since: {tables: 1, readers: 1, agents: 1}
+  - rows_since: {at_least: 1000}
+  - agent_is_pipeline: {}
+  - reply: {matches: "connection"}

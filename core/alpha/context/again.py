@@ -56,9 +56,6 @@ def again(world: World, e: dict[str, Any]) -> dict[str, Any] | None:
                         "words": "Makes its preview again; you decide it in Needs you."}
             return {"how": "action", "action": a["id"], "asks": True,
                     "words": f"Does \"{a['title']}\" on {a['site']} again, once."}
-        if d.get("part") and d.get("record") and e["module"]:
-            return {"how": "part", "part": d["part"], "record": d["record"],
-                    "module": e["module"], "words": "Runs it on that row again."}
         # an agent's failure names it (entries before 15 Oct say "automation"), or happened
         # in its own thread (a reader it ran)
         named = d.get("agent") or d.get("automation")
@@ -94,15 +91,6 @@ def outcome(world: World, attempt: dict[str, Any]) -> dict[str, Any]:
             if run and run["ended_at"]:
                 state = "failed" if run["verdict"] == "failed" else "worked"
                 words = run["why"] or run["line"] or ""
-        elif how == "part":
-            row = _after(world, "SELECT kind, text FROM journal WHERE kind IN ('did', 'failed')"
-                         f" AND {LATER} AND json_extract(data, '$.part') = ?"
-                         " AND json_extract(data, '$.record') = ? AND deleted_at IS NULL"
-                         " ORDER BY rowid DESC LIMIT 1",
-                         (at, attempt["id"], d["part"], d["record"]))
-            if row:
-                state = "failed" if row["kind"] == "failed" else "worked"
-                words = row["text"]
         elif how == "turn":
             row = _after(world, f"SELECT kind, text FROM journal WHERE thread = ? AND {LATER}"
                          " AND kind IN ('replied', 'failed') AND deleted_at IS NULL"

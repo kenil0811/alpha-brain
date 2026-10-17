@@ -22,7 +22,7 @@ from typing import Any
 from alpha.config import settings
 from alpha.world.store import Problem, Store, new_id, now
 
-STATES = ("drafted", "agreed", "building", "built", "stopped", "declined")
+STATES = ("drafted", "agreed", "built", "stopped", "declined")
 WHO = ("alpha", "you", "both")
 ORIGINS = ("you", "your document", "the trade", "Alpha's default")
 DECISIONS = ("accept", "skip")
@@ -34,6 +34,14 @@ MOST_OPTION_CHARS = settings.workflows.most_option_chars
 
 def _words(v: Any, most: int = MOST_CHARS) -> str:
     return " ".join(str(v or "").split())[:most]
+
+
+def _prose(v: Any) -> str | None:
+    """The page's prose as written: a model sometimes escapes its newlines (16 Oct: a page with
+    a literal backslash-n in its body); they are made real, nothing else is touched."""
+    if v is None:
+        return None
+    return str(v).replace("\\n", "\n").replace("\\t", "\t")
 
 
 def _slug(text: str, fallback: str) -> str:
@@ -231,6 +239,7 @@ class Workflows:
               words: str | None = None) -> dict[str, Any]:
         if not _words(title, 120):
             raise Problem("A workflow needs a title: the task, in the person's words.")
+        words = _prose(words)
         clean = clean_body(body)
         clean.pop("dropped", None)
         _things_named_apart(title, clean)
@@ -331,35 +340,38 @@ class Workflows:
         return self.get(wid)
 
     def agree(self, wid: str, words: str) -> dict[str, Any]:
-        return self._move(wid, "agreed", when=("drafted",), agreement=_words(words, 600))
+        """The person's yes (or their yes again after a stop): Alpha then does the work in the
+        conversation, as one piece (harness 2a)."""
+        return self._move(wid, "agreed", when=("drafted", "stopped"), agreement=_words(words, 600))
 
     def decline(self, wid: str) -> dict[str, Any]:
         return self._move(wid, "declined", when=("drafted", "agreed"))
 
-    def of_thread(self, thread: str | None) -> dict[str, Any] | None:
-        """The workflow whose build runs in this thread, if any."""
-        if not thread:
-            return None
-        row = self.store.one("SELECT * FROM workflows WHERE thread = ?", (thread,))
-        return _view(row) if row else None
+    def built(self, wid: str, module: str | None) -> dict[str, Any]:
+        """The turn that followed the yes ended well: the page is done, its module known."""
+        return self._move(wid, "built", when=("agreed",), module=module)
 
-    def start_build(self, wid: str, thread: str) -> dict[str, Any]:
-        return self._move(wid, "building", when=("agreed", "building"), thread=thread)
+    def stop(self, wid: str) -> dict[str, Any]:
+        """The person stopped the turn that was doing the work; a yes again picks it up."""
+        return self._move(wid, "stopped", when=("agreed",))
 
-    def stop_build(self, wid: str) -> dict[str, Any]:
-        """A build that stopped waits for the person's continue; the scheduler leaves it."""
-        return self._move(wid, "stopped", when=("building",))
+    def agreed_in(self, conversation: str | None) -> list[dict[str, Any]]:
+        """The pages agreed in a conversation that Alpha has not finished yet."""
+        return [w for w in self.all(("agreed",))
+                if conversation and w.get("conversation") == conversation]
 
-    def resume(self, wid: str) -> dict[str, Any]:
-        return self._move(wid, "agreed", when=("stopped",))
-
-    def waiting(self) -> list[dict[str, Any]]:
-        """Workflows the scheduler should build now: agreed, or building (a run that ended
-        before its work did, or the core restarted)."""
-        return self.all(("agreed", "building"))
-
-    def built(self, wid: str, module: str) -> dict[str, Any]:
-        return self._move(wid, "built", when=("building",), module=module)
+    def settle_after_turn(self, conversation: str | None, *, ok: bool, stopped: bool,
+                          module: str | None) -> list[dict[str, Any]]:
+        """When a turn in a conversation ends, the pages agreed there move on: built when the
+        turn ended well (the module made in it, if one), stopped when the person stopped it,
+        left agreed otherwise (the next turn there carries on)."""
+        out = []
+        for wf in self.agreed_in(conversation):
+            if ok:
+                out.append(self.built(wf["id"], module or wf.get("module")))
+            elif stopped:
+                out.append(self.stop(wf["id"]))
+        return out
 
     def set_module(self, wid: str, module: str) -> None:
         with self.store.tx() as db:
@@ -382,7 +394,7 @@ class Workflows:
 
     def recent(self) -> list[dict[str, Any]]:
         """Workflows the person may still act on or is watching."""
-        return self.all(("drafted", "agreed", "building", "stopped"))
+        return self.all(("drafted", "agreed", "stopped"))
 
     def of_module(self, module: str) -> dict[str, Any] | None:
         row = self.store.one("SELECT * FROM workflows WHERE module = ?"

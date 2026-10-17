@@ -100,6 +100,15 @@ def wrote_anything(world: World, turn_id: str) -> bool:
                for e in world.journal.recent(200))
 
 
+def module_made_by(world: World, turn_id: str) -> str | None:
+    """The module a turn made, if one (its tool journals `made` with the turn's id)."""
+    row = world.store.one(
+        "SELECT json_extract(data, '$.module') AS m FROM journal WHERE kind = 'made'"
+        " AND json_extract(data, '$.turn') = ? AND json_extract(data, '$.module') IS NOT NULL"
+        " ORDER BY at LIMIT 1", (turn_id,))
+    return str(row["m"]) if row and row["m"] else None
+
+
 def threads_opened_by(world: World, turn_id: str) -> list[str]:
     """The threads a turn opened (its tools journal each one with the turn's id)."""
     rows = world.store.all(
@@ -124,8 +133,6 @@ def ask(
     on_said: Callable[[str], None] | None = None,
     journal_as: str | None = None,
     conversation: bool = False,
-    workspace: str | None = None,
-    hosts: list[str] | None = None,
 ) -> TurnOutcome:
     """One turn. `actor` is who says the sentence: the person, Alpha (a turn it starts itself)
     or an agent (its run), journaled as said or did. `agent` is the agent doing the turn, if
@@ -162,11 +169,6 @@ def ask(
         actor=agent or "alpha",
         resume=resume,
         persist=conversation,
-        workspace=workspace,
-        hosts=list(hosts or []),
-        on_step=(lambda words: world.journal.append(
-            "did", words, actor=replier, module=module_id, thread=thread,
-            data={"turn": said, "step": True})) if workspace else None,
     )
     result = runner(request)
     if (not result.ok and not result.stopped and result.error in (NO_ANSWER, STALLED)
@@ -202,5 +204,10 @@ def ask(
             "failed", reply, actor=replier, data={**data, "error": result.error},
             module=module_id, thread=thread,
         )
+    if thread:
+        # A page agreed in this conversation is done when the turn that did the work ended
+        # well, stopped when the person stopped it (harness 2a: the yes, then the work here).
+        world.workflows.settle_after_turn(thread, ok=result.ok, stopped=result.stopped,
+                                          module=module_made_by(world, said))
     return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result,
                        opened=threads_opened_by(world, said))
