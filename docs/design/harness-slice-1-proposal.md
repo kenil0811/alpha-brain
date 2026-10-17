@@ -73,6 +73,15 @@ on. Each is a short script against a scratch world, run before the slice is buil
 A spike that fails changes the slice (for 2: one process per conversation, as today; for 3:
 a session restart after a skill is written) and is said so here before building.
 
+**Answered 17 Oct evening** (`../log/2026-10-17-harness-slice1-spikes.md`): all five yes, with
+three amendments to the slice: `strict_mcp_config=True` is mandatory (without it the person's
+own claude.ai connectors join the session on the second turn); `.claude/` is protected from
+auto-accepted writes, so skills under `.claude/skills` (slice 2) go through the `can_use_tool`
+path in `permission_mode="default"`, while slice 1's turns stay `dontAsk` + `allowed_tools`;
+the engine listens for the SDK's `commands_changed` event, which is when a skill written during
+a session becomes usable (about 3 s after the write). The documented `can_use_tool` workaround
+was not needed on 0.2.168.
+
 ## How it is judged
 
 - **Tests:** `engine.py` by unit tests with a fake SDK client (no network, no model); the hook
