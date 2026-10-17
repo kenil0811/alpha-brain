@@ -79,6 +79,25 @@ On a fresh world with the app's sign-ins, Sonnet, the real model (`../journeys/2
 - **`sync_from_words`** (sentence 1, Kenil's LinkedIn) waits for his say, as agreed.
 - **`vague_tracker`** rewritten and not yet run on the new rule.
 
+**Accepted in the app** (Kenil, 17 Oct, 20:02–20:19 UTC, after `just app-restart`; his word:
+"its working well"). From his world's journal:
+- "keep my LinkedIn connections in sync": one turn of 476 s in one thread; the reader
+  `linkedin_connections` written and run to the end of his list, **1,553 rows** into the
+  `linkedin_connection` table of the module left from 16 October, an agent "Every Monday at
+  08:00, sync your LinkedIn connections and tell you who is new" with its next run set, the
+  reply saying what is in the table and that it refreshes by itself. On 16 October the same
+  sentence took 44 minutes, four threads and left no rows.
+- "watch We Work Remotely for back-end roles": 45 s; a module, a table, the reader
+  `wwr_backend_jobs` (the RSS feed), an agent every morning at 08:30.
+- "can we add linkedin jobs as well to it? also, i want a column for salary range as well (if
+  present)": 190 s; a second reader `linkedin_backend_jobs`, the first reader updated, the
+  salary column added, 32 rows in the one table: a change by chat that kept his rows (the
+  acceptance the car wash module never got).
+- Columbo, unasked, checked the paneer row from earlier: asked once which paneer and whether
+  weighed before or after frying, cited fatsecret for the fat, and corrected protein and
+  calories (the Q47 flow, for real).
+- One stop: "Add to linkedin_connection: vikas", stopped by him at once ("You stopped it.").
+
 ## Not done in this slice
 
 Slice 2b: the fifteen tools, skills as directories, the form of a skill, the permission
