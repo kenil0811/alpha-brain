@@ -31,5 +31,6 @@ tests; ruff and mypy clean.
 ## Ran for real
 
 `reminder_fires` (fresh world, Sonnet): "remind me to call Sara on Friday" in Home, the agent
-made, run now by the suite (it cannot wait until Friday), the card: see the report named in
-STATE. `gmail_last_week` (sentence 4) reads Kenil's own account and runs on his say.
+made ("Friday 23 October at 09:00; you didn't give a time, so I assumed 09:00"), run now by the
+suite (it cannot wait until Friday), the card "Reminder: Call Sara." and the run's verdict: passed
+(`../journeys/2026-10-18-1217.md`). `gmail_last_week` (sentence 4) reads Kenil's own account and runs on his say.
