@@ -65,6 +65,7 @@ from alpha.runtime.running import (
     tools_allowed,
     tools_verdict,
 )
+from alpha.world import grants
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
@@ -93,17 +94,29 @@ def sessions_dir(world_path: Path) -> Path:
     return path
 
 
+# Claude Code's own sandbox for the shell (macOS seatbelt): writes confined to the turn's
+# directory and the granted folders, reads the same, the network a question to the callback
+# (spike of 18 Oct 2026, slice 6). Nothing may run outside it.
+SANDBOX: dict[str, Any] = {"enabled": True, "autoAllowBashIfSandboxed": True,
+                           "allowUnsandboxedCommands": False, "network": {}}
+# The SDK's own hands a turn gets outright; Read, Write and Edit go through the callback,
+# which checks their paths (an allow in `allowed_tools` would shadow it).
+OWN_TOOLS = ["Bash", "Glob", "Grep"]
+
+
 def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
                 hooks: dict[str, list[HookMatcher]] | None = None,
                 hands: list[str] | None = None,
-                can_use: Callable[..., Awaitable[Any]] | None = None) -> ClaudeAgentOptions:
+                can_use: Callable[..., Awaitable[Any]] | None = None,
+                cwd: Path | None = None, add_dirs: list[Path] | None = None) -> ClaudeAgentOptions:
     """The SDK's options for a request: the same tools, walls and session rules the CLI route
     passed as flags. With `hands` (the served tools' names) and `can_use`, a turn runs in the
     default mode: every hand but the gated ones is allowed outright, the gated ones reach the
     callback (harness design §8)."""
     allowed = tools_allowed(req)
     if hands is not None and req.kind == "turn":
-        allowed = [f"mcp__alpha__{h}" for h in hands if h not in GATED] + ["WebSearch", "WebFetch"]
+        allowed = ([f"mcp__alpha__{h}" for h in hands if h not in GATED]
+                   + ["WebSearch", "WebFetch"] + OWN_TOOLS)
     denied = list(DENIED)
     if not allowed:
         denied += ["WebSearch", "WebFetch"]
@@ -130,13 +143,16 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         "mcp_servers": {"alpha": server} if server is not None else {},
         "env": environment(req),
         "extra_args": extra,
-        "cwd": str(sessions_dir(req.world_path)),
+        "cwd": str(cwd) if cwd is not None else str(sessions_dir(req.world_path)),
         "resume": req.resume,
     }
     if hooks:
         kw["hooks"] = hooks
     if can_use is not None:
         kw["can_use_tool"] = can_use
+    if hands is not None and req.kind == "turn":
+        kw["sandbox"] = dict(SANDBOX)
+        kw["add_dirs"] = [str(d) for d in (add_dirs or [])]
     return ClaudeAgentOptions(**kw)
 
 
@@ -241,8 +257,35 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
     tables is asked for on a card (the window answers it, or the person's Stop ends the wait);
     everything else is allowed."""
 
+    def inside(path: str, roots: list[Path]) -> bool:
+        try:
+            p = Path(path).expanduser().resolve()
+        except OSError:
+            return False
+        return any(p == r or r in p.parents for r in roots)
+
     async def can_use(tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
         name = tool_name.removeprefix("mcp__alpha__")
+        if name == "SandboxNetworkAccess":
+            # the shell has no network: what leaves the world goes through act_outward
+            return PermissionResultDeny(message="No network from the shell: anything that"
+                                                " leaves the person's world goes through"
+                                                " act_outward and their yes.")
+        if name in ("Read", "Glob", "Grep", "Write", "Edit", "NotebookEdit"):
+            own = grants.module_dir(world, req.module_id)
+            path = str(input_data.get("file_path") or input_data.get("path")
+                       or input_data.get("notebook_path") or own)
+            if name in ("Read", "Glob", "Grep"):
+                if grants.whole_mac(world) or inside(path, [own, *grants.folders(world)]):
+                    return PermissionResultAllow()
+                return PermissionResultDeny(message=f"{path} is not in a folder the person"
+                                                    " granted; they connect one (connect"
+                                                    " what=folder) or switch on the whole Mac.")
+            if inside(path, [own]):
+                return PermissionResultAllow()
+            return PermissionResultDeny(message="Alpha writes files only inside its own"
+                                                f" directory, {own}; the person's folders are"
+                                                " read, never written.")
         if name == "world_change" and input_data.get("remove"):
             table = str(input_data.get("table") or "the table")
             ids = [str(i) for i in (input_data.get("ids") or [])] or (
@@ -415,7 +458,10 @@ async def run_async(req: TurnRequest, *,
             server, world = served.config, served.world
             hands = [t.name for t in served.tools]
             can_use = permission_for(req, world)
-        options = options_for(req, server, _hooks(req), hands=hands, can_use=can_use)
+        cwd = grants.module_dir(world, req.module_id) if world is not None else None
+        add_dirs = grants.folders(world) if world is not None else []
+        options = options_for(req, server, _hooks(req), hands=hands, can_use=can_use,
+                              cwd=cwd, add_dirs=add_dirs)
         async with client_factory(options) as c:
             client = c
             await c.query(req.sentence)

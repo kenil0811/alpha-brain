@@ -457,3 +457,18 @@ def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) 
     assert open_one["id"] in live and done_one["id"] not in live
     everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]
     assert open_one["id"] in everything and done_one["id"] in everything
+
+
+def test_the_folders_alpha_may_read_and_the_whole_mac_switch(world: World, tmp_path: Any) -> None:
+    from alpha.connectors.base import Connections
+
+    c = client(world)
+    assert c.get("/api/folders").json() == {"folders": [], "whole_mac": False}
+    folder = tmp_path / "docs"
+    folder.mkdir()
+    Connections(world.store).upsert("files", str(folder))
+    assert c.get("/api/folders").json()["folders"] == [str(folder.resolve())]
+    assert c.post("/api/folders/whole_mac", json={"on": True}).json() == {"whole_mac": True}
+    assert c.get("/api/folders").json()["whole_mac"] is True
+    assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == (
+        "Alpha may read any folder on this Mac.")

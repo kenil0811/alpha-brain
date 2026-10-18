@@ -9,12 +9,14 @@ from fastapi import FastAPI
 from alpha.api.bodies import (
     FolderBody,
     SiteBody,
+    WholeMacBody,
 )
 from alpha.api.served import Served
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.world import grants
 from alpha.world.purge import remove_connection
 from alpha.world.store import Problem
 
@@ -22,6 +24,17 @@ from alpha.world.store import Problem
 def routes(app: FastAPI, s: Served) -> None:
     world = s.world
     api = s.api
+
+    @app.get("/api/folders", dependencies=[api])
+    def folders_granted() -> dict[str, Any]:
+        """Where the model's own files and shell may read (slice 6): the connected folders,
+        and whether the whole Mac is open to reading."""
+        return {"folders": [str(f) for f in grants.folders(world)],
+                "whole_mac": grants.whole_mac(world)}
+
+    @app.post("/api/folders/whole_mac", dependencies=[api])
+    def set_whole_mac(body: WholeMacBody) -> dict[str, Any]:
+        return grants.set_whole_mac(world, body.on)
 
     @app.post("/api/connections/folder", dependencies=[api])
     def connect_folder(body: FolderBody) -> dict[str, Any]:

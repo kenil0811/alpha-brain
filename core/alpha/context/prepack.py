@@ -24,6 +24,7 @@ from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.world import grants
 from alpha.world.store import local_midnight_utc
 from alpha.world.world import World
 
@@ -288,9 +289,8 @@ def build(world: World, sentence: str, *, module: str | None = None,
         + (f" (problem: {_clip(c['last_error'], 80)})" if c["last_error"] else "")
         for c in Connections(world.store).all() if c["status"] != "off"
     ]
-    sections.append(("WHAT ALPHA CAN REACH", reach or [
-        "- Nothing connected yet. Public web pages can always be read (browser_read); folders,"
-        " sites to sign into and the calendar are connected when the person asks."]))
+    reach += grants.describe(world, module)
+    sections.append(("WHAT ALPHA CAN REACH", reach))
 
     # Know-how: every skill, always, but compact (design §3.7 point 7): act and run skills one
     # line each, read skills as a list by site; bodies and search by skill_find.

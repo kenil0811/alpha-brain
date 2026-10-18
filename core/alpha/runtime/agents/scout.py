@@ -318,10 +318,18 @@ def write_picks(world: World, agent: dict[str, Any], day: str, picks: list[dict[
     sure and costly ones (`card`); Take and Not now decide them."""
     ids = []
     for pick in picks:
-        ids.append(world.journal.append(
+        pid = world.journal.append(
             "proposed", pick["title"], actor=agent["id"],
             data={"scout": pick, "why": pick["why"], "day": day, "agent": agent["id"],
-                  **({"goal": pick["goal"]} if pick["goal"] else {})}))
+                  **({"goal": pick["goal"]} if pick["goal"] else {})})
+        ids.append(pid)
+        if pick.get("card"):
+            # the sure and costly one is also a question (slice 6: Needs you holds questions
+            # and permission cards only): Take or Not now decides the pick
+            world.journal.append(
+                "asked", f"{pick['title']}: {pick['what']}", actor=agent["id"],
+                data={"options": ["Take", "Not now"], "kind": "one", "scout": pick,
+                      "proposal": pid, "agent": agent["id"], "turn": None})
     if links:
         ids.append(world.journal.append(
             "proposed", f"{links} link{'s' if links != 1 else ''} in your world worth confirming",

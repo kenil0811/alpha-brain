@@ -41,6 +41,10 @@ class KitInstallBody(BaseModel):
     path: str
 
 
+class WholeMacBody(BaseModel):
+    on: bool
+
+
 class CreateModuleBody(BaseModel):
     name: str
     goal: str | None = None

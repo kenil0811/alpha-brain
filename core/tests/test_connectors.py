@@ -247,7 +247,7 @@ def test_calendar_without_access_needs_ok(world: World) -> None:
 
 
 def test_prepack_shows_reach_calendar_and_documents(world: World, tmp_path: Path) -> None:
-    assert "Nothing connected yet" in prepack.build(world, "x")
+    assert "No folder is granted for reading" in prepack.build(world, "x")
     Calendar(world, FakeCalendar()).connect()
     folder = tmp_path / "notes"
     folder.mkdir()

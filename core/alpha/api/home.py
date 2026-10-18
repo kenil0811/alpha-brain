@@ -67,6 +67,18 @@ def routes(app: FastAPI, s: Served) -> None:
         if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
             # A hand waiting for the person's yes (harness §8): the turn carries on with it.
             return {"answered": jid, "turn": None, "permission": asked["data"]["permission"]}
+        if asked["data"].get("scout") and asked["data"].get("proposal"):
+            # Scout's costly pick as a question (slice 6): Take or Not now decides the pick
+            take = body.text.strip().lower().startswith("take")
+            proposal = world.journal.read(str(asked["data"]["proposal"]))
+            world.journal.answer_proposal(proposal["id"], take, module=proposal["module"])
+            scout.decide_pick(world, proposal, take)
+            pick = proposal["data"]["scout"]
+            if not take or pick.get("open"):
+                return {"answered": jid, "turn": None, "open": pick.get("open")}
+            taken = running.start(AskBody(text=f"Yes, go ahead: {pick['action']}",
+                                          module=proposal["module"]))
+            return {"answered": jid, "turn": taken}
         reminder = asked["data"].get("reminder")
         if reminder:
             # the reminder's card (slice 4): Done closes it; the same time tomorrow is a new

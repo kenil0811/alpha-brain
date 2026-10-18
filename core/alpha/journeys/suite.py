@@ -289,6 +289,18 @@ class Run:
                 removed = {"already absent": True}
             record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
+        elif "connect_folder" in spec:
+            # a folder the person connected, with the files the journey names in it
+            from alpha.connectors.files import Files
+
+            folder = Path(self.world.path).parent / "granted" / str(spec["connect_folder"]
+                                                                   .get("name") or "notes")
+            folder.mkdir(parents=True, exist_ok=True)
+            for name, text in (spec["connect_folder"].get("files") or {}).items():
+                (folder / str(name)).write_text(str(text))
+            out = Files(self.world).watch(str(folder))
+            record = {"connect_folder": str(folder), "ok": True,
+                      "detail": f"{out.get('files', out.get('synced', '?'))} file(s) read"}
         elif "kit_export" in spec:
             # the newest module (or the one named) as a kit, into the scratch home's kits/
             ref = spec["kit_export"].get("module") or self._newest_module()["id"]
@@ -820,6 +832,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         for s in o.steps:
             kind = next((k for k in ("say", "check", "reader", "agent", "break_reader",
                                      "kit_export", "kit_install", "module_remove",
+                                     "connect_folder",
                                      "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"

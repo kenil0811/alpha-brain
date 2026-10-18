@@ -132,8 +132,12 @@ def test_the_days_picks_land_on_home_and_only_the_costly_one_in_needs_you(world:
     home = c.get("/api/home").json()
     assert [p["title"] for p in home["picks"]] == ["Protein is below your goal",
                                                    "Sania's deck is due today"]
-    cards = [i for i in home["needs_you"] if i["kind"] == "proposal"]
-    assert [i["text"] for i in cards] == ["Sania's deck is due today"]
+    # the sure, costly pick is a question card (slice 6): Take or Not now
+    cards = [i for i in home["needs_you"] if i["kind"] == "ask"
+             and i["options"] == ["Take", "Not now"]]
+    assert [i["text"].split(":")[0] for i in cards] == ["Sania's deck is due today"]
+    assert cards[0]["options"] == ["Take", "Not now"]
+    assert not [i for i in home["needs_you"] if i["kind"] == "proposal"]
     goal = c.get(f"/api/goals/{m['goal']['id']}").json()
     assert [p["title"] for p in goal["picks"]] == ["Protein is below your goal"]
     # picked once for the day: no second run

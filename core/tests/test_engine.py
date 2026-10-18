@@ -338,7 +338,7 @@ def test_a_turns_options_gate_the_two_hands(tmp_path: Path) -> None:
     assert opts.permission_mode == "default" and opts.can_use_tool is allow
     assert "permission-prompts" not in opts.extra_args  # the prompts are the callback's
     assert opts.allowed_tools == ["mcp__alpha__world_query", "mcp__alpha__ask_person",
-                                  "WebSearch", "WebFetch"]
+                                  "WebSearch", "WebFetch", "Bash", "Glob", "Grep"]
     judge = engine.options_for(request(tmp_path, kind="judge"))
     assert judge.permission_mode == "dontAsk" and judge.can_use_tool is None
 
@@ -389,4 +389,56 @@ def test_removing_several_rows_is_one_card_and_the_item_says_it_waits(tmp_path: 
     assert seen["thread"]["last_line"].startswith("Waiting for your yes: Remove 5 rows")
     after = world.modules.thread(item)
     assert after["state"] == "working" and after["last_line"] == "Carrying on after your yes."
+    world.close()
+
+
+def test_the_models_own_files_and_shell_are_gated_by_place(tmp_path: Path) -> None:
+    """Slice 6 (18 Oct): Read, Glob and Grep in the granted folders (or anywhere when the whole
+    Mac is on), Write and Edit inside the module's own directory only, no network from the
+    shell; the SDK's own hands and the sandbox in the options."""
+    from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
+
+    from alpha.connectors.base import Connections
+    from alpha.world import grants
+
+    world = World(tmp_path / "w.sqlite")
+    module = world.modules.create("Jobs")["id"]
+    granted = tmp_path / "notes"
+    granted.mkdir()
+    (granted / "a.txt").write_text("x")
+    Connections(world.store).upsert("files", str(granted))
+    req = request(tmp_path, kind="turn", turn_id="j_9", thread_id=None)
+    req.module_id = module
+    can_use = engine.permission_for(req, world)
+
+    def decide(name: str, inputs: dict[str, Any]) -> Any:
+        async def go() -> Any:
+            return await can_use(name, inputs, None)
+        return asyncio.run(go())
+
+    own = grants.module_dir(world, module)
+    assert isinstance(decide("Read", {"file_path": str(granted / "a.txt")}), PermissionResultAllow)
+    assert isinstance(decide("Grep", {"pattern": "x", "path": str(granted)}), PermissionResultAllow)
+    assert isinstance(decide("Read", {"file_path": str(own / "NOTES.md")}), PermissionResultAllow)
+    outside = decide("Read", {"file_path": "/etc/hosts"})
+    assert isinstance(outside, PermissionResultDeny) and "granted" in outside.message
+    assert isinstance(decide("Write", {"file_path": str(own / "x.md"), "content": "y"}),
+                      PermissionResultAllow)
+    refused = decide("Write", {"file_path": str(granted / "b.txt"), "content": "y"})
+    assert isinstance(refused, PermissionResultDeny) and "own directory" in refused.message
+    net = decide("SandboxNetworkAccess", {"host": "example.com"})
+    assert isinstance(net, PermissionResultDeny) and "act_outward" in net.message
+    # the whole Mac switched on: reads anywhere, writes still inside
+    grants.set_whole_mac(world, True)
+    assert isinstance(decide("Read", {"file_path": "/etc/hosts"}), PermissionResultAllow)
+    assert isinstance(decide("Edit", {"file_path": "/etc/hosts"}), PermissionResultDeny)
+    # the options: the SDK's own hands outright, Read/Write/Edit through the callback, the
+    # sandbox on, the folders added, the module's directory the cwd
+    options = engine.options_for(req, None, hands=["world_query"], can_use=can_use, cwd=own,
+                                 add_dirs=grants.folders(world))
+    assert {"Bash", "Glob", "Grep"} <= set(options.allowed_tools)
+    assert not {"Read", "Write", "Edit"} & set(options.allowed_tools)
+    assert options.sandbox and options.sandbox["enabled"]
+    assert not options.sandbox["allowUnsandboxedCommands"]
+    assert options.cwd == str(own) and options.add_dirs == [str(granted.resolve())]
     world.close()
