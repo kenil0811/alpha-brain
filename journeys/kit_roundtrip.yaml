@@ -1,0 +1,17 @@
+name: kit_roundtrip
+title: "A module made from words becomes a kit, and the kit installs back as the same module, empty"
+why: >
+  Harness design §15 (slice 5, 18 Oct 2026). Kenil builds a first user's modules in his own
+  Alpha and ships them as kits. On a fresh world the watch is made from words, exported as a
+  kit (no data in it), the module removed for good, and the kit installed; the module is back
+  with its table empty, its reader, and its agent paused until the person turns it on.
+fresh: true
+steps:
+  - say: "watch We Work Remotely for back-end roles"
+    home: true
+  - kit_export: {}
+  - module_remove: {}
+  - kit_install: {}
+checks:
+  - kit_installed: {empty: true, skills: 1}
+  - made_since: {tables: 1, agents: 1}

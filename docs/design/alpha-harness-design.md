@@ -231,6 +231,12 @@ What changes:
   so a query reads like a query over the person's table.
 - **Nothing per use case** still binds the store: no site, no domain in its schema.
 
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice5.md`) | |
+|---|---|
+| Built | A module is a directory: `module.yaml` from the world, `NOTES.md` and `agents/<name>.md` both ways, `skills/` since 2b, `ALPHA.md` at the root for the standing instructions; synced at open and after every turn; removed with the module. |
+| Differs | The model does not yet work *in* the directory with the SDK's own shell and files (slice 6, with granted folders); it reaches it through the hands, and the files follow. `ALPHA.md` holds the standing instructions; the preferences stay in the world. |
+| Not built | The window's text views of notes and agents (slice 6). |
+
 ## 6. Standing things, made by the model
 
 The ladder of levels, promotion from verified runs, the plan, the workflow page and the agent's
@@ -586,6 +592,12 @@ in its environment; nothing else changes); whether they may instead sign in with
 subscription to the bundled binary is the question to put to Anthropic in writing. The design
 assumes the key path for shipped copies and the subscription for Kenil's, with the engine
 indifferent to which.
+
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice5.md`) | |
+|---|---|
+| Built | Kits: export (no data; `crosses` names what reaches outside the module), install (tables empty, agents paused), update by the ownership rule (hashes of the installed files), kits shipped in the bundle and installed on the first open; CLI, API and `just ship <kits>`. |
+| Differs | The window's buttons wait for slice 6; the CLI is the way until then. |
+| Not built | Anthropic's answer on a shipped copy's sign-in; the user's own API key in Settings (§3's open question). |
 
 ## 16. What goes, what stays
 

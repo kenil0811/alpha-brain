@@ -86,6 +86,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if live:
             # No turn can be running yet: a conversation a dead core left mid-turn is open.
             conversations.reset_working(world)
+            world.kits.install_shipped()  # the kits in the bundle, once per version (slice 5)
             stops.append(Files(world).observe())
             stop_calendar = threading.Event()
 

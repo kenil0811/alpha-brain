@@ -32,6 +32,15 @@ class RenameModuleBody(BaseModel):
     name: str
 
 
+class KitExportBody(BaseModel):
+    to: str | None = None
+    zip: bool = False
+
+
+class KitInstallBody(BaseModel):
+    path: str
+
+
 class CreateModuleBody(BaseModel):
     name: str
     goal: str | None = None

@@ -104,8 +104,36 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("connect", help="connect a folder, a site or the calendar")
     p.add_argument("what", choices=["folder", "site", "calendar"])
     p.add_argument("target", nargs="?")
+    p = sub.add_parser("kit", help="export a module as a kit, or install one")
+    p.add_argument("action", choices=["export", "install", "list"])
+    p.add_argument("target", nargs="?", help="the module to export, or the kit to install")
+    p.add_argument("--to", help="export: the folder to put the kit in (default: the home's kits/)")
+    p.add_argument("--zip", action="store_true", help="export: also a zip beside the folder")
+    p.add_argument("--world")
     args = parser.parse_args(argv)
 
+    if args.command == "kit":
+        world = World(Path(args.world) if args.world else None)
+        try:
+            if args.action == "list":
+                for k in world.kits.installed():
+                    print(f"{k['kit']} v{k['version']} → module {k['module']}")
+                return 0
+            if not args.target:
+                print("kit export <module> | kit install <folder>")
+                return 2
+            if args.action == "export":
+                out = world.kits.export(args.target, to=Path(args.to) if args.to else None,
+                                        zip_it=bool(args.zip))
+                print(f"Exported {out['name']} v{out['version']} ({out['files']} files) to"
+                      f" {out['kit']}" + (f"; zip {out['zip']}" if out.get("zip") else ""))
+                for line in out["crosses"]:
+                    print(f"  reaches outside the module: {line}")
+                return 0
+            print(world.kits.install(Path(args.target))["words"])
+            return 0
+        finally:
+            world.close()
     if args.command == "mcp":
         from alpha.mcp.server import main as mcp_main
 

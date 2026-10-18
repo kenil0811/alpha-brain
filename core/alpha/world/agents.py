@@ -247,6 +247,16 @@ class Agents:
         row = self.store.one("SELECT id FROM agents WHERE thread = ?", (thread,))
         return self.get(row["id"]) if row else None
 
+    def attach_skill(self, aid: str, skill: str) -> dict[str, Any]:
+        """An existing run skill becomes the agent's steps (a kit's agent with its skill
+        copied beside it, slice 5), instead of a second skill made from the same steps."""
+        self.get(aid)
+        self.skills.get(skill, "run")
+        with self.store.tx() as db:
+            db.execute("UPDATE agents SET skill = ?, updated_at = ? WHERE id = ?",
+                       (skill, now(), aid))
+        return self.get(aid)
+
     def set_thread(self, aid: str, thread: str) -> None:
         with self.store.tx() as db:
             db.execute("UPDATE agents SET thread = ? WHERE id = ?", (thread, aid))

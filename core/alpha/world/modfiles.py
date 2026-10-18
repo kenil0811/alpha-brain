@@ -154,6 +154,8 @@ class ModuleFiles:
         head["state"] = a["state"]
         if a.get("steps"):
             head["steps"] = a["steps"]
+        if a.get("skill"):
+            head["skill"] = a["skill"]  # the run skill that holds the steps
         if a.get("may"):
             head["may"] = a["may"]
         if a.get("goal"):

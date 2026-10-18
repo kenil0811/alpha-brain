@@ -185,6 +185,7 @@ class Run:
         self.last_agent: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
         self.last_row: tuple[str, str] | None = None
+        self.last_kit: str | None = None
         builtin.ensure(world)
         self.mark = mark(world)
 
@@ -288,6 +289,27 @@ class Run:
                 removed = {"already absent": True}
             record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
+        elif "kit_export" in spec:
+            # the newest module (or the one named) as a kit, into the scratch home's kits/
+            ref = spec["kit_export"].get("module") or self._newest_module()["id"]
+            out = self.world.kits.export(ref)
+            self.last_kit = out["kit"]
+            record = {"kit_export": out["name"], "ok": True,
+                      "detail": f"v{out['version']}, {out['files']} files"
+                                + (f"; crosses: {out['crosses']}" if out["crosses"] else "")}
+        elif "kit_install" in spec:
+            path = spec["kit_install"].get("from") or getattr(self, "last_kit", None)
+            if not path:
+                raise Problem("kit_install needs 'from', or a kit_export step before it.")
+            out = self.world.kits.install(Path(path))
+            record = {"kit_install": out["name"], "ok": True, "detail": out["words"]}
+        elif "module_remove" in spec:
+            from alpha.world.purge import remove_module
+
+            ref = spec["module_remove"].get("module") or self._newest_module()["id"]
+            gone = remove_module(self.world, ref)
+            record = {"module_remove": gone["module"], "ok": True,
+                      "detail": f"{gone.get('tables', 0)} tables, {gone.get('agents', 0)} agents"}
         elif "check" in spec:
             # A check between steps (where a sentence went, what exists so far), recorded
             # as a step so the report reads in order.
@@ -370,6 +392,32 @@ class Run:
                 if any(f["name"] == field for f in desc["fields"]):
                     return str(t["name"])
         raise Problem(f"No table of a module made in this journey has a field '{field}'.")
+
+    def _newest_module(self) -> dict[str, Any]:
+        modules = sorted(self.world.modules.all(), key=lambda m: m["created_at"])
+        if not modules:
+            raise Problem("No module yet.")
+        return modules[-1]
+
+    def check_kit_installed(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A kit installed in this world: its module there with its tables (empty) and its
+        agents paused."""
+        kits = self.world.kits.installed()
+        if not kits:
+            return False, "No kit is installed."
+        k = kits[-1]
+        m = self.world.modules.get(str(k["module"]))
+        tables = self.world.collections.overview(m["id"])
+        agents = self.world.agents.all(m["id"])
+        rows = sum(t["records"] for t in tables)
+        paused = all(not a["on"] for a in agents)
+        skills = [sk for sk in self.world.skills.index() if sk.get("module") == m["id"]]
+        words = (f"{k['kit']} v{k['version']}: module {m['name']} with {len(tables)} table(s),"
+                 f" {rows} row(s), {len(skills)} skill(s), {len(agents)} agent(s)"
+                 f"{' (paused)' if paused else ''}")
+        ok = (bool(tables) and (not arg.get("empty", True) or rows == 0) and paused
+              and len(skills) >= int(arg.get("skills", 0)))
+        return ok, words
 
     def _agent(self, title: str) -> dict[str, Any]:
         hits = [a for a in self.world.agents.all()
@@ -771,6 +819,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
             kind = next((k for k in ("say", "check", "reader", "agent", "break_reader",
+                                     "kit_export", "kit_install", "module_remove",
                                      "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"

@@ -1,0 +1,59 @@
+[
+ {
+  "name": "kit_roundtrip",
+  "title": "A module made from words becomes a kit, and the kit installs back as the same module, empty",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category. I read it once, and it has 3 roles listed right now:\n\n- **Staff Software Engineer, Revenue Systems**, Squarespace. Full-time, new today.\n- **Senior Java Developer**, Twikey. Full-time, new today, open to a set of European countries.\n- **AI Experience Engineer (Conversational AI)**, Upgrade. Full-time, posted 3 days ago.\n\nI ignored the \"Remote Customer Support\" ad on that page, since it's a promoted listing and not a back-end role.\n\nI set it to check every day at 09:00, or when your Mac next wakes, and tell you what's new or gon",
+    "steps": 8,
+    "routed": "a new item",
+    "routed_by": "judge: Watching We Work Remotely for back-end roles is a standing watch that will keep running over time, and no open item covers it.",
+    "seconds": 50.5
+   },
+   {
+    "kit_export": "Job watch",
+    "ok": true,
+    "detail": "v1, 4 files",
+    "seconds": 0.0
+   },
+   {
+    "module_remove": "Job watch",
+    "ok": true,
+    "detail": "1 tables, 1 agents",
+    "seconds": 0.1
+   },
+   {
+    "kit_install": "Job watch",
+    "ok": true,
+    "detail": "Installed the kit Job watch (v1): 1 table, 1 skill, 1 agent. Its agents are paused until you turn them on; a reader of a site needs your sign-in there first.",
+    "seconds": 0.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "kit_installed",
+    "arg": {
+     "empty": true
+    },
+    "ok": true,
+    "why": "Job watch v1: module Job watch with 1 table(s), 0 row(s), 1 agent(s) (paused)",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": false,
+    "why": "Made 1 tables, 0 readers, 6 agents, 1 modules; short on readers: 0 of 1",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 50.6,
+  "error": null
+ }
+]

@@ -17,6 +17,17 @@ CACHE=$ROOT/desktop/src-tauri/.runtime-cache
 mkdir -p "$CACHE"
 rm -rf "$RT"
 mkdir -p "$RT"
+# Kits to ship inside the app (slice 5): `just ship path/to/Name.alphakit …`; they install on
+# the first open of a world, beside the connectors the bundle carries.
+rm -rf "$RT/kits"
+if [ "$#" -gt 0 ]; then
+  mkdir -p "$RT/kits"
+  for kit in "$@"; do
+    [ -d "$kit" ] || { echo "not a kit folder: $kit" >&2; exit 2; }
+    cp -R "$kit" "$RT/kits/"
+  done
+  echo "== kits in the bundle: $(ls "$RT/kits")"
+fi
 
 echo "== Python $PYTHON_VERSION (uv's standalone build, pruned)"
 # uv's managed build, by its directory (`uv python find` answers with the project's venv).

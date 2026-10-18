@@ -16,6 +16,8 @@ from alpha.api.bodies import (
     AskBody,
     CreateModuleBody,
     ExportBody,
+    KitExportBody,
+    KitInstallBody,
     ListBody,
     MoveModuleBody,
     RecordBody,
@@ -88,6 +90,21 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("changed", f"You made the module {made['name']}{where}.",
                              actor="person", module=made["id"], data={"module": made["id"]})
         return module_card(world, made)
+
+    @app.post("/api/modules/{ref}/kit", dependencies=[api])
+    def export_kit(ref: str, body: KitExportBody | None = None) -> dict[str, Any]:
+        """The module as a kit (slice 5): its shape, notes, skills and agents, no data."""
+        to = Path(body.to).expanduser() if body and body.to else None
+        return world.kits.export(ref, to=to, zip_it=bool(body and body.zip))
+
+    @app.post("/api/kits/install", dependencies=[api])
+    def install_kit(body: KitInstallBody) -> dict[str, Any]:
+        """A kit installed, or a newer version of one installed before (Q53's ownership rule)."""
+        return world.kits.install(Path(body.path).expanduser())
+
+    @app.get("/api/kits", dependencies=[api])
+    def kits_installed() -> list[dict[str, Any]]:
+        return [{k: v for k, v in kit.items() if k != "hashes"} for kit in world.kits.installed()]
 
     @app.post("/api/modules/{ref}/move", dependencies=[api])
     def move_module(ref: str, body: MoveModuleBody) -> dict[str, Any]:

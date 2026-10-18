@@ -223,6 +223,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     # A module's workspace (§12) goes with it; the journal keeps what it was.
     if workspaces.remove(mid):
         counts["workspace"] = 1
+    # Its directory (module.yaml, NOTES.md, agents, skills, documents; slice 5) goes with it.
+    folder = world.files.dir_of(mid)
+    if folder.is_dir():
+        shutil.rmtree(folder, ignore_errors=True)
+        counts["directory"] = 1
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
     what = [plural(len(tables), "table") + (f" ({plural(records, 'row')})" if records else "")]

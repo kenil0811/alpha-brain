@@ -54,8 +54,8 @@ app-restart:
 # Alpha for another Mac (Apple silicon, macOS 14+): the release app with the core, Python, Node
 # and the connectors inside, zipped next to it (desktop/scripts/ship.sh). Not notarized: the
 # person opens it once with right-click › Open; Alpha installs Chromium and Claude Code itself.
-ship:
-    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && desktop/scripts/ship.sh
+ship *KITS:
+    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && desktop/scripts/ship.sh {{KITS}}
 
 test-desktop:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm typecheck && pnpm test
