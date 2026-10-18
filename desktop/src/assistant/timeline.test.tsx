@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Ask, Client, Convo, JournalEntry } from "../core/client";
 import { AskCard, pickWords } from "./AskCard";
 import { Conversation } from "./AssistantPanel";
+import { keptWords } from "./Reply";
 
 const entry = (id: string, kind: string, text: string, at: string, data: Record<string, unknown> = {}): JournalEntry => ({ id, at, kind, actor: kind === "said" ? "person" : "alpha", text, data, module: null, thread: "c_1", entity_ids: [], source: null });
 const convo: Convo = { id: "c_1", title: "Food", kind: "work", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z" };
@@ -63,5 +64,13 @@ describe("one timeline", () => {
     const card = screen.getByRole("button", { name: "Watch We Work Remotely: open the work item" });
     expect(card.querySelector(".badge")?.textContent).toBe("working");
     expect(card.textContent).toContain("Reading the board…");
+  });
+});
+
+describe("Watson's folded line under a reply", () => {
+  it("names what he kept, singular and plural, and nothing when nothing", () => {
+    expect(keptWords({ facts: 1, decisions: 2 })).toBe("Watson kept 1 fact · 2 decisions");
+    expect(keptWords({ commitments: 1 })).toBe("Watson kept 1 commitment");
+    expect(keptWords({})).toBe("");
   });
 });

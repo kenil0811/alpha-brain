@@ -139,6 +139,9 @@ export interface RecordRow {
 export interface JournalEntry {
   id: string;
   at: string;
+  /** On a reply: what Watson kept from that turn (facts, commitments, decisions), the folded
+   *  line under it (harness 4b). */
+  kept?: { facts?: number; commitments?: number; decisions?: number };
   kind: string;
   actor: string;
   text: string;

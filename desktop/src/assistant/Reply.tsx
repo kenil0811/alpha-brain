@@ -20,6 +20,14 @@ interface Step {
 
 /** The key that keeps a running turn and the reply it becomes on one element: the sentence's
  *  journal id, which the reply's entry carries as `data.turn`. */
+/** "Watson kept 1 fact · 2 decisions": what a turn led him to file (harness 4b, 18 Oct). */
+export function keptWords(kept: NonNullable<JournalEntry["kept"]>): string {
+  const parts = (["facts", "commitments", "decisions"] as const)
+    .filter((k) => (kept[k] ?? 0) > 0)
+    .map((k) => `${kept[k]} ${kept[k] === 1 ? k.slice(0, -1) : k}`);
+  return parts.length ? `Watson kept ${parts.join(" · ")}` : "";
+}
+
 export function replyKey(e: JournalEntry): string {
   return e.kind === "replied" && typeof e.data.turn === "string" ? `turn-${e.data.turn}` : e.id;
 }
@@ -117,6 +125,7 @@ export function Reply({
   const fromThread = entry && typeof entry.data.from_thread === "string" ? entry.data.from_thread : null;
   const doing = running ? (turn?.live?.doing ?? null) : null;
   const prov = entry ? provenance(entry) : "";
+  const kept = entry?.kept ? keptWords(entry.kept) : "";
   const list = running ? (open || steps.length <= 3 ? steps : steps.slice(-3)) : open ? steps : [];
   const copy = () => {
     const clipboard = navigator.clipboard;
@@ -184,6 +193,7 @@ export function Reply({
       {!running ? (
         <div className="reply__meta">
           {prov ? <span>{prov}</span> : null}
+          {kept ? <span className="reply__kept" title="What Watson kept from this turn; it is on his page and yours">{kept}</span> : null}
           {words && !failed ? (
             <button type="button" className="reply__act" onClick={copy}>
               {copied ? "Copied" : "Copy"}
