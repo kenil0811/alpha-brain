@@ -271,7 +271,8 @@ def test_a_core_that_starts_opens_the_work_a_dead_one_left_working(world: World)
         db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00' WHERE id = ?",
                    (stale,))
     conversations.reset_working(world)
-    assert world.modules.thread(stale)["state"] == "stopped"
+    gone = world.modules.thread(stale)
+    assert gone["state"] == "stopped" and gone["updated_at"].startswith("2026-01-01")  # not today
     assert world.modules.thread(other)["state"] == "open"  # touched today: stays
     # A live core resets them when it starts, before anything else runs.
     world.modules.update_thread(tid, state="working")

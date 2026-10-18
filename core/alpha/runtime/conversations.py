@@ -122,7 +122,10 @@ def reset_working(world: World) -> list[str]:
     for t in world.store.all("SELECT id FROM threads WHERE kind = 'work' AND state = 'open'"
                              " AND updated_at < ?", (since,)):
         if world.agents.of_thread(t["id"]) is None:
-            world.modules.update_thread(t["id"], state="stopped", last_line="Left open; over.")
+            # its day stays its own: stopping it now must not make it "done today"
+            with world.store.tx() as db:
+                db.execute("UPDATE threads SET state = 'stopped', last_line = ? WHERE id = ?",
+                           ("Left open; over.", t["id"]))
     if reset:
         n = len(reset)
         world.journal.append(
