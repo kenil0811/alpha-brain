@@ -1036,7 +1036,8 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .itemcard--sent { padding: 4px 12px; border-color: transparent; background: transparent; gap: 8px; }
 .itemcard--sent .oneline { flex: 1; min-width: 0; }
 .oneline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-width: 0; }
-.lanes { display: grid; gap: 12px; }
+.lanes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.lanes > section { min-width: 0; } /* a one-line card must not widen the lane past the page */
 .lane__head { font-size: var(--text-sm); color: var(--text-2); font-weight: 500; margin: 0 0 4px; }
 .askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */
 .askcard:focus { outline: none; box-shadow: 0 0 0 2px var(--primary-soft); }
