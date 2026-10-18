@@ -185,6 +185,16 @@ class ModuleFiles:
                         continue
             self._write_if_changed(path, wanted, counts)
 
+    def read_agent_text(self, a: dict[str, Any], text: str) -> None:
+        """An agent's text as the window saved it: taken like an edited file, and the file
+        written canonical."""
+        self._read_agent(a, text)
+        folder = self.dir_of(a["module"]) if a.get("module") else None
+        if folder is not None:
+            (folder / "agents").mkdir(parents=True, exist_ok=True)
+            (folder / "agents" / f"{slug(a['name'])}.md").write_text(
+                self.agent_text(self.world.agents.get(a["id"])))
+
     def _read_agent(self, a: dict[str, Any], text: str) -> None:
         """An agent file the person or the model edited: its front matter sets what it may,
         its body is the brief."""

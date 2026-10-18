@@ -12,6 +12,7 @@ from alpha.api.bodies import (
     CorrectFactBody,
     GoalBody,
     SkillTextBody,
+    TextBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -243,6 +244,20 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/agents", dependencies=[api])
     def agents() -> list[dict[str, Any]]:
         return agent_views(world, scheduler)
+
+    @app.get("/api/agents/{aid}/text", dependencies=[api])
+    def agent_text(aid: str) -> dict[str, Any]:
+        """The agent as its file (slice 6): front matter and brief, one editable text."""
+        agent = world.agents.get(aid)
+        return {"id": aid, "name": agent["name"], "text": world.files.agent_text(agent)}
+
+    @app.put("/api/agents/{aid}/text", dependencies=[api])
+    def edit_agent_text(aid: str, body: TextBody) -> dict[str, Any]:
+        """The person edited the agent's file: the row follows it, as a file edit would."""
+        agent = world.agents.get(aid)
+        world.files.read_agent_text(agent, body.text)
+        fresh = world.agents.get(aid)
+        return {"id": aid, "name": fresh["name"], "text": world.files.agent_text(fresh)}
 
     @app.patch("/api/agents/{aid}", dependencies=[api])
     def change_agent(aid: str, body: AgentBody) -> dict[str, Any]:

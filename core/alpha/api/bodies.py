@@ -45,6 +45,10 @@ class WholeMacBody(BaseModel):
     on: bool
 
 
+class TextBody(BaseModel):
+    text: str
+
+
 class CreateModuleBody(BaseModel):
     name: str
     goal: str | None = None

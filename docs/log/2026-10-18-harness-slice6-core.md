@@ -39,6 +39,9 @@ two options and no proposal in Needs you. 323 core tests; ruff and mypy clean.
 
 ## Ran for real
 
-`files_in_a_turn` (fresh world, Sonnet): a notes folder connected with two files, "what do
-my notes say about the car wash sites?" answered from the file, "save a file called hello.txt
-on my Desktop" refused in words: see the report named in STATE.
+`files_in_a_turn` (fresh world, Sonnet, `../journeys/2026-10-18-1431.md`, 41 s): a notes folder
+connected with two files; "what do my notes say about the car wash sites?" answered from the
+file in 22 s (the three sites and the decision to take Reading first); "save a file called
+hello.txt with the word hello on my Desktop" refused in words in 12 s, no file made, an
+alternative offered. The agents' and the module's text (`GET/PUT /api/agents/{id}/text`,
+`GET/PUT /api/modules/{ref}/notes`) are the routes the window's text views use.

@@ -23,6 +23,7 @@ from alpha.api.bodies import (
     RecordBody,
     RelabelFieldBody,
     RenameModuleBody,
+    TextBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -90,6 +91,21 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("changed", f"You made the module {made['name']}{where}.",
                              actor="person", module=made["id"], data={"module": made["id"]})
         return module_card(world, made)
+
+    @app.get("/api/modules/{ref}/notes", dependencies=[api])
+    def module_notes(ref: str) -> dict[str, Any]:
+        """The module's page as text (NOTES.md; slice 6)."""
+        m = world.modules.get(ref)
+        page = world.knowledge.find_note(f"module:{m['name']}", m["name"])
+        return {"module": m["id"], "text": page["body"] if page else ""}
+
+    @app.put("/api/modules/{ref}/notes", dependencies=[api])
+    def edit_module_notes(ref: str, body: TextBody) -> dict[str, Any]:
+        m = world.modules.get(ref)
+        world.knowledge.write_note(f"module:{m['name']}", m["name"], body.text.strip(),
+                                   source="person")
+        world.files.sync_module(m)
+        return {"module": m["id"], "text": body.text.strip()}
 
     @app.post("/api/modules/{ref}/kit", dependencies=[api])
     def export_kit(ref: str, body: KitExportBody | None = None) -> dict[str, Any]:

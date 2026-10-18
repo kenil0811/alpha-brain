@@ -472,3 +472,23 @@ def test_the_folders_alpha_may_read_and_the_whole_mac_switch(world: World, tmp_p
     assert c.get("/api/folders").json()["whole_mac"] is True
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == (
         "Alpha may read any folder on this Mac.")
+
+
+def test_an_agents_file_and_a_modules_notes_are_text_both_ways(world: World) -> None:
+    from conftest import building
+
+    t = building(world)
+    t.module_create("Jobs")
+    auto = t.agent_create("Daily jobs", "daily 07:00", brief="read the boards", module="Jobs")
+    c = client(world)
+    text = c.get(f"/api/agents/{auto['id']}/text").json()["text"]
+    assert text.startswith("---\nagent: Daily jobs\n") and "read the boards" in text
+    edited = text.replace("daily 07:00", "daily 08:15").replace("read the boards", "UK boards only")
+    out = c.put(f"/api/agents/{auto['id']}/text", json={"text": edited}).json()
+    assert "schedule: daily 08:15" in out["text"] and world.agents.get(auto["id"])["schedule"] == \
+        "daily 08:15"
+    assert c.get("/api/modules/Jobs/notes").json()["text"] == ""
+    c.put("/api/modules/Jobs/notes", json={"text": "What this is for: a role by Q1."})
+    assert c.get("/api/modules/Jobs/notes").json()["text"].startswith("What this is for")
+    folder = world.files.dir_of(world.modules.get("Jobs")["id"])
+    assert (folder / "NOTES.md").read_text().startswith("What this is for")
