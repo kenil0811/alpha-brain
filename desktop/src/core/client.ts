@@ -429,6 +429,17 @@ export interface DocumentInfo {
 }
 
 /** A file as a module or a person's page lists it (B8, B11): with the records that hold it. */
+/** A page the model drew in a module (slice 7): a file with a header; shown in a frame. */
+export interface PageInfo {
+  name: string;
+  module: string;
+  title: string;
+  front: boolean;
+  data: string[];
+  problem: string | null;
+  updated_at: string;
+}
+
 export interface FileItem extends DocumentInfo {
   used_by: { collection: string; table: string; record: string; title: string; field: string }[];
 }
@@ -1070,6 +1081,16 @@ export class Client {
   /** Files (13 Oct, slice 2 B8, B11, G4): a module's, a person's or company's; what deleting
    *  one would do; deleting it. */
   moduleFiles = (ref: string) => this.call<FileItem[]>("GET", `/api/modules/${encodeURIComponent(ref)}/files`);
+  /** The pages the model drew in a module, and what the frame needs: a one-use ticket's URL,
+   *  fresh rows when the world changed, the front mark, removal. */
+  modulePages = (ref: string) => this.call<PageInfo[]>("GET", `/api/modules/${encodeURIComponent(ref)}/pages`);
+  pageTicket = async (ref: string, name: string): Promise<string> => {
+    const t = await this.call<{ ticket: string; url: string }>("POST", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}/ticket`, {});
+    return `${this.session.baseUrl}${t.url}`;
+  };
+  pageData = (ref: string, name: string) => this.call<Record<string, Record<string, unknown>[]>>("GET", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}/data`);
+  setPageFront = (ref: string, name: string, front: boolean) => this.call<PageInfo>("PATCH", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}`, { front });
+  removePage = (ref: string, name: string) => this.call<{ removed: string }>("DELETE", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}`);
   entityFiles = (eid: string) => this.call<FileItem[]>("GET", `/api/entities/${encodeURIComponent(eid)}/files`);
   documentRemoval = (did: string) => this.call<{ document: string; title: string; what: string; used_by: FileItem["used_by"] }>("GET", `/api/documents/${encodeURIComponent(did)}/removal`);
   deleteDocument = (did: string) => this.call<Record<string, unknown>>("DELETE", `/api/documents/${encodeURIComponent(did)}`);

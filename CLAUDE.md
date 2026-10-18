@@ -82,7 +82,8 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
   harness design §8). Alpha says in a line what standing thing it is about to make and makes it.
   The old gate and the build machinery went with slice 2a (17 Oct); the permission callback in
   `runtime/engine.py` is the one gate, and the sandbox confines the model's shell and files
-  (slice 6, 18 Oct). A card is never read out of the model's prose (Q78); a fix that would add a
+  (slice 6, 18 Oct); a page the model draws runs in a sandboxed frame with read-only data
+  (slice 7, Q82). A card is never read out of the model's prose (Q78); a fix that would add a
   regex or another numbered prompt rule is the wrong fix: find the mechanism.
 - No limits, quotas or technical knobs; the person stops what isn't going anywhere.
 - Known, assumed or asked: every value has a source, or is estimated and says so, or is asked.

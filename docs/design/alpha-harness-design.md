@@ -231,11 +231,11 @@ What changes:
   so a query reads like a query over the person's table.
 - **Nothing per use case** still binds the store: no site, no domain in its schema.
 
-| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice5.md`) | |
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice5.md`, `-slice7-pages.md`) | |
 |---|---|
-| Built | A module is a directory: `module.yaml` from the world, `NOTES.md` and `agents/<name>.md` both ways, `skills/` since 2b, `ALPHA.md` at the root for the standing instructions; synced at open and after every turn; removed with the module. |
-| Differs | The model does not yet work *in* the directory with the SDK's own shell and files (slice 6, with granted folders); it reaches it through the hands, and the files follow. `ALPHA.md` holds the standing instructions; the preferences stay in the world. |
-| Not built | The window's text views of notes and agents (slice 6). |
+| Built | A module is a directory: `module.yaml` from the world, `NOTES.md` and `agents/<name>.md` both ways, `skills/` since 2b, `pages/<name>.html` the pages the model draws (slice 7, Q82: a header of title, front and data; read-only SELECTs; served under a content policy; in a kit), `ALPHA.md` at the root for the standing instructions; synced at open and after every turn; removed with the module. The model works in the directory with the SDK's files and shell (slice 6). |
+| Differs | `ALPHA.md` holds the standing instructions; the preferences stay in the world. |
+| Not built | Versions and Undo for agents' files and pages. |
 
 ## 6. Standing things, made by the model
 
@@ -473,7 +473,7 @@ Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What chan
 | Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice6-core.md`) | |
 |---|---|
 | Built | The core: the model's own Read, Glob, Grep, Write, Edit and Bash in a turn under the sandbox (reads where granted or the whole Mac, writes in the module's directory, no network); `GET /api/folders` and the whole-Mac switch; Scout's costly pick as a question; Needs you without proposals of Scout's; the agents' and the module's notes as text routes. |
-| Differs | Built in the window too (`../log/2026-10-18-harness-slice6-window.md`): an agent's page shows its file as text, the module page's Notes and Skills & agents tabs with Export as kit, Settings' Folders and Kits; Watson's folded line (4b). Versions and Undo on an agent's file wait: its file is not yet committed in the module's repo as a skill's is. |
+| Differs | Built in the window too (`../log/2026-10-18-harness-slice6-window.md`): an agent's page shows its file as text, the module page's Notes and Skills & agents tabs with Export as kit, Settings' Folders and Kits; Watson's folded line (4b). Versions and Undo on an agent's file wait: its file is not yet committed in the module's repo as a skill's is. **Slice 7 (Q82):** a module page has a tab per page the model drew, shown in a sandboxed frame in the app's look, the front page what the module opens on; the module's first tab is Overview. |
 | Not built | Mac notifications (later, Kenil); the full desktop page sweep's hang of 17 Oct. |
 
 ## 11. Walls kept in code
@@ -657,6 +657,8 @@ after Kenil's review.
 5. **Modules as directories and kits** (§5, §15): `module.yaml`, the window's module page, export
    and install.
 6. **The window's simplification** (§10): the forms go, text pages for skills and agents.
+7. **Pages the model draws** (§5, Q62, Q82; `harness-slice-7-proposal.md`): the eight table views
+   reachable, free-form pages as files in the module in a sandboxed frame with read-only data.
 
 Then the pending list of `STATE.md` resumes (people for real, memory, the channel).
 
@@ -674,7 +676,7 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q59 | Always asks: outward actions, deleting the person's own entries, money, sign-ins. Never asks for standing things, reads, its own code. |
 | Q60 | An unattended run may make new standing things, with a line in Activity and Undo. |
 | Q61 | Standing permissions as the person's sentences, kept and honoured. |
-| Q62 | The model may make arbitrary files; standard shapes rendered richly, other files shown plainly; custom views a later trial. |
+| Q62 | The model may make arbitrary files; standard shapes rendered richly, other files shown plainly; custom views a later trial (built 18 Oct as pages, Q82). |
 | Q63 | A module is a project directory the model owns; it may make one without asking. |
 | Q64 | Skills are made by the model whenever it judges it will do the thing again; shown and editable as text. |
 | Q65 | The five built-ins stay, quieter: never in the person's conversation. |
@@ -693,6 +695,7 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q78 | 18 Oct 2026, Kenil ("I don't want a thousand rules… we need a clean simple approach"): a card comes only from the model's own hand (`ask_person`, with its options) or from a mechanism (a permission, a routing); the core never reads a card out of the model's prose. Q35's derivation (9 Oct) and its 200 lines of parsing are removed; a question left in prose is answered by typing, as with Claude. The turn prompt is to be rewritten to a handful of principles, shown to Kenil first. |
 | Q79 | 18 Oct 2026, Kenil ("I don't think every log should be a table… hundreds of tables"): things the person tracks live in tables, things said in passing live in the journal; a table is made only when they ask to track or keep something, or say yes to Watson's offer, made once per kind when the same kind of thing has come up three times in a week (`[watson] offer_after`, `offer_window_days`, named judgements); a yes makes the table and fills it from the journal entries, each row's source its sentence; a no is remembered. The turn prompt rewritten to eight short principles (`docs/design/turn-prompt-draft.md`, agreed in chat), live the same day. |
 | Q80 | 18 Oct 2026, slice 6 agreed in chat: a turn has the SDK's own files and shell, under Claude Code's sandbox (Kenil: "why no shell?"; the spike `log/2026-10-18-harness-slice6-spike.md`): reads in the folders he connected, or the whole Mac by a switch in Settings (both: "both"), writes inside the module's own directory only, no network from the shell ever; Scout's sure and costly pick is a question card, not a proposal; Needs you holds questions and permission cards only. |
+| Q82 | 18 Oct 2026, Kenil after a reply refused a line chart: "by default we give current structure, but we should not restrict these custom ui elements". Three tiers laid out (the window's eight table views made reachable; free-form pages the model writes as files in the module, rendered in a sandboxed frame with read-only declared queries and Alpha's look as CSS variables; a catalogue of Alpha's own components): the first two built as slice 7, the catalogue held; pages live in a module only, never inside a reply; a page never writes; the model draws by hand (no network, no libraries from the web). The journey `page_drawn` and the WebKit proof are the acceptance before his own run. |
 | Q81 | 18 Oct 2026, Kenil on the agents and skills pages: a reminder is never an agent of its own ("the agent would be like a reminder agent, which can handle all such queries"): it is the person's commitment with a moment, and one built-in agent, Reminders, puts the card when the moment comes; an agent's own pipeline is its internals, described by what it does, never by its schedule ("why do these skills have time associated with them?"), and off the Skills list. The "how" never carries a "when". |
 
 Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one

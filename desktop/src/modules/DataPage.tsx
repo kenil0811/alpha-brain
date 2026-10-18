@@ -162,6 +162,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
   const [groupBy, setGroupBy] = useState<string | null>(restored?.groupBy ?? null);
   const [dateBy, setDateBy] = useState<string | null>(null);
+  const [measureBy, setMeasureBy] = useState<string | null>(null); // a chart list's measure
   const groupField = useMemo(() => choiceFields.find((f) => f.name === groupBy) ?? choiceFields[0], [choiceFields, groupBy]);
   const dateField = useMemo(() => dateFields.find((f) => f.name === dateBy) ?? dateFields[0], [dateFields, dateBy]);
   const numericField = useMemo(() => firstOfKind(fields, new Set(["number"])), [fields]);
@@ -523,6 +524,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         if (c.view) setView(c.view as PageView);
         setGroupBy(c.group_by ?? null);
         setDateBy(c.date_by ?? null);
+        setMeasureBy(c.measure ?? null);
       }
     },
     [lists],
@@ -806,7 +808,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
           {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={openRow} /> : null}
           {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={openRow} /> : null}
           {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={openRow} /> : null}
-          {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
+          {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} wanted={measureBy} /> : null}
         </div>
         {view !== "form" ? (
         <div className="pager">

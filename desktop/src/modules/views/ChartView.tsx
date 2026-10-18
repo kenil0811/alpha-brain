@@ -1,11 +1,14 @@
 /** Bars per day of a date field: a count, or the sum of a numeric field. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
 
-export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; dateField: FieldInfo; valueField: FieldInfo | null }) {
-  const [measure, setMeasure] = useState<string>(valueField?.name ?? "count");
+export function ChartView({ rows, dateField, valueField, wanted }: { rows: RecordRow[]; dateField: FieldInfo; valueField: FieldInfo | null; wanted?: string | null }) {
+  const [measure, setMeasure] = useState<string>(wanted ?? valueField?.name ?? "count");
+  useEffect(() => {
+    if (wanted) setMeasure(wanted); // a saved list says what to chart
+  }, [wanted]);
   const byDay = new Map<string, number>();
   for (const row of rows) {
     const raw = row.values[dateField.name];
@@ -23,6 +26,7 @@ export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; 
         <select className="btn btn--sm" value={measure} onChange={(e) => setMeasure(e.target.value)} aria-label="What to chart">
           <option value="count">Count</option>
           {valueField ? <option value={valueField.name}>{humanize(valueField.name)}</option> : null}
+          {wanted && wanted !== valueField?.name ? <option value={wanted}>{humanize(wanted)}</option> : null}
         </select>
       </div>
       {days.length ? (

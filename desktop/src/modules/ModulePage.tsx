@@ -4,7 +4,8 @@
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
 import { moduleWords, say } from "../core/client";
-import type { Agent, Client, FileItem, ModuleDetail, ModuleSummary, Note, Skill, Source, ModuleCard } from "../core/client";
+import type { Agent, Client, FileItem, ModuleDetail, ModuleSummary, Note, PageInfo, Skill, Source, ModuleCard } from "../core/client";
+import { PageFrame } from "./PageFrame";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -83,6 +84,21 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       .catch(() => setFiles([])); // none to show; the tables are the page
   }, [client, moduleId, version]);
   const showFiles = tab === "files" && files.length > 0;
+  // the pages Alpha drew (slice 7): a tab each, the front one what the module opens on
+  const [pages, setPages] = useState<PageInfo[]>([]);
+  const picked = useRef(false); // the person chose a tab here: the front page does not take over
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => client.modulePages(moduleId))
+      .then(setPages)
+      .catch(() => setPages([])); // none to show; the tables are the page
+  }, [client, moduleId, version]);
+  const pageShown = useMemo(() => (tab.startsWith("page:") ? pages.find((p) => `page:${p.name}` === tab) ?? null : null), [pages, tab]);
+  useEffect(() => {
+    const front = pages.find((p) => p.front && !p.problem);
+    if (tab.startsWith("page:") && pages.length && !pageShown) setTab("summary"); // removed
+    else if (front && tab === "summary" && !picked.current && !wantedTable) setTab(`page:${front.name}`);
+  }, [pages, tab, pageShown, wantedTable]);
   // Where this module could go (never itself, what it holds, or where it already is), and
   // what could come in (never itself, what is already here, or anything above it).
   const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
@@ -191,10 +207,14 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         <>
           <Tabs
             label="Tables"
-            value={table || showFiles || tab === "notes" || tab === "know" ? tab : "summary"}
-            onChange={setTab}
+            value={table || showFiles || tab === "notes" || tab === "know" || pageShown ? tab : "summary"}
+            onChange={(id) => {
+              picked.current = true;
+              setTab(id);
+            }}
             items={[
-              { id: "summary", label: "Summary" },
+              { id: "summary", label: "Overview" },
+              ...pages.map((p) => ({ id: `page:${p.name}`, label: p.title })),
               { id: "notes", label: "Notes" },
               { id: "know", label: "Skills & agents" },
               ...detail.tables.map((t) => ({
@@ -214,7 +234,9 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                 : []),
             ]}
           />
-          {tab === "notes" ? (
+          {pageShown ? (
+            <PageFrame key={pageShown.name} client={client} moduleId={moduleId} page={pageShown} version={version} onChanged={onChanged} />
+          ) : tab === "notes" ? (
             <ModuleNotes client={client} moduleId={moduleId} version={version} onChanged={onChanged} />
           ) : tab === "know" ? (
             <ModuleKnowHow client={client} moduleId={moduleId} agents={detail.agents} version={version} onChanged={onChanged} onGo={onGo} />
