@@ -43,14 +43,14 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | | |
 |---|---|
 | Core tests | 324, in about 30 s; ruff and mypy strict clean |
-| Desktop tests | 218 passed, 1 skipped, in 50 files; typecheck clean; 1 host test (`cargo test --lib`) |
-| Tools the model sees | 21 (17 hands and the four workflow tools; 67 operations behind them; `just stats` counts the operations) |
+| Desktop tests | 219 passed, 1 skipped, in 50 files; typecheck clean; 1 host test (`cargo test --lib`) |
+| Tools the model sees | 21 (17 hands and the four workflow tools; 68 operations behind them; `just stats` counts the operations) |
 | Journeys | 32 defined (`files_in_a_turn`, `kit_roundtrip`, `reminder_fires`, `gmail_last_week` 18 Oct) (`two_things_at_once` 18 Oct, passed on a fresh world: `docs/journeys/2026-10-17-2332.md`; `remove_asks` passed again after the bulk-removal change: `docs/journeys/2026-10-18-0027.md`); `--fresh` runs on an empty world (17 Oct). On the fresh world: track_then_log and watch_from_words passed (`docs/journeys/2026-10-17-2031.md`, `-2033.md`); sync_from_words waits for Kenil's say; vague_tracker not yet run on its new rule. On the SDK engine on a copy: question_card and vague_tracker passed, branded_food broke on its precondition (`-1956.md`, `-1957.md`). Before: All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
 | Desktop check | `docs/checks/2026-10-18-1440.md` (Home, Settings, Assistant, Intelligence: 16 of 19 clean, the three fixed) and `-1442.md` (the 15 Intelligence pages: all clean), on a copy of Kenil's world, both sizes, light and dark; the full 91-page sweep's hang of 17 Oct still to look at |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 257 total; 257 since 1 Oct 2026 (before slice 3's window commit) |
-| Lines | core 21,371 Python; tests 8,016; desktop 18,954 TS/TSX |
+| Commits | 280 total; 280 since 1 Oct 2026 (before this docs commit) |
+| Lines | core 22,479 Python; tests 8,325; desktop 19,241 TS/TSX |
 
 ## What is built, against the design's order of work
 

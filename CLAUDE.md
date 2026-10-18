@@ -80,8 +80,10 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 - The model's power is not curtailed by scope gates (Q54, 17 Oct): the only gate is a permission
   question on actions that matter (outward, deleting the person's own entries, money, sign-ins;
   harness design §8). Alpha says in a line what standing thing it is about to make and makes it.
-  Until the harness slices land, the old gate (`Tools._gate`) still exists in the code; do not
-  extend it or the interview → page → walled-build path.
+  The old gate and the build machinery went with slice 2a (17 Oct); the permission callback in
+  `runtime/engine.py` is the one gate, and the sandbox confines the model's shell and files
+  (slice 6, 18 Oct). A card is never read out of the model's prose (Q78); a fix that would add a
+  regex or another numbered prompt rule is the wrong fix: find the mechanism.
 - No limits, quotas or technical knobs; the person stops what isn't going anywhere.
 - Known, assumed or asked: every value has a source, or is estimated and says so, or is asked.
 - Removal deletes everything related; the journal is never deleted.
@@ -94,7 +96,8 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 `uv` (Python 3.13.9), Node from `/opt/homebrew/opt/node@24/bin` (the default Node is broken),
 pnpm 10, Tauri 2.11.6. `just test`, `just lint`, `just test-desktop`, `just journeys`,
 `just check-desktop`, `just app`, `just stats`; `just ship` builds Alpha for another Mac with its
-runtime inside. Four journeys act in Kenil's real accounts (gmail_send, gmail_draft, skill_reuse,
-linkedin_message): run them only on his say. The model runs through the Claude Agent SDK on Kenil's
+runtime inside. Five journeys act in Kenil's real accounts (gmail_send, gmail_draft, skill_reuse,
+linkedin_message, gmail_last_week), and sync_from_words reads his LinkedIn: run them only on his
+say. The model runs through the Claude Agent SDK on Kenil's
 subscription (`runtime/engine.py`); `claude` must be signed in from the default config home and `USER` must be set.
 Keep `desktop/src-tauri/Cargo.lock`.

@@ -67,15 +67,21 @@ just turns          # how long the last turns took: wall, the model's time, step
 ```
 
 The CLI also lists the agents (`uv run alpha agents`) and renames one (`uv run alpha agent-rename
-<id> <name>`), journaled as the person's change.
+<id> <name>`), journaled as the person's change, and handles kits: `uv run alpha kit export
+<module> [--to folder] [--zip]`, `uv run alpha kit install <folder>`, `uv run alpha kit list`
+(harness slice 5); `just ship path/to/Name.alphakit …` puts kits in the shipped app, installed on
+a first open.
 
 The model runs through the Claude Agent SDK (its bundled Claude Code) on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
 `~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles,
-`modules/<id>/` for each module's directory under git (the harness, 17 Oct 2026: its
-`skills/<name>/` as `SKILL.md` plus `scripts/` or `steps.yaml`; older ones still hold the build's
-`WORKFLOW.md`, `workflow.json`, `PROGRESS.md`), `skills/` beside the world for skills with no
-module (a git repository of its own), Alpha's own `files/<module>` for what it
+`modules/<id>/` for each module's directory under git (the harness, 17–18 Oct 2026: its
+`module.yaml` written from the world, `NOTES.md` the module's page, `agents/<name>.md` each
+agent, `skills/<name>/` as `SKILL.md` plus `scripts/` or `steps.yaml`, all editable both ways;
+older ones still hold the build's `WORKFLOW.md`, `workflow.json`, `PROGRESS.md`), `ALPHA.md` the
+standing instructions as a file, `skills/` beside the world for skills with no module (a git
+repository of its own), `kits/` where exported kits land, `sessions/` where the model's
+sessions and its scratch directory live, Alpha's own `files/<module>` for what it
 fetched or was given, `exports/`, `backups/` (copies of the world), `actions/` screenshots, `logs/`, and the companion's
 `avatar-hidden` and `avatar-place.json`); the CLI on its own defaults to
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
