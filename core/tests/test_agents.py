@@ -706,16 +706,11 @@ def test_the_api_renames_pauses_and_deletes_an_agent(world: World,
         "You renamed the agent Daily brokers to Deal Tracker."
 
 
-def test_a_time_that_comes_once_runs_once_and_the_reminder_is_a_card(world: World) -> None:
-    """Slice 4 (18 Oct): `at 2026-10-24 17:00` is a schedule that fires once; the reminder is
-    an agent with a remind step; its run puts a card with Done and Tomorrow; the agent is then
-    paused; Tomorrow makes the next once by code, with no turn."""
-    import time
+def test_a_time_that_comes_once_runs_once(world: World) -> None:
+    """Slice 4 (18 Oct): `at 2026-10-24 17:00` is a schedule that fires once; the agent is then
+    paused with no next run, its item done."""
     from datetime import UTC, datetime, timedelta
 
-    from fastapi.testclient import TestClient
-
-    from alpha.api.server import create_app
     from alpha.world import agents as schedules
 
     assert schedules.check_schedule("at 2026-10-24 17:00") == "at 2026-10-24 17:00"
@@ -727,29 +722,79 @@ def test_a_time_that_comes_once_runs_once_and_the_reminder_is_a_card(world: Worl
     with pytest.raises(Problem):
         schedules.check_schedule("at 2026-13-01 10:00")
     past = (datetime.now().astimezone() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
-    auto = building(world).agent_create("Remind me to call Sara", f"at {past}",
-                                        steps=[{"remind": "call Sara"}])
-    assert auto["on"] and auto["steps"] == [{"remind": "call Sara"}]
+    connections_table(world)
+    auto = building(world).agent_create("Once", f"at {past}", steps=[{"tell": "connections"}])
     assert [a["id"] for a in world.agents.due()] == [auto["id"]]
     out = agent_runner.run(world, auto["id"], trigger="schedule")
-    assert out["last_result"] == "Reminded you: call Sara." and not out["on"]
-    assert out["next_run_at"] is None and world.agents.due() == []
-    card = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == auto["id"])
+    assert not out["on"] and out["next_run_at"] is None and world.agents.due() == []
+    assert world.modules.thread(auto["thread"])["state"] in ("done", "open")
+
+
+def test_a_reminder_is_a_row_the_reminders_agent_turns_into_a_card(world: World) -> None:
+    """18 Oct (Kenil): a reminder is never an agent of its own. It is the person's commitment
+    with a moment; the Reminders agent puts one card when the moment comes; Done closes it,
+    Tomorrow moves it a day; no agent, no schedule is made."""
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi.testclient import TestClient
+
+    from alpha.api.server import create_app
+    from alpha.runtime.agents import builtin, look_and_run
+
+    builtin.ensure(world)
+    before = len(world.agents.all())
+    out = Tools(world, turn="j_1").world_remember("reminder", text="call Sara",
+                                                  when="2026-10-23T09:00")
+    assert out["reminder"] and len(world.agents.all()) == before  # no agent was made
+    row = world.commitments.get(out["reminder"])
+    assert row["who"] == "person" and row["due"] == "2026-10-23" and row["remind_at"]
+    assert world.journal.recent(1, kinds=["made"])[-1]["text"].startswith("Reminder set: call Sara")
+    # not yet due: the agent has nothing; due: one card
+    assert look_and_run(world, "reminders") is None
+    world.commitments.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
+    ran = look_and_run(world, "reminders")
+    assert ran and ran["last_result"] == "Reminded you: call Sara."
+    card = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == row["id"])
     assert card["text"] == "Reminder: call Sara." and card["data"]["options"] == [
         "Done", "Tomorrow, same time"]
-    assert world.modules.thread(auto["thread"])["state"] == "done"
-    # Tomorrow, same time: a new once, the agent on again, no turn
+    assert look_and_run(world, "reminders") is None  # put once
+    # Tomorrow: the moment a day on, the card closed, no turn
     c = TestClient(create_app(world, live=False))
     answered = c.post(f"/api/asks/{card['id']}/answer", json={"text": "Tomorrow, same time"}).json()
-    assert answered["turn"] is None and answered["reminder"] == auto["id"]
-    again = world.agents.get(auto["id"])
-    assert again["on"] and again["schedule"].startswith("at ") and again["next_run_at"]
+    assert answered["turn"] is None
+    again = world.commitments.get(row["id"])
+    assert again["state"] == "open" and again["reminded_at"] is None
+    assert datetime.fromisoformat(again["remind_at"]) > datetime.now(UTC)
     assert world.journal.open_asks() == []
-    assert world.journal.recent(1, kinds=["changed"])[-1]["text"].startswith(
-        "Reminder moved to tomorrow")
-    # Done: closed, nothing else
-    out = agent_runner.run(world, auto["id"], trigger="now")
-    card2 = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == auto["id"])
-    done = c.post(f"/api/asks/{card2['id']}/answer", json={"text": "Done"}).json()
-    assert done["turn"] is None and world.journal.open_asks() == []
-    time.sleep(0.01)
+    # Done: the commitment closed
+    world.commitments.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
+    look_and_run(world, "reminders")
+    card2 = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == row["id"])
+    c.post(f"/api/asks/{card2['id']}/answer", json={"text": "Done"})
+    assert world.commitments.get(row["id"])["state"] == "done"
+    assert world.journal.open_asks() == []
+
+
+def test_an_agents_own_pipeline_is_not_in_the_skills_list_and_says_what_it_does(
+        world: World) -> None:
+    """18 Oct (Kenil: why do these skills have a time?): an agent's steps are its internals,
+    described by what they do, never by the agent's sentence; the Skills list holds the
+    readers, procedures and shared pipelines."""
+    from fastapi.testclient import TestClient
+
+    from alpha.api.server import create_app
+
+    connections_table(world)
+    world.skills.save("linkedin_connections", "read", description="The connections page",
+                      url="https://www.linkedin.com/mynetwork/", script="return rows",
+                      site="linkedin.com")
+    auto = building(world).agent_create(
+        "Every Monday at 08:00, sync my LinkedIn connections", "weekly mon 08:00",
+        steps=[{"read": "linkedin_connections", "into": "connections", "key": "linkedin_url"},
+               {"tell": "connections"}])
+    own = world.skills.get(auto["skill"])
+    assert own["description"] == ("Reads linkedin_connections into connections; tells what"
+                                  " changed in connections.")
+    c = TestClient(create_app(world, live=False))
+    listed = [s["name"] for s in c.get("/api/intelligence").json()["skills"]]
+    assert "linkedin_connections" in listed and auto["skill"] not in listed

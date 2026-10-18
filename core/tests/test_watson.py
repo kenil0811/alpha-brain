@@ -275,7 +275,7 @@ def test_watson_is_made_once_and_works_from_the_journal_cursor(world: World) -> 
     assert brief and brief["body"].startswith("## What Watson files")
     assert builtin.ensure(world) == []  # once
     agent = world.agents.get(made["id"])
-    hello = [e for e in world.journal.recent(5, kinds=["made"]) if e["actor"] == made["id"]][-1]
+    hello = [e for e in world.journal.recent(10, kinds=["made"]) if e["actor"] == made["id"]][-1]
     assert agent["cursor"] >= world.journal.rowid(hello["id"])  # its own hello is behind it
     # nothing new: no run, the cursor moves (the refiling of nothing is still a run? no: it
     # is recorded as done the first time there is work)

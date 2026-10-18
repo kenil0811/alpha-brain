@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from alpha import config
-from alpha.runtime.agents import columbo, doc, journal_rowid, scout, sherlock, watson
+from alpha.runtime.agents import columbo, doc, journal_rowid, reminders, scout, sherlock, watson
 from alpha.world.world import World
 
 # kind → name, description, write list (the default brief is config/briefs/<kind>.md)
@@ -22,6 +22,8 @@ BUILTIN: list[dict[str, Any]] = [
     {"kind": sherlock.KIND, "name": sherlock.NAME, "description": sherlock.DESCRIPTION,
      "may": sherlock.MAY},
     {"kind": scout.KIND, "name": scout.NAME, "description": scout.DESCRIPTION, "may": scout.MAY},
+    {"kind": reminders.KIND, "name": reminders.NAME, "description": reminders.DESCRIPTION,
+     "may": reminders.MAY},
 ]
 
 

@@ -467,6 +467,10 @@ ADDED_COLUMNS = [
     # (harness slice 3, 18 Oct 2026: a session resumed on other tools called a name it lacked)
     ("threads", "last_line", "TEXT"),
     ("threads", "session_tools", "TEXT"),
+    # a commitment with a moment to be reminded at, and when the card was put (18 Oct 2026,
+    # Kenil: a reminder is a row the Reminders agent owns, never an agent of its own)
+    ("commitments", "remind_at", "TEXT"),
+    ("commitments", "reminded_at", "TEXT"),
 ]
 
 

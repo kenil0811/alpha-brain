@@ -1,0 +1,57 @@
+[
+ {
+  "name": "reminder_fires",
+  "title": "First day · \"remind me to call Sara on Friday\" is a reminder that fires",
+  "steps": [
+   {
+    "say": "remind me to call Sara on Friday",
+    "ok": true,
+    "reply": "I've set a reminder to call Sara on Friday 23 October at 09:00. I picked 09:00 because you didn't give a time. If you'd like a different time, tell me and I'll change it.",
+    "steps": 2,
+    "routed": "a new item",
+    "routed_by": "judge: A reminder for Friday is a schedule that has to stand and fire later, so it can't be finished in this turn, and no open work item covers it.",
+    "seconds": 11.7
+   },
+   {
+    "check": "made_since",
+    "ok": true,
+    "detail": "Made 0 tables, 0 readers, 6 agents, 0 modules",
+    "seconds": 0.0
+   },
+   {
+    "due_now": 1,
+    "ok": true,
+    "detail": "1 reminder(s) brought to now",
+    "seconds": 0.0
+   },
+   {
+    "agent": "Reminders",
+    "ok": true,
+    "result": "Reminded you: Call Sara.",
+    "problem": null,
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Reminder: call Sara"
+    },
+    "ok": true,
+    "why": "1 asked entry: Reminder: Call Sara..",
+    "seconds": 0.0
+   },
+   {
+    "check": "run_verdict",
+    "arg": {},
+    "ok": true,
+    "why": "succeeded: Reminded you: Call Sara. (model 0 s, 0 repairs)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 11.7,
+  "error": null
+ }
+]

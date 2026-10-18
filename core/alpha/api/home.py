@@ -81,17 +81,18 @@ def routes(app: FastAPI, s: Served) -> None:
             return {"answered": jid, "turn": taken}
         reminder = asked["data"].get("reminder")
         if reminder:
-            # the reminder's card (slice 4): Done closes it; the same time tomorrow is a new
-            # once, by code; neither starts a turn
+            # the reminder's card: Done closes the commitment; Tomorrow moves its moment a day
+            # on, at the same time; neither starts a turn (the Reminders agent)
+            row = world.commitments.get(str(reminder))
             if body.text.strip().lower().startswith("tomorrow"):
-                agent = world.agents.get(str(reminder))
-                moment = datetime.now().astimezone() + timedelta(days=1)
-                world.agents.update(agent["id"], state="on",
-                                    schedule=f"at {moment.strftime('%Y-%m-%d %H:%M')}")
+                moment = datetime.fromisoformat(row["remind_at"]).astimezone() + timedelta(days=1)
+                world.commitments.snooze(row["id"], moment)
                 world.journal.append("changed", f"Reminder moved to tomorrow, {moment:%H:%M}:"
-                                     f" {asked['data'].get('words') or agent['name']}.",
-                                     actor="person", data={"agent": agent["id"], "ask": ask_id},
+                                     f" {row['what']}.", actor="person",
+                                     data={"commitment": row["id"], "ask": ask_id},
                                      module=asked["module"], thread=asked["thread"])
+            else:
+                world.commitments.set_state(row["id"], "done")
             return {"answered": jid, "turn": None, "reminder": reminder}
         decided = columbo.decide(world, asked, body.text)
         if decided:

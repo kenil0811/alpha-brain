@@ -37,19 +37,22 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/intelligence", dependencies=[api])
     def intelligence() -> dict[str, Any]:
+        owned = {a["skill"] for a in world.agents.all() if a.get("skill")}
         pages = {n["scope"].removeprefix("skill:"): n for n in world.knowledge.notes()
                  if n["scope"].startswith("skill:")}
         return {
             "hands": [{"name": m["name"], "title": m.get("title", m["name"]),
                        "description": m.get("description"), "tools": m.get("tools", []),
                        "origin": m.get("origin")} for m in manifests()],
+            # an agent's own pipeline is its internals (its page, its file), not know-how of
+            # its own: the Skills list holds the readers, procedures and shared pipelines
             "skills": [{**{k: sk[k] for k in ("name", "kind", "site", "module", "url",
                                              "description", "when_to_use", "effect",
                                              "fields", "version", "health", "last_problem",
                                              "last_run_at", "last_count", "last_ok_count",
                                              "source", "updated_at")},
                         "notes": pages[sk["name"]]["body"] if sk["name"] in pages else None}
-                       for sk in world.skills.all()],
+                       for sk in world.skills.all() if sk["name"] not in owned],
             "agents": agent_views(world, scheduler),
             "readers": world.readers.all(),
             "connections": Connections(world.store).all(),

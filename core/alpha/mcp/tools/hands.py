@@ -216,8 +216,11 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                        body: str | None = None, id: str | None = None,
                        state: str | None = None, url: str | None = None,
                        module: str | None = None, status: str | None = None,
-                       detail: str | None = None) -> dict[str, Any]:
-        """Keep what should be remembered. kind "fact": about ("person", or "entity:<id>"),
+                       detail: str | None = None, when: str | None = None) -> dict[str, Any]:
+        """Keep what should be remembered. kind "reminder": text (what, in the person's
+        words) and when (a date and time, 2026-10-24T09:00, worked out from today's date; no
+        time given means 09:00): the Reminders agent puts a card when the moment comes;
+        nothing else is made. kind "fact": about ("person", or "entity:<id>"),
         predicate (snake_case: weight_kg, employer), value, stated (true when the person said
         it; false makes it a suggestion), why. kind "person" (or "organisation", "place"):
         name and keys ({email, profile_url, domain}: hard keys, so the same person is one
@@ -259,13 +262,21 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             if state == "removed":
                 return self.instruction_remove(text, quote)
             return self.instruction_add(text, quote)
+        if kind == "reminder":
+            if not (text and when):
+                return {"error": "a reminder needs text and when (a date and time)."}
+            row = self.world.commitments.remind(text, when, source=self.turn)
+            self._did("made", f"Reminder set: {row['what']}, {row['remind_at'][:16]}Z.",
+                      {"commitment": row["id"], "remind_at": row["remind_at"]})
+            return {"reminder": row["id"], "what": row["what"], "remind_at": row["remind_at"],
+                    "note": "The Reminders agent puts the card when the moment comes."}
         if kind == "source":
             if not (title and url):
                 return {"error": "a source needs title and url."}
             return self.source_add(title, url, module=module, status=status or "not_built",
                                    detail=detail)
-        return {"error": "kind is one of fact, person, organisation, place, goal, note,"
-                         " instruction, source."}
+        return {"error": "kind is one of reminder, fact, person, organisation, place, goal,"
+                         " note, instruction, source."}
 
     @hand
     def world_search(self, query: str, limit: int = 10, who: str | None = None,
@@ -366,9 +377,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         "every 6h", or "at 2026-10-24 17:00" for a time that comes once: "on Friday at 5" is
         that, worked out from today's date), steps ([{"read": reader, "into": table, "key":
         field}, …, {"tell": table}]: a pipeline the scheduler runs with no model; the tell step
-        reports what is new, changed and gone in that table since the last run; a reminder is
-        the plainest agent: schedule "at …" and steps [{"remind": "call Sara"}], which puts a
-        card to the person when the time comes), or brief
+        reports what is new, changed and gone in that table since the last run), or brief
         (plain words for an agent that needs judgement each run), module, goal. Its first run is
         yours to do now (skill_run). Existing (id): state "paused" or "on", a new schedule,
         brief, title, name, or steps (an agent that read by its brief converts itself to steps).

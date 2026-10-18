@@ -108,6 +108,19 @@ def next_run(schedule: str, after: datetime) -> datetime:
     raise Problem(f"Unknown schedule '{schedule}'.")
 
 
+def steps_words(steps: list[dict[str, Any]]) -> str:
+    """A pipeline's steps in words: what it does, never when (the when is the agent's)."""
+    parts = []
+    for s in steps:
+        if "read" in s:
+            parts.append(f"reads {s['read']} into {s.get('into') or 'its table'}")
+        elif "tell" in s:
+            parts.append(f"tells what changed in {s['tell']}")
+        elif "run" in s:
+            parts.append(f"runs {s['run']}")
+    return "; ".join(parts).capitalize() + "." if parts else "A pipeline."
+
+
 def describe(schedule: str) -> str:
     kind, _, rest = schedule.partition(" ")
     if kind == "at":
@@ -171,7 +184,8 @@ class Agents:
             name, n = base, 2
             while name in self.skills.names():
                 name, n = f"{base}_{n}", n + 1
-        self.skills.save(name, "run", description=description, module=module, steps=steps)
+        self.skills.save(name, "run", description=steps_words(steps), module=module,
+                         steps=steps)
         return name
 
     def create(self, description: str, *, name: str | None = None, kind: str = "custom",

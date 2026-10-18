@@ -108,13 +108,7 @@ def fresh_home(source_world: Path, into: Path) -> Path:
     into.mkdir(parents=True, exist_ok=True)
     target = into / "world.sqlite"
     _copy_profiles(source_world, into)
-    # the skills and the modules' files live beside the world (2b, slice 5): a copy without
-    # them has agents whose run skills are missing (the check of 18 Oct found the page failing)
-    for name in ("skills", "modules"):
-        src = source_world.parent / name
-        if src.is_dir():
-            shutil.copytree(src, into / name, dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns("documents", "inputs", "parts"))
+
     return target
 
 
@@ -131,6 +125,13 @@ def copy_home(source_world: Path, into: Path) -> Path:
         dst.close()
         src.close()
     _copy_profiles(source_world, into)
+    # the skills and the modules' files live beside the world (2b, slice 5): a copy without
+    # them has agents whose run skills are missing (the check of 18 Oct found the page failing)
+    for name in ("skills", "modules"):
+        beside = source_world.parent / name
+        if beside.is_dir():
+            shutil.copytree(beside, into / name, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns("documents", "inputs", "parts"))
     return target
 
 
@@ -296,6 +297,15 @@ class Run:
                 removed = {"already absent": True}
             record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
+        elif "due_now" in spec:
+            # the suite cannot wait until Friday: every open reminder's moment is now
+            moved = 0
+            for c in self.world.commitments.all():
+                if c["state"] == "open" and c.get("remind_at"):
+                    self.world.commitments.snooze(c["id"], dt.now(UTC))
+                    moved += 1
+            record = {"due_now": moved, "ok": moved > 0,
+                      "detail": f"{moved} reminder(s) brought to now"}
         elif "connect_folder" in spec:
             # a folder the person connected, with the files the journey names in it
             from alpha.connectors.files import Files
@@ -839,7 +849,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         for s in o.steps:
             kind = next((k for k in ("say", "check", "reader", "agent", "break_reader",
                                      "kit_export", "kit_install", "module_remove",
-                                     "connect_folder",
+                                     "connect_folder", "due_now",
                                      "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"

@@ -65,6 +65,47 @@ class Commitments:
             " ORDER BY due IS NULL, due, created_at", (who, who, *states))
         return [_row(r) for r in rows]
 
+    def remind(self, what: str, at: str, *, source: str | None = None) -> dict[str, Any]:
+        """A reminder: the person's own commitment with the moment to be reminded at (local
+        time as given, kept in UTC). Kenil, 18 Oct 2026: a reminder is a row the Reminders
+        agent owns, never an agent of its own."""
+        try:
+            moment = datetime.fromisoformat(at)
+        except ValueError as e:
+            raise Problem(f"A reminder's time is a date and time (2026-10-24T09:00), not {at!r}."
+                          ) from e
+        if moment.tzinfo is None:
+            moment = moment.astimezone()  # the person's local time
+        stamp = moment.astimezone(UTC).replace(microsecond=0).isoformat()
+        row = self.record("person", what, due=moment.date().isoformat(), source=source)
+        with self.store.tx() as db:
+            db.execute("UPDATE commitments SET remind_at = ?, reminded_at = NULL, updated_at = ?"
+                       " WHERE id = ?", (stamp, now(), row["id"]))
+        return self.get(row["id"])
+
+    def due_now(self, at: datetime | None = None) -> list[dict[str, Any]]:
+        """Open reminders whose moment has come and whose card is not yet put."""
+        moment = (at or datetime.now(UTC)).astimezone(UTC).isoformat()
+        rows = self.store.all(
+            "SELECT * FROM commitments WHERE state = 'open' AND remind_at IS NOT NULL"
+            " AND remind_at <= ? AND reminded_at IS NULL ORDER BY remind_at", (moment,))
+        return [_row(r) for r in rows]
+
+    def reminded(self, cid: str) -> None:
+        with self.store.tx() as db:
+            db.execute("UPDATE commitments SET reminded_at = ?, updated_at = ? WHERE id = ?",
+                       (now(), now(), cid))
+
+    def snooze(self, cid: str, to: datetime) -> dict[str, Any]:
+        """The reminder again at `to` (the same time tomorrow, say)."""
+        self.get(cid)
+        stamp = to.astimezone(UTC).replace(microsecond=0).isoformat()
+        with self.store.tx() as db:
+            db.execute("UPDATE commitments SET remind_at = ?, reminded_at = NULL, due = ?,"
+                       " updated_at = ? WHERE id = ?",
+                       (stamp, to.astimezone().date().isoformat(), now(), cid))
+        return self.get(cid)
+
     def due_within(self, days: int) -> list[dict[str, Any]]:
         """Open commitments due within `days` from today (local), soonest first."""
         today = datetime.now(UTC).astimezone().date()

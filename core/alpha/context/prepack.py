@@ -104,6 +104,17 @@ def _assemble(sections: list[tuple[str, list[str]]]) -> str:
     return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
 
 
+def _module_name(world: World, module: str | None) -> str:
+    """A module's name for a line, or its id when the world has no such module (a skill's
+    folder copied from elsewhere): never a failed pre-pack over a stray file."""
+    if not module:
+        return ""
+    try:
+        return str(world.modules.get(module)["name"])
+    except Exception:
+        return str(module)
+
+
 def table_line(world: World, table: dict[str, Any]) -> str:
     """A table with its fields in one line: name kind unit[choices]->relation, so the model
     queries it without a describe first (3 Oct: every data question paid that step)."""
@@ -299,7 +310,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
     can_do = []
     reads = []
     for sk in world.skills.index()[:120]:
-        where = sk["site"] or (world.modules.get(sk["module"])["name"] if sk["module"] else "")
+        where = sk["site"] or _module_name(world, sk["module"])
         mark = "" if sk["health"] == "ok" else f", {sk['health']}"
         use = f" When: {_clip(sk['when_to_use'], 80)}" if sk["when_to_use"] else ""
         if sk["kind"] == "read":
