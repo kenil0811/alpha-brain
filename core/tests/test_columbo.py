@@ -164,8 +164,11 @@ def test_the_judges_answer_is_read_however_it_is_wrapped() -> None:
 # ---- an answer, checked both ways ----
 
 
-def test_a_wrong_answer_is_caught_alpha_corrects_itself_and_the_row_is_marked(
+def test_a_wrong_answer_is_a_card_and_a_mark_never_a_correction_behind_the_persons_back(
         world: World) -> None:
+    """Slice 4b (18 Oct): Columbo never writes in the person's conversation. A value that
+    differs from a source stays as Alpha wrote it, carries the mark, and the person chooses
+    between the two on a card; no repair turn runs."""
     food_log(world)
     me = with_columbo(world)
     turn_id, rec = shake(world)
@@ -178,43 +181,25 @@ def test_a_wrong_answer_is_caught_alpha_corrects_itself_and_the_row_is_marked(
             return RunResult(reply="Per 330 ml bottle: 215 kcal, 35 g protein (ocado.com).",
                              ok=True)
         if req.kind == "judge" and world_way(req):
-            assert "Rows this turn wrote" in req.sentence and "kcal = 160" in req.sentence
             return RunResult(reply=AGREE, ok=True)
         if req.kind == "judge":
-            assert "Alpha's answer" in req.sentence and "215 kcal" in req.sentence
             return RunResult(reply=DIFFERS, ok=True)
-        # The repair turn: Alpha corrects the record from the source and tells the person.
-        assert "second opinion" in req.sentence.lower() and rec["id"] in req.sentence
-        Tools(world, turn=req.turn_id).records_update(
-            "food_log", rec["id"], {"kcal": 215}, rec["revision"], source="label on ocado.com",
-            assumed="the 330 ml bottle")
-        return RunResult(reply="Checked the label: 215 kcal, not 160 (ocado.com); corrected."
-                         " I assumed the 330 ml bottle.", ok=True)
+        raise AssertionError("no turn runs in the person's conversation")
 
     result = columbo.check_turn(world, turn_id, runner=runner)
-    assert [r.kind for r in runs] == ["independent", "judge", "judge", "turn"]
-    assert result["checked"] and not result["agree"] and result["asked"] == []
+    assert [r.kind for r in runs] == ["independent", "judge", "judge"]
+    assert result["checked"] and not result["agree"] and len(result["asked"]) == 1
+    assert result["repaired"] is None
     checked = world.journal.read(result["entry"])
     assert checked["kind"] == "checked" and checked["actor"] == me["id"]
-    assert checked["data"]["turn"] == turn_id and checked["data"]["agent"] == me["id"]
-    assert checked["text"] == ("Checked against an independent answer: it differs on kcal: Alpha"
-                               " 160, independent 215 (ocado.com). it would have asked or said:"
-                               " which size; against your world: it agrees.")
-    fixed = world.collections.get("food_log", rec["id"])
-    assert fixed["kcal"] == 215 and fixed["_provenance"]["source"] == "label on ocado.com"
-    # the mark: corrected from the source, so it agrees now, and says against what
-    mark = fixed["_provenance"]["checked"]
-    assert mark["agree"] and mark["source"] == "ocado.com" and mark["by"] == me["id"]
-    assert mark["entry"] == result["entry"]
-    # The correction is in the person's conversation, as Alpha's words.
-    stream = world.journal.recent(3, thread=world.modules.home_thread()["id"], kinds=["replied"])
-    assert stream[-1]["text"].startswith("Checked the label: 215 kcal")
-    assert result["repaired"] == stream[-1]["text"]
-    notes = world.knowledge.find_note(f"agent:{me['id']}", "Notes")
-    assert notes and "## kcal" in notes["body"]
-    assert "Alpha corrected it from ocado.com" in notes["body"]
-    assert "## ocado.com" in notes["body"] and "differed with Alpha" in notes["body"]
-
+    kept = world.collections.get("food_log", rec["id"])
+    assert kept["kcal"] == 160  # as Alpha wrote it, until the person decides
+    mark = kept["_provenance"]["checked"]
+    assert not mark["agree"] and mark["source"] == "ocado.com" and mark["by"] == me["id"]
+    ask = world.journal.read(result["asked"][0])
+    assert ask["data"]["options"] == ["160", "215"] and ask["actor"] == me["id"]
+    assert world.journal.recent(3, thread=world.modules.home_thread()["id"],
+                                kinds=["replied", "did"]) == []
 
 def test_an_agreeing_answer_leaves_things_alone_and_marks_the_row(world: World) -> None:
     food_log(world)
@@ -255,7 +240,7 @@ def test_when_alpha_stands_by_its_own_the_person_is_asked_once_and_the_answer_bi
         return RunResult(reply="I stand by 160: you said the small 250 ml bottle.", ok=True)
 
     result = columbo.check_turn(world, turn_id, runner=runner)
-    assert result["repaired"] and len(result["asked"]) == 1
+    assert result["repaired"] is None and len(result["asked"]) == 1
     ask = world.journal.read(result["asked"][0])
     assert ask["kind"] == "asked" and ask["actor"] == me["id"]
     assert ask["text"] == ("Kcal of FGS shake: Alpha has 160, ocado.com says 215. Which should"

@@ -65,9 +65,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                       "why": wf["body"].get("purpose"), "at": wf["created_at"],
                       "module": wf.get("module"),
                       "workflow": {**wf, "research": research_of(world, wf)}})
-    for f in world.knowledge.facts("person", states=("suggested",)):
-        items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
-                      "why": f["why"], "at": f["recorded_at"]})
+    # Watson's suggested facts are not here (slice 4b, 18 Oct): they are marked suggested on
+    # the person's About-you table, where they are confirmed or cleared.
     for a in world.actions.all(("proposed",)):
         items.append({"kind": "action", "id": a["id"], "text": a["title"], "why": a["evidence"],
                       "at": a["created_at"], "module": a["module"],

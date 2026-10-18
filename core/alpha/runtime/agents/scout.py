@@ -424,9 +424,17 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
     upto = journal_rowid(world)
     days = [str(e["data"]["opened"]) for e in entries if e["data"].get("opened")]
     about: dict[str, Any] = {}
-    if days and not picked_on(world, agent, days[-1]):
+    if days and not picked_on(world, agent, days[-1]) and not empty_world(world):
         about["day"] = days[-1]
     return Work(upto, about)
+
+
+def empty_world(world: World) -> bool:
+    """A world with less than a day of the person's turns behind it (slice 4b, 18 Oct):
+    nothing to pick from yet, so Scout stays quiet rather than reaching."""
+    since = (datetime.now(UTC) - timedelta(days=settings.scout.quiet_days)).isoformat()
+    return world.store.one("SELECT 1 AS x FROM journal WHERE kind = 'said' AND actor = 'person'"
+                           " AND at < ? LIMIT 1", (since,)) is None
 
 
 def run(world: World, agent: dict[str, Any], work: Work | None, *,

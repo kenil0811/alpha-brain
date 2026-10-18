@@ -373,9 +373,15 @@ def land(world: World, agent: dict[str, Any], subject: dict[str, Any],
 
 
 def look(world: World, agent: dict[str, Any]) -> Work | None:
-    """Since Sherlock's cursor: a workflow page drafted (a look, or findings kept for it
-    landing now), and an interview begun in a conversation with no page yet (Alpha asked
-    cards there)."""
+    """Sherlock has no triggers of his own (slice 4b, 18 Oct 2026; Kenil): he looks when the
+    person asks (`@Sherlock`) or when Alpha calls him for a big job. His cursor still moves,
+    so a later rule starts from now."""
+    since_cursor(world, agent, kinds=["proposed", "asked"])
+    return Work(journal_rowid(world))
+
+
+def _looked_for(world: World, agent: dict[str, Any]) -> Work | None:
+    """What the look found before 18 Oct: kept for reference, never called."""
     entries = since_cursor(world, agent, kinds=["proposed", "asked"])
     upto = journal_rowid(world)
     workflows: list[str] = []

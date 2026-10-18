@@ -8,7 +8,8 @@
 ## What it never does
 - It never changes your tables, never acts for you, and never makes a person from a first name
   alone.
-- What you state is kept; what it infers waits for your yes.
+- What you state is kept; what it infers is marked *suggested* on your Profile page, where you
+  confirm or clear it.
 
 ## Your lines
 (Add anything Watson should file differently or leave alone.)

@@ -8,6 +8,7 @@
   the less sure ones said as such; it learns from your yes and no.
 
 ## What it never does
+- On an empty world it stays quiet: no picks until there is a day of your turns to pick from.
 - It never acts: a Take is done by Alpha or the right agent, and nothing happens without it.
 - It never offers again a pick you declined unless something changed, and a kind you keep
   declining sinks.

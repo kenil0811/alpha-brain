@@ -9,10 +9,8 @@ from typing import Any
 
 import pytest
 from conftest import building
-from fastapi.testclient import TestClient
 from test_workflows import BODY
 
-from alpha.api.server import create_app
 from alpha.runtime.agents import builtin, look_and_run, sherlock
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.running import RunResult, TurnRequest
@@ -117,82 +115,16 @@ def test_what_code_keeps_of_a_look() -> None:
     assert empty["suggestions"] == [] and empty["lenses"]["world"] == "skipped: not covered"
 
 
-def test_no_look_when_the_judgement_or_the_person_says_so(world: World) -> None:
+def test_sherlock_has_no_triggers_of_his_own(world: World) -> None:
+    """Slice 4b (18 Oct; Kenil): an interview under way or a drafted page wakes nobody;
+    Sherlock looks on @Sherlock or Alpha's call. His cursor still moves."""
     me = with_sherlock(world)
-    cid = interviewing(world)
-    runner = fake({"judge": NONE})
-    out = look_and_run(world, "sherlock", runner=runner)
-    assert out and out["last_result"] == "No look needed for Car wash sites."
-    assert [r.kind for r in runner.seen] == ["judge"]
-    [d] = world.decisions.about("conversation", cid)
-    assert d["what"] == "No look at how others do Car wash sites" and d["by"] == me["id"]
-    # the person's words win without a judgement at all
-    cid2 = interviewing(world, "car wash sites again")
-    world.journal.append("said", "no research, just build it", actor="person", thread=cid2)
-    runner2 = fake()
-    out = look_and_run(world, "sherlock", runner=runner2)
-    assert out and out["last_result"] == "No look needed for Car wash sites again."
-    assert runner2.seen == []
-    assert world.decisions.about("conversation", cid2)[0]["why"] == "you said no research"
-
-
-def test_an_interview_under_way_gets_a_look_and_a_later_page_gets_none(
-        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sherlock, "url_alive", alive)
-    me = with_sherlock(world)
-    cid = interviewing(world)
+    interviewing(world)
     runner = fake()
-    out = look_and_run(world, "sherlock", runner=runner)
-    assert out and "1 suggestion" in out["last_result"] and "1 question" in out["last_result"]
-    assert [r.kind for r in runner.seen] == ["judge", "turn"]
-    assert "I want help picking car wash sites" in runner.seen[1].sentence
-    [d] = world.decisions.about("conversation", cid)
-    assert d["by"] == me["id"] and d["about"]["look"] == "full"
-    kept = world.journal.recent(5, thread=me["thread"] or world.agents.get(me["id"])["thread"],
-                                kinds=["did"])[-1]
-    assert kept["text"].startswith("Sherlock kept 1 suggestions for") and kept["data"]["page"]
-    # a page drafted later in that conversation starts no look of its own, and nothing lands
-    # on it unasked (harness 2a: nothing after the person's yes, nothing they did not ask for)
-    turn = world.journal.recent(1, thread=cid, kinds=["said"])[0]["id"]
-    made = world.workflows.draft("Car wash sites", BODY, conversation=cid, turn=turn,
-                                 words="Sites come from brokers.")
-    world.journal.append("proposed", f"Your workflow: {made['title']}",
-                         data={"workflow": made["id"], "turn": turn}, thread=cid)
-    before = len(runner.seen)
     assert look_and_run(world, "sherlock", runner=runner) is None
-    assert len(runner.seen) == before
-    assert world.workflows.get(made["id"])["version"] == 1
-
-
-def test_skip_stops_the_look_and_is_the_persons_decision(world: World) -> None:
-    me = with_sherlock(world)
-    cid = interviewing(world)
-
-    def stopped(req: TurnRequest) -> RunResult:
-        if req.kind == "judge":
-            return RunResult(reply=FULL, ok=True)
-        return RunResult(reply="", ok=False, error="You stopped it.", stopped=True)
-
-    out = look_and_run(world, "sherlock", runner=stopped)
-    assert out and out["last_error"] == "you stopped it"
-    run = world.runs.last(me["id"])
-    assert run and run["verdict"] == "stopped"
-    # the route behind Skip, while a look is open: the decision that holds
-    rid = world.runs.start(me["id"], trigger="now")
-    thread = world.agents.get(me["id"])["thread"]
-    world.journal.append("did", "Looking into how others do car wash sites (full look).",
-                         actor=me["id"], thread=thread, data={"agent": me["id"],
-                                                               "conversation": cid})
-    c = TestClient(create_app(world, live=False))
-    out2 = c.post(f"/api/agents/{me['id']}/stop").json()
-    assert out2["id"] == me["id"] and out2["stopped"] is False  # no model process to kill here
-    world.runs.finish(rid, verdict="stopped", why="you stopped it")
-    decisions = world.decisions.about("conversation", cid)
-    assert any(d["by"] == "person" and d["about"].get("no_research") for d in decisions)
-    assert world.journal.recent(1, kinds=["did"])[0]["text"] == \
-        "You skipped Sherlock's look at Car wash sites."
-    # from now on, no look for this conversation without a judgement
-    assert sherlock.no_research_said(world, sherlock.subject_of_conversation(world, cid))
+    assert runner.seen == []
+    work = sherlock.look(world, me)
+    assert work and work.about == {}
 
 
 def test_at_sherlock_answers_a_question_onto_a_page(world: World,

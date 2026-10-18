@@ -96,6 +96,7 @@ most_suggestions = 5               # suggestions a look brings onto the page, at
 [scout]
 picks_a_day = 5                    # the day's picks on Home, at most: bolder to start (Kenil, 15 Oct) than the quiet default of two or three
 sinks_after = 3                    # a kind declined this many times running sinks to its surest picks; a take resets it
+quiet_days = 1                     # on a world with less than a day of the person's turns Scout stays quiet: nothing to pick from (4b, 18 Oct)
 
 [watson]
 offer_after = 3                    # the same kind of thing said in passing this many times is worth a table: Watson offers one (Q79, 18 Oct)

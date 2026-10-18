@@ -9,9 +9,8 @@
   once.
 
 ## What it never does
-- It never changes a value: Alpha corrects its own from the source and says so in a line; a
-  anything still in doubt after that, is put to you once, and your answer
-  binds.
+- It never changes a value: the mark on the value says what Columbo found and against what; a
+  correction waits for your word on its card, and your answer binds.
 - It never holds anything up: an outward card shows its line and waits for your yes as before.
 
 ## Your lines

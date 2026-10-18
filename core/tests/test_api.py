@@ -38,7 +38,7 @@ def test_home_lists_what_needs_the_person_and_the_modules(world: World) -> None:
     seeded(world)
     home = client(world).get("/api/home").json()
     kinds = sorted(i["kind"] for i in home["needs_you"])
-    assert kinds == ["ask", "fact", "proposal"]
+    assert kinds == ["ask", "proposal"]  # a suggested fact is the About-you table's (4b)
     card = home["modules"][0]
     assert card["name"] == "Job Search" and card["records"] == 1
     assert card["last_text"].startswith("Added Backend Engineer")
@@ -114,7 +114,8 @@ def test_decisions(world: World) -> None:
     seeded(world)
     c = client(world)
     needs = c.get("/api/home").json()["needs_you"]
-    fact = next(i for i in needs if i["kind"] == "fact")
+    # a suggested fact waits on the About-you table, not in Needs you (4b, 18 Oct)
+    fact = world.knowledge.facts("person", states=("suggested",))[0]
     assert c.post(f"/api/facts/{fact['id']}/decide", json={"accept": True}).json()["state"] == \
         "accepted"
     ask = next(i for i in needs if i["kind"] == "ask")

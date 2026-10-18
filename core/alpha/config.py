@@ -149,6 +149,7 @@ class Sherlock:
 class Scout:
     picks_a_day: int
     sinks_after: int
+    quiet_days: int
 
 
 @dataclass(frozen=True)

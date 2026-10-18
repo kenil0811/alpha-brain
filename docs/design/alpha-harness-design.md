@@ -512,6 +512,12 @@ marks on values stay. Scout and Sherlock stay quiet on an empty world, and an ag
 never a fact-carrying node (the "2 links worth confirming" of 16 October were Scout linking
 Watson's page to the person's). Doc edits skill files and commits.
 
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice4b.md`) | |
+|---|---|
+| Built | Slice 4b: none of the five writes in the person's conversation. Watson's suggested facts live on the About-you table (not Needs you) and a folded "Watson kept …" line sits under Alpha's reply; Columbo's correction turn is gone (the mark, a line on his page, a card between two sources); Sherlock has no triggers of his own (`@Sherlock`); Scout is quiet on a world with less than a day of turns; Doc edits skill files and commits. The briefs: four lines changed. |
+| Differs | Sherlock as Alpha's subagent (the SDK's subagents) is not built: `@Sherlock` is the call. Sherlock's suggestions land on his findings page and the module's notes as before, not inside the work. |
+| Not built | Watson's meta line beyond counts (what exactly was kept opens on his page). |
+
 ## 14. What we leverage
 
 Kenil, 17 Oct: "if we can leverage other open source solutions, let's do that." The research

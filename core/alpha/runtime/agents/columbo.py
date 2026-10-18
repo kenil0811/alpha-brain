@@ -590,29 +590,6 @@ def decide(world: World, asked: dict[str, Any], answer: str) -> dict[str, Any] |
 # ---- an answer ----
 
 
-def repair_prompt(sentence: str, reply: str, result: dict[str, Any],
-                  records: list[dict[str, Any]]) -> str:
-    outside = result.get("outside") or {}
-    world = result.get("world") or {}
-    found = "\n".join(f"- {d['words']}" for d in outside.get("differences") or []) or "- nothing"
-    held = "\n".join(f"- {d['words']}" for d in world.get("differences") or []) or "- nothing"
-    flagged = "\n".join(f"- {u}" for u in outside.get("unstated") or []) or "- nothing"
-    made = ", ".join(f"{r['collection']} {r['id']} (revision {r['revision']})"
-                     for r in records) or "none"
-    return (
-        f'A second opinion on your reply to "{sentence}". You replied: "{reply}"\n\n'
-        f"An independent lookup with web search found these differences:\n{found}\n"
-        f"and would have asked or said:\n{flagged}\n\n"
-        f"The person's own records disagree on:\n{held}\n\n"
-        f"Records this turn made or changed: {made}.\n\n"
-        "Where the independent answer rests on a source and is right, correct those records "
-        "(their source the page the values come from) and tell the person in "
-        "one or two lines what you corrected and where the number comes from. Where your own "
-        "records disagree, say which is right and why. Where you stand by your own, say why in "
-        "one line. If something should have been asked, ask it now. Plain words, no tool names."
-    )
-
-
 def check_turn(world: World, turn_id: str, *, sentence: str | None = None,
                runner: turn.Runner = route.run, repair: bool = True,
                model: str | None = None, agent: dict[str, Any] | None = None,
@@ -673,33 +650,26 @@ def check_turn(world: World, turn_id: str, *, sentence: str | None = None,
         _mark(world, agent, rec, agree=not hits, entry=entry,
               source=(hits[0][0]["source"] or against) if hits else against)
     _notes_for_turn(world, agent, asked, result)
-    if repair and (result["differences"] or result["unstated"]):
-        outcome = turn.ask(world, repair_prompt(asked, reply["text"], result, records),
-                           module=said["module"], thread=said["thread"], runner=runner,
-                           actor="alpha", model=model,
-                           journal_as=f'Took the second opinion on the reply to "{asked}".')
-        result["repaired"] = outcome.reply if outcome.ok else None
-        # Alpha corrected from the source, or stood by its own: then the person decides.
-        for rid, hits in touched.items():
-            rec = next(r for r in records if r["id"] == rid)
-            try:
-                fresh = {"collection": rec["collection"], **world.collections.get(rec["collection"],
-                                                                                  rid)}
-            except Problem:
-                continue
-            for d, f in hits:
-                if _same(fresh.get(f), d["other"]):
-                    _mark(world, agent, fresh, agree=True, source=d["source"] or against,
-                          entry=entry)
-                    _note(world, agent, f, f"Alpha corrected it from {d['source'] or OUTSIDE}")
-                elif _same(fresh.get(f), d["alpha"]) and d["other"]:
-                    jid = ask_person(world, agent, fresh, f, fresh.get(f), d["other"],
-                                     d["source"] or (OUTSIDE if d["way"] == "outside"
-                                                     else "your own records"),
-                                     entry=entry, said=said)
-                    if jid:
-                        result["asked"].append(jid)
-                        _note(world, agent, f, "Alpha stood by its own; asked you")
+    # Slice 4b (18 Oct): Columbo never writes in the person's conversation. A value that
+    # differs from a source is the mark on the row and a line on his page, and a card for the
+    # person to choose between the two sources; nothing is corrected behind their back.
+    del repair, model
+    for rid, hits in touched.items():
+        rec = next(r for r in records if r["id"] == rid)
+        try:
+            fresh = {"collection": rec["collection"], **world.collections.get(rec["collection"],
+                                                                              rid)}
+        except Problem:
+            continue
+        for d, f in hits:
+            if d["other"] and not _same(fresh.get(f), d["other"]):
+                jid = ask_person(world, agent, fresh, f, fresh.get(f), d["other"],
+                                 d["source"] or (OUTSIDE if d["way"] == "outside"
+                                                 else "your own records"),
+                                 entry=entry, said=said)
+                if jid:
+                    result["asked"].append(jid)
+                    _note(world, agent, f, "two values; asked you which")
     return result
 
 

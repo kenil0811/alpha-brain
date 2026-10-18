@@ -75,10 +75,23 @@ def fake(m: dict[str, Any], reply: str | None = None) -> Any:
     return runner
 
 
+def a_day_of_turns(world: World) -> None:
+    """A person's turn from before yesterday: the world is no longer empty for Scout (4b)."""
+    said = world.journal.append("said", "track what I eat", actor="person")
+    with world.store.tx() as db:
+        db.execute("UPDATE journal SET at = '2026-10-01T09:00:00+00:00' WHERE id = ?", (said,))
+
+
 def test_the_days_opening_is_noted_once_and_wakes_scout(world: World) -> None:
     me = with_scout(world)
     assert scout.note_opened(world) and scout.note_opened(world) is None
     assert world.journal.recent(1, kinds=["saw"])[0]["text"] == "Alpha opened for the day."
+    # an empty world: nothing to pick from, Scout stays quiet (4b, 18 Oct)
+    quiet = scout.look(world, me)
+    assert quiet and quiet.about == {}
+    a_day_of_turns(world)
+    world.preferences.set("opened_on", "")
+    scout.note_opened(world)
     work = scout.look(world, me)
     assert work and work.about == {"day": scout.today()}
 
@@ -104,6 +117,7 @@ def test_the_days_picks_land_on_home_and_only_the_costly_one_in_needs_you(world:
     m = material(world)
     me = with_scout(world)
     runner = fake(m)
+    a_day_of_turns(world)
     scout.note_opened(world)
     out = look_and_run(world, "scout", runner=runner)
     assert out and out["last_result"] == ("2 picks for today (a pattern in your data, coming"

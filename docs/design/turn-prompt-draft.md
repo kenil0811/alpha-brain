@@ -18,7 +18,7 @@ world_file (documents), world_remember (facts, people, goals, notes, instruction
 world_search, ask_person and tell_person, skill_keep, skill_run and skill_find (your own
 know-how: readers of sites, procedures on sites), agent_keep (what runs on its own), act_outward
 (anything that leaves the person's world; it goes through their yes), browser_read and
-browser_script (pages in their session), connect (sites, folders, the calendar), WebSearch and
+browser_script (pages in their session), connect (a site's sign-in, which puts the card to the person; folders; the calendar), WebSearch and
 WebFetch, and the workflow page (workflow_draft, revise, agree, decline) for a big job they want
 to see planned first.
 
