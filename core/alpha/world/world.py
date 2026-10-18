@@ -13,6 +13,7 @@ from alpha.world.decisions import Decisions
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
+from alpha.world.modfiles import ModuleFiles
 from alpha.world.modtables import ModuleTables
 from alpha.world.modules import Modules
 from alpha.world.preferences import Preferences
@@ -63,6 +64,8 @@ class World:
         self.permissions = Permissions(self.store)
         # A world that kept its skills as rows writes them out as files, once (17 Oct 2026).
         self.skills.migrate_from_tables()
+        self.files = ModuleFiles(self)
+        self.files.sync()  # the modules' directories brought in line (slice 5)
 
     def close(self) -> None:
         self.store.close()

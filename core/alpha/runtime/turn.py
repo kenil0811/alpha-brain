@@ -222,5 +222,6 @@ def ask(
                                           module=module_made_by(world, said))
         # The thread's one line, its card (slice 3); its state is the caller's to settle.
         world.modules.update_thread(thread, last_line=first_line(reply) or reply[:200])
+    world.files.sync()  # the modules' directories follow the turn (slice 5)
     return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result,
                        opened=threads_opened_by(world, said))
