@@ -163,10 +163,12 @@
       var runs = [], cur = [];
       pts.forEach(function (p) { if (p) cur.push(p); else if (cur.length) { runs.push(cur); cur = []; } });
       if (cur.length) runs.push(cur);
-      runs.forEach(function (run) { g.appendChild(svg("polyline", { points: run.join(" "), fill: "none", stroke: colour, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" })); });
+      // thin lines and small points: the weight of a chart in the app (Kenil, 18 Oct: "the
+      // lines in chart are too thick"); a hover target wider than the line, unseen
+      runs.forEach(function (run) { g.appendChild(svg("polyline", { points: run.join(" "), fill: "none", stroke: colour, "stroke-width": 1.25, "stroke-linejoin": "round", "stroke-linecap": "round" })); });
       if (n <= 40) rows.forEach(function (r, i) {
         var v = Number(r[s.field]); if (isNaN(v)) return;
-        g.appendChild(svg("circle", { cx: px(i), cy: py(v, ax), r: 3, fill: colour }, [svg("title", { text: dayLabel(r[c.x]) + ": " + fmt(v, s.unit) })]));
+        g.appendChild(svg("circle", { cx: px(i), cy: py(v, ax), r: 2, fill: colour }, [svg("title", { text: dayLabel(r[c.x]) + ": " + fmt(v, s.unit) })]));
       });
     });
     wrap.appendChild(g);

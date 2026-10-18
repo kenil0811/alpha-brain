@@ -215,11 +215,11 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         as d.<name>, a list of {column: value}; the kit redraws when the data, the theme or
         the width change. SIX LINES: one block per thing; titles in the person's words and
         numbers with units; nothing decorative; a target is one thin labelled line; one period
-        per chart, the latest on the right; never a fixed colour or font (the kit uses the
-        app's). No network, no libraries from the web. After the write Alpha LOOKS at the page
-        and the result says whether it is clean; when it is not, fix what is named and call
-        this again before you answer. A page never writes: changes to the data stay in the
-        conversation."""
+        per chart, the latest on the right; never a fixed colour, font or stroke of your own
+        (the kit's weights and colours are the app's). No network, no libraries from the web.
+        After the write Alpha LOOKS at the page and the result says whether it is clean; when
+        it is not, fix what is named and call this again before you answer. A page never
+        writes: changes to the data stay in the conversation."""
         out = self.world.pages.keep(module, name, title, html, data or {}, front=front,
                                     source=f"turn:{self.turn}" if self.turn else None)
         seen = look.page(self.world, module, name, turn=self.turn)

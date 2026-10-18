@@ -69,6 +69,15 @@ it on Overview".
   types clean. The app rebuilt and Kenil's app restarted on it; his window was minimized at the
   time, so the Overview placement was not seen in WebKit by me: his open is the look.
 
+## The same evening: the weight of a line
+
+Kenil, on the kit's first chart: "the lines in chart are too thick.. these sort of things you
+need to enforce in rules". Enforced where the weight is decided: the kit's lines went from 2
+to 1.25 px, points from 3 to 2 px, grid and target lines to hairlines; the look's rule 6 now
+judges the weight too (thin lines, small points, hairline grid, no heavy strokes), and the
+hand's sixth line says never a stroke of the model's own. No restart was needed: the kit is
+read from its file on every render.
+
 ## Left
 
 - The look judges the light theme only; a dark look when a page draws colours by hand.

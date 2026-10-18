@@ -16,15 +16,14 @@
 .ak-grid { display: grid; gap: 16px; }
 .ak-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 8px; font-size: var(--text-sm, 12px); color: var(--text-2); }
 .ak-legend__item { display: inline-flex; align-items: center; gap: 6px; }
-.ak-legend__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ak-legend__dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .ak-svg { display: block; width: 100%; height: auto; overflow: visible; }
-.ak-grid-line, .ak-grid { }
-line.ak-grid { stroke: var(--line); stroke-width: 1; }
+line.ak-grid { stroke: var(--line); stroke-width: 0.75; }
 .ak-tick { font-size: 11px; fill: var(--text-3); font-family: var(--font-ui, sans-serif); font-variant-numeric: tabular-nums; }
 .ak-tick--l { text-anchor: end; }
 .ak-tick--x { text-anchor: middle; }
 .ak-tick--target { text-anchor: end; fill: var(--text-2); }
-.ak-target { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.ak-target { stroke: var(--text-3); stroke-width: 0.75; stroke-dasharray: 3 4; }
 .ak-table { width: 100%; border-collapse: collapse; font-size: var(--text-md, 13px); }
 .ak-table th { text-align: left; font-weight: 500; color: var(--text-2); padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: var(--text-sm, 12px); }
 .ak-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--text); }
