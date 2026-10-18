@@ -51,6 +51,58 @@ function AgentLookSection({ client, id, kind }: { client: Client; id: string; ki
 }
 
 /** A page of the agent's own: the brief (editable) or the notes (read). */
+/** The agent as its file (harness slice 6): its schedule, state, steps and what it may write in
+ *  the front matter, its brief as the body; one text, edited and saved like a skill's. */
+function AgentFile({ client, id, version, onChanged }: { client: Client; id: string; version: number; onChanged: () => void }) {
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    if (editing) return;
+    let live = true;
+    client.agentText(id).then((t) => live && setText(t.text)).catch((e: unknown) => live && setProblem(say(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, id, version, editing]);
+  const save = () =>
+    void client
+      .editAgentText(id, text)
+      .then((t) => {
+        setText(t.text);
+        setEditing(false);
+        setProblem(null);
+        onChanged();
+      })
+      .catch((e: unknown) => setProblem(say(e)));
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Its file</h2>
+        <span className="faint">When it works, what it may write, its steps or its brief; yours to edit, Alpha reads it every run</span>
+        <div className="section__right">
+          {editing ? (
+            <>
+              <Button size="sm" variant="primary" onClick={save}>Save</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => setEditing(true)}>Edit</Button>
+          )}
+        </div>
+      </div>
+      <div className="card card--pad">
+        {editing ? (
+          <textarea className="note__edit" rows={18} value={text} onChange={(e) => setText(e.target.value)} aria-label="Edit the agent's file" spellCheck={false} />
+        ) : (
+          <pre className="skill__file" style={{ whiteSpace: "pre-wrap", margin: 0 }}>{text || "Loading…"}</pre>
+        )}
+        {problem ? <p className="notice" role="alert">{problem}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function AgentNote({ title, words, body, editable, onSave, onAsk }: { title: string; words: string; body: string | null; editable: boolean; onSave?: (body: string) => Promise<unknown>; onAsk?: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -195,14 +247,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
 
       <AgentLookSection client={client} id={agent.id} kind={agent.kind} />
 
-      <AgentNote
-        title="Its brief"
-        words="What it is for, what to do each run, what to tell; Alpha drafts it, you change it"
-        body={agent.brief?.body ?? null}
-        editable
-        onSave={(body) => client.writeNote(`agent:${agent.id}`, "Brief", body).then(() => onChanged())}
-        onAsk={() => onAsk(`Write the brief for the agent ${agent.name}: what it is for, what a good run looks like, what to do when a source needs a sign-in or stops reading, and what to tell me.`)}
-      />
+      <AgentFile client={client} id={agent.id} version={version} onChanged={onChanged} />
       {agent.notes?.body ? <AgentNote title="Its notes" words="What it learned in its runs; its own page" body={agent.notes.body} editable={false} /> : null}
 
       <div className="section">
@@ -220,23 +265,21 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
         </div>
       </div>
 
-      <div className="section">
-        <div className="section__head">
-          <h2>What it does</h2>
-          <span className="faint">{agent.pipeline?.length ? "a pipeline: these steps, with no model" : "Alpha follows its brief each run"}</span>
-        </div>
-        <div className="card card--pad">
-          {agent.pipeline?.length ? (
+      {agent.pipeline?.length ? (
+        <div className="section">
+          <div className="section__head">
+            <h2>What it does</h2>
+            <span className="faint">its steps in words; the file above is where they are changed</span>
+          </div>
+          <div className="card card--pad">
             <ol className="steps">
               {agent.pipeline.map((st, i) => (
                 <li key={i}>{stepSentence(st)}</li>
               ))}
             </ol>
-          ) : (
-            <p className="muted">Each run, the model reads its brief and the decisions that bind it, then works with the tools it may use.</p>
-          )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="section">
         <div className="section__head">

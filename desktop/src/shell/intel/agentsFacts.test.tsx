@@ -75,6 +75,8 @@ describe("an agent's look on its page", () => {
     const prefs: Record<string, unknown> = { companion_look: { animal: "panda" } };
     const client = {
       agentPage: vi.fn().mockResolvedValue({ ...auto("a1"), runs: [], brief: null, notes: null, decisions: [], pipeline: null, good_run: null }),
+      agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
+      editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
       preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
       setPreference: vi.fn(async (key: string, value: unknown) => {
         prefs[key] = value;
@@ -98,6 +100,8 @@ describe("an agent's page", () => {
     const { AgentPage } = await import("../AgentPage");
     const client = {
       agentPage: vi.fn().mockResolvedValue(page()),
+      agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
+      editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
       changeAgent: vi.fn().mockResolvedValue({}),
       runAgent: vi.fn().mockResolvedValue({}),
       preference: vi.fn().mockRejectedValue(new Error("none")),
@@ -108,7 +112,7 @@ describe("an agent's page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Read a1" })).toBeInTheDocument();
     expect(screen.getByText(/may change rows in its module's tables and questions to you/)).toBeInTheDocument();
     expect(screen.getByText(/whenever you @-mention it \(@Read a1\)/)).toBeInTheDocument();
-    expect(screen.getByText("Read the brokers and tell me.")).toBeInTheDocument();
+    expect(screen.getByText(/Read the brokers and tell me/)).toBeInTheDocument();
     expect(screen.getByText("Only warm leads")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
     const box = screen.getByRole("textbox", { name: "The agent's name" });
@@ -125,6 +129,8 @@ describe("an agent's page", () => {
     const onGo = vi.fn();
     const client = {
       agentPage: vi.fn().mockResolvedValue(page()),
+      agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
+      editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
       agentRemoval: vi.fn().mockResolvedValue({ agent: "a1", name: "Read a1", runs: 3, pages: 1, decisions: 1, skill: null, what: "3 runs, 1 page and 1 decision" }),
       deleteAgent: vi.fn().mockResolvedValue({}),
       preference: vi.fn().mockRejectedValue(new Error("none")),
@@ -150,6 +156,8 @@ describe("a built-in agent's face", () => {
     const prefs: Record<string, unknown> = { companion_look: { animal: "panda" } };
     const client = {
       agentPage: vi.fn().mockResolvedValue({ ...auto("w1", { kind: "watson", name: "Watson" }), runs: [], brief: null, notes: null, decisions: [], pipeline: null, good_run: null }),
+      agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
+      editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
       preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
       setPreference: vi.fn(async (key: string, value: unknown) => {
         prefs[key] = value;
@@ -167,6 +175,7 @@ describe("Doc's repairs on its page", () => {
   it("offers Undo on a run line that changed a skill, and nothing on the others", async () => {
     const { AgentPage } = await import("../AgentPage");
     const client = {
+      agentText: vi.fn().mockResolvedValue({ id: "d1", name: "Doc", text: "---\nagent: Doc\n---\n" }),
       agentPage: vi.fn().mockResolvedValue({ ...auto("d1", { kind: "doc", name: "Doc" }), brief: null, notes: null, decisions: [], pipeline: null, good_run: null, runs: [
         { id: "run_1", started_at: "2026-10-16T10:54:04Z", ended_at: "2026-10-16T10:54:19Z", verdict: "succeeded", why: null, line: "Doc fixed the reader brokers: the layout changed", model_ms: 2500, repairs: 1, read: null, sources: null, lines: [
           { at: "2026-10-16T10:54:05Z", kind: "did", text: "Doc looks at the reader brokers: no rows" },

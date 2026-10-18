@@ -1,0 +1,1017 @@
+{
+ "began": "2026-10-18T13:38:38.223Z",
+ "ended": "2026-10-18T13:39:29.411Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1245,
+   "shot": "home@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 885,
+   "shot": "assistant-t_fce32c763070@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1028,
+   "shot": "intelligence-map@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 863,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 874,
+   "shot": "intelligence-agents-a_412283db62f8@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 874,
+   "shot": "intelligence-agents-a_b25dea276d51@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-agents-a_bf45dd712822@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 820,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1068,
+   "shot": "settings@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1164px in a 1100px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 920,
+   "shot": "home@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "assistant-t_fce32c763070@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1120,
+   "shot": "intelligence-map@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 871,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 862,
+   "shot": "intelligence-agents@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 859,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 865,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 860,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 873,
+   "shot": "intelligence-agents-a_412283db62f8@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 860,
+   "shot": "intelligence-agents-a_b25dea276d51@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 836,
+   "shot": "intelligence-agents-a_bf45dd712822@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1081,
+   "shot": "settings@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 928,
+   "shot": "home@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "assistant-t_fce32c763070@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1055,
+   "shot": "intelligence-map@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 901,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 862,
+   "shot": "intelligence-agents@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 839,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 869,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 867,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 860,
+   "shot": "intelligence-agents-a_412283db62f8@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 867,
+   "shot": "intelligence-agents-a_b25dea276d51@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 836,
+   "shot": "intelligence-agents-a_bf45dd712822@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1103,
+   "shot": "settings@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "past the right edge",
+     "detail": "b “Watch Hacker News “Who is hiring” for re” ends at 1304px in a 1240px window",
+     "count": 2
+    }
+   ]
+  }
+ ]
+}

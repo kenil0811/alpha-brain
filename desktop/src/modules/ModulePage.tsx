@@ -4,7 +4,7 @@
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
 import { moduleWords, say } from "../core/client";
-import type { Client, FileItem, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
+import type { Agent, Client, FileItem, ModuleDetail, ModuleSummary, Note, Skill, Source, ModuleCard } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -191,10 +191,12 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         <>
           <Tabs
             label="Tables"
-            value={table || showFiles ? tab : "summary"}
+            value={table || showFiles || tab === "notes" || tab === "know" ? tab : "summary"}
             onChange={setTab}
             items={[
               { id: "summary", label: "Summary" },
+              { id: "notes", label: "Notes" },
+              { id: "know", label: "Skills & agents" },
               ...detail.tables.map((t) => ({
                 id: t.name,
                 label: (
@@ -212,7 +214,11 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                 : []),
             ]}
           />
-          {showFiles ? (
+          {tab === "notes" ? (
+            <ModuleNotes client={client} moduleId={moduleId} version={version} onChanged={onChanged} />
+          ) : tab === "know" ? (
+            <ModuleKnowHow client={client} moduleId={moduleId} agents={detail.agents} version={version} onChanged={onChanged} onGo={onGo} />
+          ) : showFiles ? (
             <div className="stack stack--fill">
               <FilesView client={client} files={files} tableKey={`files_${detail.id}`} onChanged={onChanged} />
             </div>
@@ -220,6 +226,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onOpenRecord={(t, id) => onGo({ kind: "record", table: t, id })} />
           ) : (
             <>
+              <KitExport client={client} moduleId={moduleId} />
               {detail.inside?.length ? (
                 <div className="section" style={{ marginTop: 0 }}>
                   <div className="section__head">
@@ -642,6 +649,128 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
           {data.agents === 1 ? "One agent works on its own here" : `${data.agents} agents work on their own here`}{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/** The module's page as text (NOTES.md; harness slice 5/6): what it is for, what was decided,
+ *  what is open; yours and Alpha's, the same file either way. */
+function ModuleNotes({ client, moduleId, version, onChanged }: { client: Client; moduleId: string; version: number; onChanged: () => void }) {
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    if (editing) return;
+    let live = true;
+    client.moduleNotes(moduleId).then((n) => live && setText(n.text)).catch((e: unknown) => live && setProblem(say(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, moduleId, version, editing]);
+  const save = () =>
+    void client
+      .editModuleNotes(moduleId, text)
+      .then(() => {
+        setEditing(false);
+        onChanged();
+      })
+      .catch((e: unknown) => setProblem(say(e)));
+  return (
+    <div className="section" style={{ marginTop: 0 }}>
+      <div className="section__head">
+        <h2>Notes</h2>
+        <span className="faint">What this module is for, what was decided, what is open; Alpha reads them on every turn here</span>
+        <div className="section__right">
+          {editing ? (
+            <>
+              <Button size="sm" variant="primary" onClick={save}>Save</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => setEditing(true)}>Edit</Button>
+          )}
+        </div>
+      </div>
+      <div className="card card--pad">
+        {editing ? (
+          <textarea className="note__edit" rows={14} value={text} onChange={(e) => setText(e.target.value)} aria-label="Edit the module's notes" />
+        ) : text ? (
+          <p className="muted" style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-md)" }}>{text}</p>
+        ) : (
+          <p className="empty">No notes yet. Alpha writes them as the module takes shape; you can start them.</p>
+        )}
+        {problem ? <p className="notice" role="alert">{problem}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** The module's skills and agents, each a text page of its own (harness §10). */
+function ModuleKnowHow({ client, moduleId, agents, version, onChanged, onGo }: { client: Client; moduleId: string; agents: Agent[]; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+  const [skills, setSkills] = useState<Skill[]>([]);
+  useEffect(() => {
+    let live = true;
+    client
+      .intelligence()
+      .then((i) => live && setSkills(i.skills.filter((s) => s.module === moduleId)))
+      .catch(() => live && setSkills([]));
+    return () => {
+      live = false;
+    };
+  }, [client, moduleId, version]);
+  const KIND: Record<string, string> = { read: "reader", act: "procedure", run: "pipeline" };
+  return (
+    <>
+      <div className="section" style={{ marginTop: 0 }}>
+        <div className="section__head">
+          <h2>Skills</h2>
+          <span className="faint">Alpha's own know-how for this module: readers of sites, procedures, pipelines; each a file you can read and edit</span>
+        </div>
+        {skills.length ? (
+          <div className="card list">
+            {skills.map((s) => (
+              <button key={s.name} type="button" className="item item--link" onClick={() => onGo({ kind: "skill", name: s.name })}>
+                <span className="badge">{KIND[s.kind] ?? s.kind}</span>
+                <div className="item__body">
+                  <b>{s.name}</b>
+                  <div className="item__sub">{s.description}{s.site ? ` · ${s.site}` : ""}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty">No skills here yet.</p>
+        )}
+      </div>
+      <div className="section">
+        <div className="section__head">
+          <h2>Agents</h2>
+          <span className="faint">What works on its own here; each a file of its own</span>
+        </div>
+        <AgentList client={client} items={agents} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." onOpen={(id) => onGo({ kind: "agent", id })} />
+      </div>
+    </>
+  );
+}
+
+/** The module as a kit (harness §15): its shape, notes, skills and agents, no data; the
+ *  folder's path, and what crosses out of the module if anything. */
+function KitExport({ client, moduleId }: { client: Client; moduleId: string }) {
+  const [out, setOut] = useState<{ kit: string; version: number; files: number; crosses: string[] } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="row" style={{ marginBottom: 12, alignItems: "center", gap: 10 }}>
+      <Button size="sm" disabled={busy} onClick={() => { setBusy(true); setProblem(null); void client.exportKit(moduleId).then(setOut).catch((e: unknown) => setProblem(say(e))).finally(() => setBusy(false)); }}>
+        Export as kit…
+      </Button>
+      {out ? (
+        <span className="faint">
+          v{out.version}, {out.files} files at <code>{out.kit}</code>
+          {out.crosses.length ? ` · reaches outside this module: ${out.crosses.join("; ")}` : " · standalone"}
+        </span>
+      ) : null}
+      {problem ? <span className="notice">{problem}</span> : null}
     </div>
   );
 }

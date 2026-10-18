@@ -1,0 +1,720 @@
+{
+ "began": "2026-10-18T13:40:35.871Z",
+ "ended": "2026-10-18T13:41:26.636Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1210,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "assistant-t_fce32c763070@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 968,
+   "shot": "intelligence-map@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 864,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-agents@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 830,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 836,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-agents-a_412283db62f8@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents-a_b25dea276d51@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-agents-a_bf45dd712822@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1076,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 914,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "assistant-t_fce32c763070@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1032,
+   "shot": "intelligence-map@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 883,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-agents@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 859,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 863,
+   "shot": "intelligence-agents-a_412283db62f8@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 853,
+   "shot": "intelligence-agents-a_b25dea276d51@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "intelligence-agents-a_bf45dd712822@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1240x820-light.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1089,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 918,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_fce32c763070",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "assistant-t_fce32c763070@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1160,
+   "shot": "intelligence-map@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 873,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 869,
+   "shot": "intelligence-agents@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_aa1587a4cae0",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 857,
+   "shot": "intelligence-agents-a_aa1587a4cae0@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_22ef08b8bd66",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "intelligence-agents-a_22ef08b8bd66@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_c86c10a2fcbb",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "intelligence-agents-a_c86c10a2fcbb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_412283db62f8",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 857,
+   "shot": "intelligence-agents-a_412283db62f8@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_b25dea276d51",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 866,
+   "shot": "intelligence-agents-a_b25dea276d51@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_bf45dd712822",
+   "title": "Agent: Every Monday at 08:00, sync your LinkedIn connections and tell you who is new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "intelligence-agents-a_bf45dd712822@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_bf45dd712822",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_linkedin_connections'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_e0b527a59ad0",
+   "title": "Agent: Watch We Work Remotely back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "intelligence-agents-a_e0b527a59ad0@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_e0b527a59ad0",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_work_remotely_linkedin_remote_back'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/agents/a_3b8b959adb2e",
+   "title": "Agent: Every Monday at 09:00, check the latest Hacker News \"Who is hiring?\" thread and tell me new remote back-end roles",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "intelligence-agents-a_3b8b959adb2e@1240x820-dark.png",
+   "problems": [
+    {
+     "kind": "request 400",
+     "detail": "core/api/agents/a_3b8b959adb2e",
+     "count": 1
+    },
+    {
+     "kind": "console error",
+     "detail": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+     "count": 1
+    },
+    {
+     "kind": "problem shown",
+     "detail": "There is no skill 'run_monday_hacker_news_hiring_thread'. Skills: [].",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/intelligence/goals/g_ddff5e0e3683",
+   "title": "Goal: Eat 80 g of protein per day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 835,
+   "shot": "intelligence-goals-g_ddff5e0e3683@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1080,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

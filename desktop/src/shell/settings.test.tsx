@@ -18,7 +18,7 @@ describe("the browser Alpha reads with (first run)", () => {
   });
 
   it("says where sign-in windows open once installed, and Try again after a failure", () => {
-    const client = {} as Client;
+    const client = { folders: vi.fn().mockResolvedValue({ folders: [], whole_mac: false }) } as unknown as Client;
     const { rerender } = render(<BrowserRow client={client} status={{ ...absent, installed: true, chrome: true }} onStatus={vi.fn()} />);
     expect(screen.getByText("Installed · sign-in windows open in your Chrome")).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
@@ -37,6 +37,7 @@ describe("Settings as cards", () => {
       claude: vi.fn().mockResolvedValue({ installed: true, signed_in: true }),
       companion: vi.fn().mockResolvedValue(null),
       removedModules: vi.fn().mockResolvedValue([]),
+      folders: vi.fn().mockResolvedValue({ folders: [], whole_mac: false }),
       preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
       setPreference: vi.fn(async (key: string, value: unknown) => {
         prefs[key] = value;
@@ -50,7 +51,7 @@ describe("Settings as cards", () => {
     const { client } = fake();
     render(<Settings client={client} theme="system" onTheme={vi.fn()} claude={null} onClaude={vi.fn()} />);
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(titles).toEqual(["Workspace", "Thinks with", "Reads with", "Appearance", "Your data", "Removed modules", "Defaults", "Help"]);
+    expect(titles).toEqual(["Workspace", "Thinks with", "Reads with", "Appearance", "Your data", "Folders", "Kits", "Removed modules", "Defaults", "Help"]);
     expect(await screen.findByText(/A module you remove while keeping its data shows here/)).toBeInTheDocument();
     const help = screen.getByRole("region", { name: "Help" });
     expect(within(help).getByText("⌘K")).toBeInTheDocument();

@@ -470,6 +470,12 @@ Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What chan
 | Differs | The module page, the text pages for skills and agents (slice 2b did skills), Needs you narrowed to cards and questions, Settings' folders: slice 6. |
 | Not built | The engine's step lines rewritten by code into plain words everywhere (the step words exist for the hands; the fold is the item). |
 
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice6-core.md`) | |
+|---|---|
+| Built | The core: the model's own Read, Glob, Grep, Write, Edit and Bash in a turn under the sandbox (reads where granted or the whole Mac, writes in the module's directory, no network); `GET /api/folders` and the whole-Mac switch; Scout's costly pick as a question; Needs you without proposals of Scout's; the agents' and the module's notes as text routes. |
+| Differs | Built in the window too (`../log/2026-10-18-harness-slice6-window.md`): an agent's page shows its file as text, the module page's Notes and Skills & agents tabs with Export as kit, Settings' Folders and Kits; Watson's folded line (4b). Versions and Undo on an agent's file wait: its file is not yet committed in the module's repo as a skill's is. |
+| Not built | Mac notifications (later, Kenil); the full desktop page sweep's hang of 17 Oct. |
+
 ## 11. Walls kept in code
 
 Unchanged from the old design and binding whatever the model does: the journal verbatim and never
@@ -686,6 +692,7 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q77 | 18 Oct 2026, Kenil on seeing Home after slice 3 ("only things it needs me for"): Home's page shows the work items that wait on him and nothing else; what is working and what finished live on the Assistant page, by lane. The "Done today" lane of §7 is the Assistant page's, not Home's. |
 | Q78 | 18 Oct 2026, Kenil ("I don't want a thousand rules… we need a clean simple approach"): a card comes only from the model's own hand (`ask_person`, with its options) or from a mechanism (a permission, a routing); the core never reads a card out of the model's prose. Q35's derivation (9 Oct) and its 200 lines of parsing are removed; a question left in prose is answered by typing, as with Claude. The turn prompt is to be rewritten to a handful of principles, shown to Kenil first. |
 | Q79 | 18 Oct 2026, Kenil ("I don't think every log should be a table… hundreds of tables"): things the person tracks live in tables, things said in passing live in the journal; a table is made only when they ask to track or keep something, or say yes to Watson's offer, made once per kind when the same kind of thing has come up three times in a week (`[watson] offer_after`, `offer_window_days`, named judgements); a yes makes the table and fills it from the journal entries, each row's source its sentence; a no is remembered. The turn prompt rewritten to eight short principles (`docs/design/turn-prompt-draft.md`, agreed in chat), live the same day. |
+| Q80 | 18 Oct 2026, slice 6 agreed in chat: a turn has the SDK's own files and shell, under Claude Code's sandbox (Kenil: "why no shell?"; the spike `log/2026-10-18-harness-slice6-spike.md`): reads in the folders he connected, or the whole Mac by a switch in Settings (both: "both"), writes inside the module's own directory only, no network from the shell ever; Scout's sure and costly pick is a question card, not a proposal; Needs you holds questions and permission cards only. |
 
 Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one
 approval is pending; the density of cards in Home (all items, or only what needs him); where

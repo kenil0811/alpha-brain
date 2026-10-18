@@ -108,6 +108,13 @@ def fresh_home(source_world: Path, into: Path) -> Path:
     into.mkdir(parents=True, exist_ok=True)
     target = into / "world.sqlite"
     _copy_profiles(source_world, into)
+    # the skills and the modules' files live beside the world (2b, slice 5): a copy without
+    # them has agents whose run skills are missing (the check of 18 Oct found the page failing)
+    for name in ("skills", "modules"):
+        src = source_world.parent / name
+        if src.is_dir():
+            shutil.copytree(src, into / name, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns("documents", "inputs", "parts"))
     return target
 
 

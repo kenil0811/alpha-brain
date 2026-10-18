@@ -1200,6 +1200,18 @@ export class Client {
   restoreSkill = (name: string, version: number) => this.call<SkillDetail>("POST", `/api/skills/${encodeURIComponent(name)}/restore/${version}`);
   /** The person's edit of a skill's file, kept as a new version. */
   editSkillText = (name: string, text: string) => this.call<SkillDetail>("PUT", `/api/skills/${encodeURIComponent(name)}/text`, { text });
+  /** An agent as its file (harness slice 6): front matter and brief, one text; an edit is taken like an edited file. */
+  agentText = (id: string) => this.call<{ id: string; name: string; text: string }>("GET", `/api/agents/${encodeURIComponent(id)}/text`);
+  editAgentText = (id: string, text: string) => this.call<{ id: string; name: string; text: string }>("PUT", `/api/agents/${encodeURIComponent(id)}/text`, { text });
+  /** A module's page as text (NOTES.md). */
+  moduleNotes = (ref: string) => this.call<{ module: string; text: string }>("GET", `/api/modules/${encodeURIComponent(ref)}/notes`);
+  editModuleNotes = (ref: string, text: string) => this.call<{ module: string; text: string }>("PUT", `/api/modules/${encodeURIComponent(ref)}/notes`, { text });
+  /** The module as a kit (slice 5): the folder's path, the version, what crosses out of the module. */
+  exportKit = (ref: string) => this.call<{ kit: string; name: string; version: number; files: number; crosses: string[] }>("POST", `/api/modules/${encodeURIComponent(ref)}/kit`, {});
+  installKit = (path: string) => this.call<{ module: string; name: string; version: number; words: string; kept: string[] }>("POST", "/api/kits/install", { path });
+  /** Where the model's own files and shell may read (slice 6). */
+  folders = () => this.call<{ folders: string[]; whole_mac: boolean }>("GET", "/api/folders");
+  setWholeMac = (on: boolean) => this.call<{ whole_mac: boolean }>("POST", "/api/folders/whole_mac", { on });
   agents = () => this.call<Agent[]>("GET", "/api/agents");
   agentPage = (id: string) => this.call<AgentDetail>("GET", `/api/agents/${encodeURIComponent(id)}`);
   /** Pause an agent or set it going, or rename it. */

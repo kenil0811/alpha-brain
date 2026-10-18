@@ -211,7 +211,10 @@ def routes(app: FastAPI, s: Served) -> None:
                      # holds the turn that made it (harness §7), whose steps are not the run's
                      and (e["actor"] == aid or not e["data"].get("turn"))]
             runs.append({**r, "lines": lines[-40:]})
-        skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
+        try:
+            skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
+        except Problem:  # its run skill is missing (a copy without the files): the page still opens
+            skill = None
         sources = sum(1 for s in (skill["steps"] if skill else []) if "read" in s)
         good = WORDS.get(auto["kind"], {}).get("good_run") or (
             (f"every one of its {sources} source{'s' if sources != 1 else ''} read and"

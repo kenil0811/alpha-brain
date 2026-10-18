@@ -39,7 +39,7 @@ export function ItemCard({ entry, item, onOpen }: { entry: JournalEntry; item: C
       <>
         {sentence ? <Said entry={{ ...entry, kind: "said", actor: "person", text: sentence }} /> : null}
         <button type="button" className="itemcard itemcard--sent" onClick={onOpen} aria-label={`${title}: open the work item`}>
-          <span className="faint oneline">Sent to <b>{title}</b>{state === "working" ? " · working" : state === "needs_you" ? " · needs you" : ""}</span>
+          <span className="faint oneline">Sent to <b>{title.length > 48 ? `${title.slice(0, 47)}…` : title}</b>{state === "working" ? " · working" : state === "needs_you" ? " · needs you" : ""}</span>
           <span className="itemcard__open">open</span>
         </button>
       </>
