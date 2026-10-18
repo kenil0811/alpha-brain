@@ -24,6 +24,7 @@ from alpha.mcp.tools.modules import Modules
 from alpha.mcp.tools.reading import Reading
 from alpha.mcp.tools.tables import Tables
 from alpha.mcp.tools.workflows import WorkflowTools
+from alpha.runtime import look
 from alpha.world import queries
 from alpha.world.store import Problem
 
@@ -189,27 +190,46 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
     @hand(writes="files")
     def page_keep(self, module: str, name: str, title: str, html: str,
                   data: dict[str, str] | None = None, front: bool = False) -> dict[str, Any]:
-        """Draw a page of your own in a module, when the person asks for something the tables'
-        views cannot show (a line chart with several lines, a dashboard, a summary with
-        numbers and a drawing): say in a line what you are making, make it, and name it in
-        your reply. The page is a file in the module's directory (pages/<name>.html; name:
-        snake_case) shown on the module page's Pages tab in a frame of its own; front: true
-        makes it what the module opens on. html: the page's own markup, style and script (a
-        fragment or a whole document); it has no network, so draw by hand with SVG or canvas,
-        never a library from the web. data: {name: one SELECT} on the same views world_query
-        reads; each runs now (a wrong one fails here, in words) and the rows reach the page as
-        alpha.data.<name> (a list of {column: value}); when the module's data changes the rows
-        come again: draw inside a function and call it on load and in alpha.on("data", draw).
-        Use the app's look: the CSS variables --bg, --surface, --surface-2, --text, --text-2,
-        --text-3, --border, --line, --primary, --primary-soft, --good, --warn, --bad,
-        --chart-3, --font-ui, --font-mono, --text-sm, --text-base, --text-lg, --text-xl are set
-        on the page's root in light and dark (alpha.on("theme", draw) when colours matter), so
-        use them for every colour and font, never fixed ones. A page never writes: changes to
-        the data stay in the conversation. To change a page later, Edit the file (its header,
-        the <!--alpha … --> block, is the title, front and data) or call this again with the
-        same name."""
-        return self.world.pages.keep(module, name, title, html, data or {}, front=front,
-                                     source=f"turn:{self.turn}" if self.turn else None)
+        """Draw a page in a module when the person asks for a chart, a dashboard or a summary
+        the tables' views cannot show (several lines, two axes, numbers beside a drawing). Say
+        in a line what you are making, make it, and name it in your reply. WHERE: a module's
+        own page is the one named "overview" (its summary page, what the module opens on):
+        "add a chart to the summary page" means that page again (Read pages/overview.html if
+        it exists, keep its blocks, add the one asked). A page of another name is a tab of its
+        own: only when the person asks for a separate page or dashboard. HOW: html is the
+        page's own markup and script; draw with Alpha's kit, by hand only for what the kit has
+        no block for:
+        <script>alpha.ui.page(function (d) { return [
+          {stats: [{label: "Today", value: d.today[0].calories, unit: "kcal", of: 2500}]},
+          {chart: {title: "Calories and protein per day", kind: "line", rows: d.days, x: "day",
+            series: [{field: "calories", label: "Calories", unit: "kcal"},
+                     {field: "protein", label: "Protein", unit: "g", axis: "right"}],
+            target: {value: 2500, label: "2,500 kcal a day"}}},
+          {table: {title: "Last meals", rows: d.meals, columns: [{field: "item"},
+            {field: "calories", unit: "kcal"}]}},
+          {card: {title: "…", text: "…"}}, "a line of text",
+          {grid: {columns: 2, blocks: [ … ]}}]; });</script>
+        (blocks: stat/stats, chart with kind line or bar, table, card, text, grid.) data:
+        {name: one SELECT} on the same views world_query reads (dates as YYYY-MM-DD; order by
+        date); each runs now (a wrong one fails here, in words) and the rows reach the page
+        as d.<name>, a list of {column: value}; the kit redraws when the data, the theme or
+        the width change. SIX LINES: one block per thing; titles in the person's words and
+        numbers with units; nothing decorative; a target is one thin labelled line; one period
+        per chart, the latest on the right; never a fixed colour or font (the kit uses the
+        app's). No network, no libraries from the web. After the write Alpha LOOKS at the page
+        and the result says whether it is clean; when it is not, fix what is named and call
+        this again before you answer. A page never writes: changes to the data stay in the
+        conversation."""
+        out = self.world.pages.keep(module, name, title, html, data or {}, front=front,
+                                    source=f"turn:{self.turn}" if self.turn else None)
+        seen = look.page(self.world, module, name, turn=self.turn)
+        out["look"] = {"clean": seen.clean if seen.image is not None else None,
+                       "words": seen.words, "image": str(seen.image) if seen.image else None}
+        if seen.image is not None and not seen.clean:
+            out["fix_first"] = (f"The page is not clean: {seen.words}. Fix it and call"
+                                " page_keep again before you answer; Read the image to see"
+                                " it yourself.")
+        return out
 
     @hand(writes="files")
     def world_file(self, action: str, ref: str | None = None, url: str | None = None,

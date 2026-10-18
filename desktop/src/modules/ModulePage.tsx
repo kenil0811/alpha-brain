@@ -86,19 +86,19 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
   const showFiles = tab === "files" && files.length > 0;
   // the pages Alpha drew (slice 7): a tab each, the front one what the module opens on
   const [pages, setPages] = useState<PageInfo[]>([]);
-  const picked = useRef(false); // the person chose a tab here: the front page does not take over
   useEffect(() => {
     Promise.resolve()
       .then(() => client.modulePages(moduleId))
       .then(setPages)
       .catch(() => setPages([])); // none to show; the tables are the page
   }, [client, moduleId, version]);
-  const pageShown = useMemo(() => (tab.startsWith("page:") ? pages.find((p) => `page:${p.name}` === tab) ?? null : null), [pages, tab]);
+  // the front page is shown on Overview (the module's own page, slice 7b); the others are tabs
+  const frontPage = useMemo(() => pages.find((p) => p.front) ?? null, [pages]);
+  const tabPages = useMemo(() => pages.filter((p) => !p.front), [pages]);
+  const pageShown = useMemo(() => (tab.startsWith("page:") ? tabPages.find((p) => `page:${p.name}` === tab) ?? null : null), [tabPages, tab]);
   useEffect(() => {
-    const front = pages.find((p) => p.front && !p.problem);
-    if (tab.startsWith("page:") && pages.length && !pageShown) setTab("summary"); // removed
-    else if (front && tab === "summary" && !picked.current && !wantedTable) setTab(`page:${front.name}`);
-  }, [pages, tab, pageShown, wantedTable]);
+    if (tab.startsWith("page:") && !pageShown) setTab("summary"); // removed, or now the front
+  }, [tab, pageShown]);
   // Where this module could go (never itself, what it holds, or where it already is), and
   // what could come in (never itself, what is already here, or anything above it).
   const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
@@ -208,13 +208,10 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
           <Tabs
             label="Tables"
             value={table || showFiles || tab === "notes" || tab === "know" || pageShown ? tab : "summary"}
-            onChange={(id) => {
-              picked.current = true;
-              setTab(id);
-            }}
+            onChange={setTab}
             items={[
               { id: "summary", label: "Overview" },
-              ...pages.map((p) => ({ id: `page:${p.name}`, label: p.title })),
+              ...tabPages.map((p) => ({ id: `page:${p.name}`, label: p.title })),
               { id: "notes", label: "Notes" },
               { id: "know", label: "Skills & agents" },
               ...detail.tables.map((t) => ({
@@ -248,6 +245,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onOpenRecord={(t, id) => onGo({ kind: "record", table: t, id })} />
           ) : (
             <>
+              {frontPage ? <PageFrame key={frontPage.name} client={client} moduleId={moduleId} page={frontPage} version={version} onChanged={onChanged} /> : null}
               <KitExport client={client} moduleId={moduleId} />
               {detail.inside?.length ? (
                 <div className="section" style={{ marginTop: 0 }}>

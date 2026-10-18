@@ -203,7 +203,8 @@ class TurnRequest:
     actor: str = "alpha"
     # What kind of run this is: "turn" (Alpha with its world and tools), "independent" (the same
     # model with web search only and no Alpha, for a second opinion) or "judge" (no tools at
-    # all: compares two answers). Fake runners in tests tell them apart by it.
+    # all: compares two answers) or "look" (Read only: a page's image judged). Fake runners
+    # in tests tell them apart by it.
     kind: str = "turn"
     # A live conversation resumes its own session (`resume`) and keeps it (`persist`); every
     # other run is stateless, as Q21 decided.
@@ -218,6 +219,8 @@ def tools_allowed(req: TurnRequest) -> list[str]:
         return ["WebSearch", "WebFetch"]
     if req.kind == "judge":
         return []
+    if req.kind == "look":
+        return ["Read"]  # the image of a page it is asked to look at, nothing else
     return ALLOWED
 
 

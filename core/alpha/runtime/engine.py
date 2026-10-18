@@ -117,7 +117,7 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
     if hands is not None and req.kind == "turn":
         allowed = ([f"mcp__alpha__{h}" for h in hands if h not in GATED]
                    + ["WebSearch", "WebFetch"] + OWN_TOOLS)
-    denied = list(DENIED)
+    denied = [d for d in DENIED if d not in allowed]  # a look reads its one image
     if not allowed:
         denied += ["WebSearch", "WebFetch"]
     # With no callback nothing may prompt; with one, the prompts are the callback's (the flag

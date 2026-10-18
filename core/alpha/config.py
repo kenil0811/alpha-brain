@@ -259,10 +259,10 @@ settings: Settings = load_settings()
 
 # ---- models: which model does which kind of work ----
 
-ROLES = ("turn", "judge", "independent", "refile", "trial")
+ROLES = ("turn", "judge", "independent", "refile", "trial", "look")
 # the class of work an environment variable overrides, for checks and journeys
 TURN_CLASS = {"turn", "independent", "refile"}
-SMALL_CLASS = {"judge", "trial"}
+SMALL_CLASS = {"judge", "trial", "look"}
 
 
 @dataclass(frozen=True)

@@ -76,7 +76,7 @@ The model runs through the Claude Agent SDK (its bundled Claude Code) on the own
 from the default config home and `USER` must be in the environment. The app keeps its world in
 `~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles,
 `modules/<id>/` for each module's directory under git (the harness, 17–18 Oct 2026: its
-`module.yaml` written from the world, `NOTES.md` the module's page, `pages/<name>.html` the pages the model draws (slice 7), `agents/<name>.md` each
+`module.yaml` written from the world, `NOTES.md` the module's page, `pages/<name>.html` the pages the model draws with Alpha's page kit (`core/alpha/world/pagekit/`; slice 7 and 7b) and `pages/.looks/` the images Alpha judged them by, `agents/<name>.md` each
 agent, `skills/<name>/` as `SKILL.md` plus `scripts/` or `steps.yaml`, all editable both ways;
 older ones still hold the build's `WORKFLOW.md`, `workflow.json`, `PROGRESS.md`), `ALPHA.md` the
 standing instructions as a file, `skills/` beside the world for skills with no module (a git

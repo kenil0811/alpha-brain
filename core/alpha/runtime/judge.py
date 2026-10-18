@@ -50,7 +50,8 @@ Runner = Callable[[TurnRequest], RunResult]
 
 def ask(question: Question, *, rules: list[Rule] | None = None,
         runner: Runner = route.run, model: str | None = None,
-        world_path: Any = None, turn_id: str | None = None) -> Verdict:
+        world_path: Any = None, turn_id: str | None = None, kind: str = "judge",
+        system: str | None = None) -> Verdict:
     """Answer a question: the first rule that returns a verdict wins; otherwise the model."""
     if question.kind == "choose" and not question.options:
         raise ValueError("a choose question needs options")
@@ -63,8 +64,8 @@ def ask(question: Question, *, rules: list[Rule] | None = None,
     prompt = (f"State:\n{question.state.strip()[:6000]}\n\nQuestion: {question.text}\n"
               f"Allowed answers: {', '.join(allowed)}")
     result = runner(TurnRequest(
-        sentence=prompt, system=config.prompt("judge"), world_path=world_path or Path("/dev/null"),
-        turn_id=turn_id or "judge", kind="judge",
+        sentence=prompt, system=system or config.prompt("judge"),
+        world_path=world_path or Path("/dev/null"), turn_id=turn_id or "judge", kind=kind,
         model=model or config.model_for("judge")))
     if not result.ok:
         return Verdict(answer="", confidence=0.0, by="model",

@@ -5,6 +5,7 @@ policy; listed, fronted, carried by a kit, gone with the module."""
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -90,6 +91,8 @@ def test_a_page_is_served_with_its_rows_and_the_runtime_under_a_policy(world: Wo
     assert html.startswith("<!doctype html>") and "<title>Summary</title>" in html
     assert '"days": [{"day": "2026-10-12", "calories": 2200}' in html
     assert "window.alpha = alpha" in html and html.index("window.alpha") < html.index("<svg")
+    assert "alpha.ui = { page: page" in html and ".ak-stat {" in html  # the kit rides along
+    assert 'alpha: "size"' in html
     # a whole document keeps its shape, the runtime first in its head
     whole = "<html><head><title>T</title></head><body><p>hi</p></body></html>"
     world.pages.keep("Food", "whole", "Whole", whole)
@@ -127,11 +130,34 @@ def test_the_routes_list_ticket_serve_front_and_remove(world: World) -> None:
     assert c.get("/api/modules/Food/pages").json() == []
 
 
-def test_the_hand_makes_a_page_and_a_chart_list_is_a_list(world: World) -> None:
+def test_the_overview_is_the_modules_page_and_front_by_itself(world: World) -> None:
     food(world)
+    world.pages.keep("Food", "trend", "Trend", CHART, {"days": DAYS}, front=True)
+    world.pages.keep("Food", "overview", "Food", CHART, {"days": DAYS})
+    fronts = {p["name"]: p["front"] for p in world.pages.all("Food")}
+    assert fronts == {"overview": True, "trend": False}
+
+
+def test_the_hand_makes_a_page_looks_at_it_and_a_chart_list_is_a_list(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    from alpha.runtime import look
+    food(world)
+    seen: list[str] = []
+
+    def fake_look(w: World, module: str, name: str, **kw: Any) -> look.Look:
+        seen.append(name)
+        clean = name != "messy"
+        return look.Look(image=Path("/x.png"), clean=clean,
+                         words="clean" if clean else "the axis labels are cut off", errors=[])
+
+    monkeypatch.setattr(look, "page", fake_look)
     h = Tools(world, turn="j_p")
     out = h.page_keep("Food", "summary", "Summary", CHART, {"days": DAYS}, front=True)
     assert out["page"] == "summary" and out["data"] == {"days": 2}
+    assert out["look"] == {"clean": True, "words": "clean", "image": "/x.png"}
+    messy = h.page_keep("Food", "messy", "Messy", CHART, {"days": DAYS})
+    assert messy["fix_first"].startswith("The page is not clean: the axis labels are cut off.")
+    assert seen == ["summary", "messy"]
     bad = h.page_keep("Food", "x", "X", CHART, {"d": "SELECT * FROM nope"})
     assert "does not run" in bad["error"]
     kept = h.world_shape(table="food_log", saved_list={

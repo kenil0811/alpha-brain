@@ -44,14 +44,18 @@ HEADER = re.compile(r"\A\s*<!--alpha\n(.*?)\n-->", re.S)
 NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 # What a page's header may say; anything else is left to the page.
 HEAD_KEYS = ("title", "front", "data")
+# The module's own page (its "summary page"): what the module opens on, the blocks the model
+# adds when asked for a chart or a number there; a page of another name is a tab of its own.
+OVERVIEW = "overview"
 
 # What every served page gets before its own text: the rows, the theme's variables as the
 # window hands them (a message, since the frame has no reach into the app), and a page's own
 # error carried out to the window so it shows "This page did not draw" instead of a blank.
+KIT_DIR = Path(__file__).parent / "pagekit"
 RUNTIME = """<script>
 (function () {
   var alpha = { data: __DATA__, theme: null, on: function (name, fn) {
-    (alpha._on[name] = alpha._on[name] || []).push(fn); } , _on: {} };
+    (alpha._on[name] = alpha._on[name] || []).push(fn); } , _on: {}, _report: null };
   function fire(name, value) { (alpha._on[name] || []).forEach(function (fn) {
     try { fn(value); } catch (e) { report(e); } }); }
   function report(e) {
@@ -73,9 +77,16 @@ RUNTIME = """<script>
   });
   window.addEventListener("error", function (ev) { report(ev.error || ev.message); });
   window.addEventListener("unhandledrejection", function (ev) { report(ev.reason); });
+  function size() {
+    var h = document.documentElement.scrollHeight;
+    try { parent.postMessage({ alpha: "size", height: h }, "*"); } catch (_) {}
+  }
   window.addEventListener("load", function () {
     try { parent.postMessage({ alpha: "ready" }, "*"); } catch (_) {}
+    size();
+    if (window.ResizeObserver) new ResizeObserver(size).observe(document.documentElement);
   });
+  alpha._report = report;
   window.alpha = alpha;
 })();
 </script>
@@ -83,8 +94,20 @@ RUNTIME = """<script>
 html, body { margin: 0; padding: 0; background: var(--bg, transparent);
   color: var(--text, inherit); font-size: var(--text-base, 14px);
   font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif); }
+body { padding: 0 1px; }
+__KIT_CSS__
 </style>
+<script>
+__KIT_JS__
+</script>
 """
+
+
+def runtime(rows: dict[str, Any]) -> str:
+    """Alpha's runtime for one page: the rows, the messages, and the kit (`pagekit/`)."""
+    return (RUNTIME.replace("__DATA__", json.dumps(rows).replace("</", "<\\/"))
+            .replace("__KIT_CSS__", (KIT_DIR / "kit.css").read_text())
+            .replace("__KIT_JS__", (KIT_DIR / "kit.js").read_text().replace("</", "<\\/")))
 
 # The content policy the core serves a page under: its own inline script and style, images it
 # carries itself, and nothing from anywhere (no network, no frames, no forms away).
@@ -194,6 +217,7 @@ class Pages:
         (markup, style, script; a whole document or a fragment, both draw)."""
         m = self.world.modules.get(module_ref)
         path = self.path_of(m["id"], name)
+        front = front or name == OVERVIEW  # the module's own page is what it opens on
         head = check_header({"title": title, "front": front, "data": data or {}})
         if not head["title"]:
             raise Problem("A page needs a title.")
@@ -296,17 +320,17 @@ class Pages:
         head, body = split_header(path.read_text())
         checked = check_header(head)
         rows = self.run(checked["data"])
-        runtime = RUNTIME.replace("__DATA__", json.dumps(rows).replace("</", "<\\/"))
+        run = runtime(rows)
         title = checked["title"] or name
         if re.search(r"<html[\s>]", body, re.I):
             # a whole document: the runtime goes first in its head
             if re.search(r"<head[\s>]", body, re.I):
-                return re.sub(r"(<head[^>]*>)", lambda mm: mm.group(1) + runtime, body, count=1,
+                return re.sub(r"(<head[^>]*>)", lambda mm: mm.group(1) + run, body, count=1,
                               flags=re.I)
-            return re.sub(r"(<html[^>]*>)", lambda mm: mm.group(1) + "<head>" + runtime
+            return re.sub(r"(<html[^>]*>)", lambda mm: mm.group(1) + "<head>" + run
                           + "</head>", body, count=1, flags=re.I)
         return (f"<!doctype html><html><head><meta charset=\"utf-8\"><title>{_esc(title)}</title>"
-                f"{runtime}</head><body>{body}</body></html>")
+                f"{run}</head><body>{body}</body></html>")
 
 
 def _esc(text: str) -> str:

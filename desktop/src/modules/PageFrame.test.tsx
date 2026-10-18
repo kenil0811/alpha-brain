@@ -56,6 +56,9 @@ describe("a page the model drew, in its frame", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("This page did not draw: days is not defined");
     rerender(<PageFrame client={client} moduleId="m_1" page={page} version={2} onChanged={onChanged} />);
     await waitFor(() => expect(post).toHaveBeenCalledWith({ alpha: "data", data: { days: [{ day: "2026-10-12", calories: 2200 }] } }, "*"));
+    // the page says how tall it is: the frame follows
+    fromFrame(frame, { alpha: "size", height: 712 });
+    expect(frame.style.height).toBe("712px");
     // a message from anywhere else is ignored
     act(() => {
       window.dispatchEvent(new MessageEvent("message", { data: { alpha: "error", text: "nope" }, source: window }));
@@ -68,7 +71,7 @@ describe("a page the model drew, in its frame", () => {
     const removePage = vi.fn(() => Promise.resolve({ removed: "summary" }));
     const onChanged = vi.fn();
     render(<PageFrame client={fakeClient({ setPageFront, removePage })} moduleId="m_1" page={page} version={1} onChanged={onChanged} />);
-    (await screen.findByRole("button", { name: "Not the front" })).click();
+    (await screen.findByRole("button", { name: "Make it a tab" })).click();
     await waitFor(() => expect(setPageFront).toHaveBeenCalledWith("m_1", "summary", false));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
     screen.getByRole("button", { name: "Remove…" }).click();

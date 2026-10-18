@@ -1,0 +1,31 @@
+/* Alpha's page kit: the look of the blocks, from the window's variables only. */
+.ak-page { display: flex; flex-direction: column; gap: 16px; padding: 4px 0 8px; font-family: var(--font-ui, sans-serif); color: var(--text); }
+.ak-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.ak-title { margin: 0 0 10px; font-size: var(--text-base, 14px); font-weight: 600; color: var(--text); }
+.ak-text { margin: 0; font-size: var(--text-base, 14px); line-height: 1.5; color: var(--text-2); }
+.ak-note { margin-top: 8px; font-size: var(--text-sm, 12px); color: var(--text-3); }
+.ak-empty { margin: 0; padding: 20px; text-align: center; font-size: var(--text-md, 13px); color: var(--text-3); }
+.ak-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.ak-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.ak-stat__label { font-size: var(--text-sm, 12px); color: var(--text-2); margin-bottom: 4px; }
+.ak-stat__value { font-size: var(--text-xl, 20px); font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.ak-stat__of { color: var(--text-3); font-weight: 400; font-size: var(--text-lg, 16px); }
+.ak-stat__unit { color: var(--text-3); font-weight: 400; font-size: var(--text-md, 13px); }
+.ak-bar { height: 4px; background: var(--surface-2); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.ak-bar__fill { height: 100%; background: var(--primary); border-radius: 2px; }
+.ak-grid { display: grid; gap: 16px; }
+.ak-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 8px; font-size: var(--text-sm, 12px); color: var(--text-2); }
+.ak-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.ak-legend__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ak-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ak-grid-line, .ak-grid { }
+line.ak-grid { stroke: var(--line); stroke-width: 1; }
+.ak-tick { font-size: 11px; fill: var(--text-3); font-family: var(--font-ui, sans-serif); font-variant-numeric: tabular-nums; }
+.ak-tick--l { text-anchor: end; }
+.ak-tick--x { text-anchor: middle; }
+.ak-tick--target { text-anchor: end; fill: var(--text-2); }
+.ak-target { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.ak-table { width: 100%; border-collapse: collapse; font-size: var(--text-md, 13px); }
+.ak-table th { text-align: left; font-weight: 500; color: var(--text-2); padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: var(--text-sm, 12px); }
+.ak-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--text); }
+.ak-table td.ak-num, .ak-table th.ak-num { text-align: right; font-variant-numeric: tabular-nums; }

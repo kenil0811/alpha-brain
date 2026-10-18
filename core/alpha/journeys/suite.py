@@ -55,7 +55,7 @@ import yaml
 
 from alpha import config
 from alpha.context import prepack
-from alpha.runtime import acting, conversations, engine, pipeline, route, running, turn
+from alpha.runtime import acting, conversations, engine, look, pipeline, route, running, turn
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
@@ -797,21 +797,43 @@ class Run:
             return False, ("No page draws" + (f": {broken[0]['problem']}" if broken else "") + ".")
         fronts = [p for p in pages if p["front"]]
         page = fronts[0] if arg.get("front") and fronts else pages[0]
+        if arg.get("name"):
+            named = [p for p in pages if p["name"] == arg["name"]]
+            if not named:
+                return False, (f"No page named {arg['name']}; there are "
+                               + ", ".join(p["name"] for p in pages) + ".")
+            page = named[0]
         if arg.get("front") and not fronts:
             return False, f"{len(pages)} page(s), none the module's front."
+        if arg.get("count") and len(pages) + len(broken) != int(arg["count"]):
+            return False, (f"{len(pages) + len(broken)} pages, not {arg['count']}: "
+                           + ", ".join(p["name"] for p in pages + broken) + ".")
         try:
             rows = self.world.pages.data(arg["module"], page["name"])
         except Problem as e:
             return False, f"The page {page['title']}: {e}"
         counts = {k: len(v) for k, v in rows.items()}
         html = self.world.pages.render(arg["module"], page["name"]).lower()
-        draws = "<svg" in html or "<canvas" in html
-        how = ("draws with " + ("svg" if "<svg" in html else "canvas")) if draws \
-            else "no svg or canvas in it"
+        kit = "alpha.ui.page(" in html
+        draws = kit or "<svg" in html or "<canvas" in html
+        how = ("draws with " + ("the kit" if kit else "svg" if "<svg" in html else "canvas")) \
+            if draws else "no svg, canvas or kit block in it"
         words = (f"{page['title']} ({page['name']}.html){', the front' if page['front'] else ''}:"
                  f" {', '.join(f'{k} {n} rows' for k, n in counts.items()) or 'no data'}; {how}")
         enough = all(n >= int(arg["rows"]) for n in counts.values()) if arg.get("rows") else True
-        return bool(counts) and enough and draws, words + "."
+        if arg.get("kit") and not kit:
+            words += "; NOT drawn with the kit"
+        return bool(counts) and enough and draws and (kit or not arg.get("kit")), words + "."
+
+    def check_page_look(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Alpha's own look at the module's front page (slice 7b): rendered in Chromium and
+        judged by the small model with eyes against the six rules."""
+        page = self.world.pages.front(arg["module"])
+        if page is None:
+            return False, "No front page to look at."
+        seen = look.page(self.world, arg["module"], page["name"], runner=self.runner)
+        return seen.clean, (f"{page['title']}: " + ("clean" if seen.clean else seen.words)
+                            + (f" ({seen.image})" if seen.image else "") + ".")
 
     def check_journal(self, arg: dict[str, Any]) -> tuple[bool, str]:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])

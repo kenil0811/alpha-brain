@@ -1,0 +1,85 @@
+[
+ {
+  "name": "page_clean",
+  "title": "A clean page: the chart asked for lands on the module's own page, drawn with the kit, and Alpha's look says clean",
+  "steps": [
+   {
+    "say": "track what I eat: a food log with the date, the item, calories and protein in grams",
+    "ok": true,
+    "reply": "I made a food log with four fields: date, item, calories (kcal) and protein (g). It's empty so far. I also set it to open as a chart of calories per day.\n\nTell me what you eat, for example \"had two eggs and toast for breakfast\". I'll add a row dated today. If you don't give calories or protein, I'll estimate them and mark them as estimates.",
+    "steps": 2,
+    "routed": "a new item",
+    "routed_by": "judge: A food log that keeps tracking what the user eats is a standing table kept current over time, which takes more than one turn and no open item covers it.",
+    "seconds": 16.1
+   },
+   {
+    "say": "log these for the last week: Mon 12 Oct oats 350 kcal 12 g protein, chicken salad 520 kcal 42 g; Tue 13 Oct eggs 300 kcal 20 g, pasta 700 kcal 25 g; Wed 14 Oct yoghurt 200 kcal 15 g, steak 650 kcal 55 g; Thu 15 Oct toast 280 kcal 8 g, curry 800 kcal 30 g; Fri 16 Oct smoothie 320 kcal 18 g, pizza 900 kcal 35 g; Sat 17 Oct pancakes 450 kcal 10 g, salmon 600 kcal 45 g; Sun 18 Oct granola 400 kcal 12 g, soup 350 kcal 14 g",
+    "ok": true,
+    "reply": "I logged all 14 items for 12–18 October, with the calories and protein you gave me. Here are the daily totals:\n\n| Day | kcal | Protein |\n|---|---|---|\n| Mon 12 | 870 | 54 g |\n| Tue 13 | 1,000 | 45 g |\n| Wed 14 | 850 | 70 g |\n| Thu 15 | 1,080 | 38 g |\n| Fri 16 | 1,220 | 53 g |\n| Sat 17 | 1,050 | 55 g |\n| Sun 18 | 750 | 26 g |\n\nThe week averages about 1,000 kcal and 49 g of protein a day. Today's total is only the two items you've told me about so far.",
+    "steps": 2,
+    "routed": "Track what I eat: a food log with the date, the item,…",
+    "routed_by": "judge: The sentence logs food entries into the food_log table, which is the subject of the in-focus Track what I eat item, so it continues that item rather than standing alone.",
+    "seconds": 16.6
+   },
+   {
+    "check": "rows_since",
+    "ok": true,
+    "detail": "14 rows in food_log (14)",
+    "seconds": 0.0
+   },
+   {
+    "say": "add a line chart of my daily calories and protein to the summary page, one line each",
+    "ok": true,
+    "reply": "The summary page of your food log now has a line chart of daily calories and protein, one line each, for 12–18 October. Alpha's check of the page came back clean.\n\n- **Calories:** the line uses the left axis, in kcal.\n- **Protein:** the line uses the right axis, in g. It has its own scale because the numbers are much smaller.\n- **New days:** the daily totals come straight from your food log, so each new day you log extends both lines.",
+    "steps": 4,
+    "routed": "Track what I eat: a food log with the date, the item,…",
+    "routed_by": "judge: The request adds a chart of calories and protein, the daily totals that the food log item produced, to a summary page, so it changes what that item made.",
+    "seconds": 44.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "page",
+    "arg": {
+     "module": "Food",
+     "name": "overview",
+     "front": true,
+     "count": 1,
+     "rows": 7,
+     "kit": true
+    },
+    "ok": true,
+    "why": "Summary (overview.html), the front: days 7 rows; draws with the kit.",
+    "seconds": 0.0
+   },
+   {
+    "check": "page_look",
+    "arg": {
+     "module": "Food"
+    },
+    "ok": true,
+    "why": "Summary: clean (/var/folders/sr/81_5d60n0vn6vyh8pkxhz_vm0000gn/T/alpha-journeys/2026-10-18-1719/modules/m_8e8a829630fd/pages/.looks/overview.png).",
+    "seconds": 10.7
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "checked",
+     "contains": "looked at the page"
+    },
+    "ok": true,
+    "why": "4 checked entries: Alpha looked at the page overview: clean..",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the answer say the chart was added to the module's page (its summary or overview) in plain words, without asking the person to do anything first?",
+    "ok": true,
+    "why": "The answer states plainly that the chart is now on the summary page, with no request that the person do anything first.",
+    "seconds": 4.4
+   }
+  ],
+  "seconds": 91.9,
+  "error": null
+ }
+]

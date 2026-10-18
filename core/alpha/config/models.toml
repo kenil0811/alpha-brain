@@ -16,6 +16,8 @@ independent = "sonnet"
 refile = "sonnet"
 # the route's trial that one real tool call comes back: the smallest model that can call a tool
 trial = "haiku"
+# the look at a page the model drew (slice 7b): one image read, six rules; the small model has eyes
+look = "haiku"
 
 [chatgpt]
 # the Claude alias the ChatGPT route starts from when nothing says; it becomes an effort below

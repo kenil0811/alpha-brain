@@ -30,6 +30,7 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
   const [problem, setProblem] = useState<string | null>(page.problem);
   const [ready, setReady] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [height, setHeight] = useState<number | null>(null); // the page's own height, posted by it
   const post = useCallback((message: unknown) => {
     frame.current?.contentWindow?.postMessage(message, "*");
   }, []);
@@ -56,6 +57,8 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
         setReady(true);
       } else if (m.alpha === "error") {
         setProblem(m.text || "something in its script failed");
+      } else if (m.alpha === "size" && typeof (m as { height?: unknown }).height === "number") {
+        setHeight(Math.max(120, Math.ceil((m as { height: number }).height)));
       }
     };
     window.addEventListener("message", onMessage);
@@ -93,16 +96,16 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
     <div className="pageframe">
       <div className="pageframe__head">
         <b>{page.title}</b>
-        <span className="faint">{page.front ? "What this module opens on" : "A page Alpha drew"}{page.data.length ? ` · reads ${page.data.join(", ")}` : ""}</span>
+        <span className="faint">{page.front ? "This module's page, drawn by Alpha; ask for what you want on it" : "A page Alpha drew"}{page.data.length ? ` · reads ${page.data.join(", ")}` : ""}</span>
         <div className="section__right">
-          <Button size="sm" onClick={toggleFront}>{page.front ? "Not the front" : "Make it the front"}</Button>
+          <Button size="sm" onClick={toggleFront}>{page.front ? "Make it a tab" : "Show it on Overview"}</Button>
           <Button size="sm" variant="ghost" onClick={() => setRemoving(true)}>Remove…</Button>
         </div>
       </div>
       {problem ? (
         <p className="notice" role="alert">This page did not draw: {problem}</p>
       ) : null}
-      {src ? <iframe ref={frame} className="pageframe__frame" title={page.title} src={src} sandbox="allow-scripts" referrerPolicy="no-referrer" /> : <p className="empty">Opening the page…</p>}
+      {src ? <iframe ref={frame} className="pageframe__frame" title={page.title} src={src} sandbox="allow-scripts" referrerPolicy="no-referrer" style={height ? { height, minHeight: 0, flex: "none" } : undefined} /> : <p className="empty">Opening the page…</p>}
       <Confirm open={removing} title={`Remove the page ${page.title}?`} action="Remove" onConfirm={remove} onCancel={() => setRemoving(false)}>
         <p>Its file goes; the tables it read stay. Alpha can draw it again if you ask.</p>
       </Confirm>
