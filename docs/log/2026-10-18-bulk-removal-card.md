@@ -90,3 +90,12 @@ lists the items waiting on him and nothing else, under "Waiting on you"; working
 items are the Assistant page's lanes. A stale item stopped at start keeps its own day (the first
 version stamped it as today's). The lane's grid let a one-line card push its Open button off the
 page; fixed.
+
+## "Hi" (01:30)
+
+"Hi" in Home got a status of his world in three bullets and then a card, "What would you like
+to do?", with the three bullets as its choices. Two faults: the model's measure (the turn
+prompt gains rule 11: a greeting gets one friendly line, no status, no list, no question), and
+the question-reading in `asking.py`: a list of statements under labels is never a reply's
+options, and a closing courtesy ("what would you like to do", "anything else") is never a
+card. 319 core tests; the app restarted.

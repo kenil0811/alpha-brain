@@ -106,6 +106,15 @@ def trailing_question(reply: str) -> str | None:
     return " ".join(tail)[:MOST_QUESTION_CHARS]
 
 
+# A list item that is a statement under a label ("LinkedIn connections: 1,553 are synced") is
+# content, never an option (18 Oct: a status list became the choices of "What would you like
+# to do?").
+LABELLED = re.compile(r"^[^:]{1,40}:\s+\S")
+# A closing courtesy is not a question for the person to answer on a card.
+GENERIC = re.compile(r"^(what would you like( to do)?|what (do you want|shall i do) next|anything"
+                     r" else|what next|how can i help|where would you like to start)\b", re.I)
+
+
 def options_in(reply: str) -> list[str]:
     """Options the reply itself listed just before its question: 2 to 4 short list items."""
     paragraphs = _paragraphs(reply)
@@ -115,7 +124,8 @@ def options_in(reply: str) -> list[str]:
     before = paragraphs[-2].splitlines() if len(paragraphs) > 1 else []
     items = [_plain(m.group(1)).rstrip(".;:") for ln in before + last[:-1]
              if (m := LIST_ITEM.match(ln))]
-    items = [i for i in items if 0 < len(i) <= MOST_OPTION_CHARS and not i.endswith("?")]
+    items = [i for i in items if 0 < len(i) <= MOST_OPTION_CHARS and not i.endswith("?")
+             and not LABELLED.match(i)]
     return items if 2 <= len(items) <= 4 else []
 
 
@@ -178,7 +188,7 @@ def derive(world: World, *, said: str, reply: str, module: str | None, thread: s
                        (said,)):
         return None
     question = trailing_question(reply)
-    if not question:
+    if not question or GENERIC.match(question.strip()):
         return None
     offered = offered_choice(reply)
     options = (offered[1] if offered and offered[0] == question else options_in(reply)) \

@@ -22,6 +22,13 @@ def test_the_trailing_question_and_the_options_the_reply_listed() -> None:
     assert asking.trailing_question('Done.\n\n- Source label: rows carry "Who is hiring?"\n'
                                     "- Region: remote only") is None
     assert asking.trailing_question("Which one?\n- Daily\n- Weekly") == "Which one?"
+    # a status list under labels is content, not the options of the question after it (18 Oct)
+    status = ("Hi! Here's where things stand:\n\n- **LinkedIn connections:** 1,553 synced.\n"
+              "- **Remote back-end jobs:** 45 tracked.\n- **Food:** nothing logged yet today.\n\n"
+              "What would you like to do?")
+    assert asking.options_in(status) == []
+    assert asking.options_in("Pick one:\n\n- Daily\n- Weekly\n\nWhich suits you?") == ["Daily",
+                                                                                         "Weekly"]
     assert asking.trailing_question("Logged two eggs (140 kcal).") is None
     assert asking.trailing_question("**Plan**\n\n1. Which folder?\n2. Daily or weekly?") is None
     reply = ("Got it.\n\n- Email attachments (Gmail)\n- Shared cloud folder\n- Something else\n\n"
@@ -131,3 +138,13 @@ def test_the_window_sees_which_card_the_core_made_and_from_which_turn(world: Wor
     cards = [i for lst in home.values() if isinstance(lst, list)
              for i in lst if isinstance(i, dict) and i.get("kind") == "ask"]
     assert cards and cards[-1]["derived"] is True and cards[-1]["turn"] == out.said
+
+
+def test_a_closing_courtesy_makes_no_card(world: World) -> None:
+    said = world.journal.append("said", "hi", actor="person")
+    reply = ("Hi! Here's where things stand:\n\n- **Food:** nothing logged yet today.\n"
+             "- **Jobs:** 45 tracked.\n\nWhat would you like to do?")
+    assert asking.derive(world, said=said, reply=reply, module=None, thread=None) is None
+    said2 = world.journal.append("said", "log a shake", actor="person")
+    assert asking.derive(world, said=said2, reply="Which size: 330 ml or 500 ml?", module=None,
+                         thread=None) is not None
