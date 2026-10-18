@@ -179,16 +179,16 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
 /** A work item's state in words (harness §7). */
 const ITEM_STATE: Record<string, string> = { open: "Open", working: "Working", needs_you: "Needs you", done: "Done", stopped: "Stopped" };
 
-/** Home's lanes (harness §7): Needs you · Working · Done today, newest first in each; the
- *  core sends the items not over and the ones done or stopped today. */
+/** Home's lanes (harness §7): Needs you · Working · Done today, newest first in each. An item
+ *  that is merely open (between turns, between an agent's runs) is nobody's business on Home;
+ *  the Assistant page lists it. */
 export function laneThreads(items: Thread[], now = new Date()): [string, Thread[]][] {
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const lanes: Record<string, Thread[]> = { "Needs you": [], Working: [], "Done today": [] };
   items.forEach((t) => {
-    const over = t.state === "done" || t.state === "stopped";
     if (t.state === "needs_you") lanes["Needs you"].push(t);
-    else if (!over) lanes.Working.push(t);
-    else if (new Date(t.updated_at).getTime() >= midnight) lanes["Done today"].push(t);
+    else if (t.state === "working") lanes.Working.push(t);
+    else if ((t.state === "done" || t.state === "stopped") && new Date(t.updated_at).getTime() >= midnight) lanes["Done today"].push(t);
   });
   return Object.entries(lanes).filter(([, rows]) => rows.length);
 }
@@ -350,7 +350,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         </section>
       ) : null}
 
-      {home.threads.length ? (
+      {laneThreads(home.threads).length ? (
         <div className="section">
           <div className="section__head">
             <h2>Alpha is working on</h2>
@@ -372,7 +372,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                             <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
                           </div>
                         ) : (
-                          <div className="item__sub">{t.last_line ?? t.steps?.[t.steps.length - 1]?.text ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : "Started")}</div>
+                          <div className="item__sub oneline">{t.last_line ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : t.state === "stopped" ? "Stopped" : "Done")}</div>
                         )}
                         <div className="item__sub faint">started {when(t.created_at)}{t.last_at && t.last_at !== t.created_at ? ` · last ${when(t.last_at)}` : ""}</div>
                       </div>

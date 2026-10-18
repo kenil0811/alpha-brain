@@ -70,3 +70,17 @@ sits around the line). Two changes: the unsure card offers the judge's own pick,
 and here, never the roster; and the item in focus is a structural prior, so the judge's pick
 of it stands at any confidence (the person was just there). The card keeps the verdict in its
 data. 318 core tests; the app restarted.
+
+## Home's lanes and the cards (00:55)
+
+Kenil: "why are the conversations still open on the main screen? also, these done cards on
+chat are not looking good… so much jargon". Home showed a 16 Oct build thread under Working
+as "OPEN", with the old build's own words as its line (workspace, `reader_save`), and the
+Hacker News card three times in Home's conversation, each with a paragraph. Changed: Home's
+lanes hold only what is working, what needs him and what finished today (an item merely open,
+between turns or between an agent's runs, is the Assistant page's, under Earlier); an item
+nobody touched for a day that no agent owns is stopped at the core's start; a turn that could
+not run stops its item with the reason; a card's line is one line; a sentence sent on to an
+item that already has its card is a quiet "Sent to X" row, the card itself only where the item
+opened; a card with no line of its own says its state, never a step. The words on a card are
+the reply's first line: the model's, under the turn prompt's "plain words, no tool names".

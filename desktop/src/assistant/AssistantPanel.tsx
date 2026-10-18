@@ -33,6 +33,18 @@ export function ItemCard({ entry, item, onOpen }: { entry: JournalEntry; item: C
   const state = item?.state ?? "open";
   const title = item?.title ?? entry.text.replace(/^Started a work item for ".*?": /, "").replace(/^Sent ".*?" to /, "").replace(/\.$/, "");
   const line = item?.last_line ?? (state === "working" ? "Working…" : "");
+  if (!entry.data.opened) {
+    // a sentence sent on to an item that already had its card: one quiet row, not the card again
+    return (
+      <>
+        {sentence ? <Said entry={{ ...entry, kind: "said", actor: "person", text: sentence }} /> : null}
+        <button type="button" className="itemcard itemcard--sent" onClick={onOpen} aria-label={`${title}: open the work item`}>
+          <span className="faint oneline">Sent to <b>{title}</b>{state === "working" ? " · working" : state === "needs_you" ? " · needs you" : ""}</span>
+          <span className="itemcard__open">open</span>
+        </button>
+      </>
+    );
+  }
   return (
     <>
       {sentence ? <Said entry={{ ...entry, kind: "said", actor: "person", text: sentence }} /> : null}

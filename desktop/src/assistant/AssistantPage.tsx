@@ -14,14 +14,14 @@ import { CONVO_STATE, Conversation } from "./AssistantPanel";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { say } from "../core/client";
 
-/** The lanes of Home (harness §7): Needs you · Working · Done today · Earlier (done or stopped
- *  before today), each newest first; an open item (between turns) sits with the working ones. */
+/** The lanes of Home (harness §7): Needs you · Working · Done today · Earlier (everything
+ *  else: done or stopped before today, and items merely open between turns), newest first. */
 export function laneItems(items: Convo[], now = new Date()): [string, Convo[]][] {
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const lanes: Record<string, Convo[]> = { "Needs you": [], Working: [], "Done today": [], Earlier: [] };
   items.forEach((c) => {
     const over = c.state === "done" || c.state === "stopped";
-    const lane = c.state === "needs_you" ? "Needs you" : !over ? "Working" : new Date(c.updated_at).getTime() >= midnight ? "Done today" : "Earlier";
+    const lane = c.state === "needs_you" ? "Needs you" : c.state === "working" ? "Working" : over && new Date(c.updated_at).getTime() >= midnight ? "Done today" : "Earlier";
     lanes[lane].push(c);
   });
   return Object.entries(lanes).filter(([, rows]) => rows.length);
@@ -101,7 +101,7 @@ export function AssistantPage({
                   <span className="faint">
                     {CONVO_STATE[c.state] ?? c.state} · {when(c.last_at)}
                   </span>
-                  {c.last_line ? <span className="faint convrow__last">{c.last_line}</span> : null}
+                  {c.last_line ? <span className="faint convrow__last oneline">{c.last_line}</span> : null}
                 </span>
               </button>
             ))}

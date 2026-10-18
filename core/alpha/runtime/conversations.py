@@ -116,6 +116,13 @@ def reset_working(world: World) -> list[str]:
         "SELECT id FROM threads WHERE state = 'working'")]
     for tid in reset:
         world.modules.update_thread(tid, state="open")
+    # An item nobody has touched for a day and that no agent owns is over (18 Oct: a build
+    # thread of 16 Oct sat "open" on Home under Working).
+    since = (datetime.now(UTC) - timedelta(hours=DONE_FOR_H)).replace(microsecond=0).isoformat()
+    for t in world.store.all("SELECT id FROM threads WHERE kind = 'work' AND state = 'open'"
+                             " AND updated_at < ?", (since,)):
+        if world.agents.of_thread(t["id"]) is None:
+            world.modules.update_thread(t["id"], state="stopped", last_line="Left open; over.")
     if reset:
         n = len(reset)
         world.journal.append(

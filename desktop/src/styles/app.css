@@ -1033,6 +1033,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .itemcard__title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itemcard__line { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itemcard__open { flex: none; color: var(--text-3); font-size: var(--text-sm); }
+.itemcard--sent { padding: 4px 12px; border-color: transparent; background: transparent; gap: 8px; }
+.itemcard--sent .oneline { flex: 1; min-width: 0; }
+.oneline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-width: 0; }
 .lanes { display: grid; gap: 12px; }
 .lane__head { font-size: var(--text-sm); color: var(--text-2); font-weight: 500; margin: 0 0 4px; }
 .askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */

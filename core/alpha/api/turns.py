@@ -106,7 +106,7 @@ class Turns:
                           "duration_ms": out.result.duration_ms}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
-                self._open_again(conversation)
+                self._open_again(conversation, str(e))
             except Exception:
                 log.exception("turn failed")
                 result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
@@ -136,11 +136,17 @@ class Turns:
         with self.lock:
             return self.locks.setdefault(thread, threading.Lock())
 
-    def _open_again(self, thread: str | None) -> None:
+    def _open_again(self, thread: str | None, why: str = "") -> None:
+        """A turn that could not run: Home is open again; an item is stopped, saying why."""
         if not thread:
             return
         try:
-            self.world.modules.update_thread(thread, state="open")
+            kind = self.world.modules.thread(thread)["kind"]
+            if kind == "home":
+                self.world.modules.update_thread(thread, state="open")
+            else:
+                self.world.modules.update_thread(thread, state="stopped",
+                                                 last_line=why or "That didn't work.")
         except Exception:
             log.exception("thread state")
 

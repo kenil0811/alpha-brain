@@ -265,6 +265,14 @@ def test_a_core_that_starts_opens_the_work_a_dead_one_left_working(world: World)
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"].startswith(
         "Alpha's core started; 1 piece of work left mid-turn is open again.")
     assert conversations.reset_working(world) == []
+    # an item left open for a day, owned by no agent, is over (18 Oct: a 16 Oct build on Home)
+    stale = item(world, "Old build")
+    with world.store.tx() as db:
+        db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00' WHERE id = ?",
+                   (stale,))
+    conversations.reset_working(world)
+    assert world.modules.thread(stale)["state"] == "stopped"
+    assert world.modules.thread(other)["state"] == "open"  # touched today: stays
     # A live core resets them when it starts, before anything else runs.
     world.modules.update_thread(tid, state="working")
     with TestClient(create_app(world, live=True)):
