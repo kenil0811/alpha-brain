@@ -363,9 +363,12 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         """Make or change an agent: something that works on its own from now on. New: title
         (the sentence the person would say: "Every Monday at 08:00, sync my LinkedIn
         connections and tell me who is new"), schedule ("daily 07:30", "weekly mon 08:00",
-        "every 6h"), steps ([{"read": reader, "into": table, "key": field}, …, {"tell":
-        table}]: a pipeline the scheduler runs with no model; the tell step reports what is
-        new, changed and gone in that table since the last run), or brief
+        "every 6h", or "at 2026-10-24 17:00" for a time that comes once: "on Friday at 5" is
+        that, worked out from today's date), steps ([{"read": reader, "into": table, "key":
+        field}, …, {"tell": table}]: a pipeline the scheduler runs with no model; the tell step
+        reports what is new, changed and gone in that table since the last run; a reminder is
+        the plainest agent: schedule "at …" and steps [{"remind": "call Sara"}], which puts a
+        card to the person when the time comes), or brief
         (plain words for an agent that needs judgement each run), module, goal. Its first run is
         yours to do now (skill_run). Existing (id): state "paused" or "on", a new schedule,
         brief, title, name, or steps (an agent that read by its brief converts itself to steps).

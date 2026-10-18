@@ -435,6 +435,12 @@ through the browser, as reading does today; push later); **the Mac woke** (the s
 outward without a yes. Its output goes to Home and Activity, and to the person's conversation
 only as a Needs-you card. Mac notifications later.
 
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice4a.md`) | |
+|---|---|
+| Built | Slice 4a: every trigger of this section exists (time, a mention, the app opened, a change in the world through the journal's cursors, a folder, the Mac waking); a time that comes once is a schedule (`at 2026-10-24 17:00`, local; the agent runs once and is paused, its item done); the reminder is an agent with a `remind` step whose run puts one card ("Reminder: call Sara." · Done · Tomorrow, same time; Tomorrow makes the next once by code, no turn). Mail arriving is an agent like any other (a reader of the signed-in Gmail on a schedule), not a trigger of its own. |
+| Differs | Mac notifications: later (Kenil, 18 Oct); the card and the companion's line are the reminder. |
+| Not built | Push for mail; the quieter agents (4b). |
+
 ## 10. The window
 
 Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What changes:

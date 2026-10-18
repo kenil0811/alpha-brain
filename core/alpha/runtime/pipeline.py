@@ -163,8 +163,14 @@ def check_steps(world: World, steps: list[dict[str, Any]],
             table = step["tell"]
             world.collections.query(table, step.get("where"), limit=1)
             clean.append({"tell": table, "where": step.get("where") or None})
+        elif "remind" in step:
+            words = " ".join(str(step["remind"]).split())
+            if not words:
+                raise Problem("A remind step needs the words of the reminder.")
+            clean.append({"remind": words[:200]})
         else:
-            raise Problem("A step is {\"read\": …}, {\"tell\": …} or {\"run\": skill}.")
+            raise Problem("A step is {\"read\": …}, {\"tell\": …}, {\"remind\": words} or"
+                          " {\"run\": skill}.")
     return clean
 
 
@@ -261,7 +267,17 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
     unreachable: list[str] = []
     repairs, model_ms = 0, 0
     first_run = False
+    reminded: list[str] = []
     for step in _flatten(world, auto["steps"]):
+        if "remind" in step:
+            # the reminder (slice 4): one card where cards go; Done, or the same time tomorrow
+            world.journal.append(
+                "asked", f"Reminder: {step['remind']}.", actor=auto["id"],
+                data={"options": ["Done", "Tomorrow, same time"], "kind": "one",
+                      "reminder": auto["id"], "words": step["remind"], "agent": auto["id"]},
+                thread=thread, module=auto["module"])
+            reminded.append(step["remind"])
+            continue
         if "read" in step:
             name = step["read"]
             args = {"keep": step.get("keep"), "mapping": step.get("map"),
@@ -326,7 +342,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                 world.journal.append("noticed", message, actor=auto["id"],
                                      data={"agent": auto["id"]}, module=auto["module"])
     reads = sum(1 for s in _flatten(world, auto["steps"]) if "read" in s)
-    line = f"Read {read} of {reads} sources." if reads else "Done."
+    line = f"Read {read} of {reads} sources." if reads else (
+        "Reminded you: " + "; ".join(reminded) + "." if reminded else "Done.")
     if told:
         line += " " + " ".join(told)
     if first_run:

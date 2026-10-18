@@ -12,9 +12,11 @@ are pages at scope `agent:<id>`; its runs are in `runs`; the decisions that bind
 `decisions`. The person can pause it, rename it or run it now. Automations became agents on
 15 Oct 2026 under the same ids.
 
-Schedules are small and plain: `every 6h`, `every 30m`, `daily 08:00`, `weekly mon 08:00` (local
-time). A run Alpha missed while the Mac was asleep or Alpha was closed happens once when Alpha
-is back, never several times over.
+Schedules are small and plain: `every 6h`, `every 30m`, `daily 08:00`, `weekly mon 08:00`, and
+`at 2026-10-24 17:00` for a time that comes once (harness slice 4, 18 Oct 2026: the reminder),
+all local time; an agent with an `at` runs once and is then paused, its item done. A run
+Alpha missed while the Mac was asleep or Alpha was closed happens once when Alpha is back,
+never several times over.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 EVERY = re.compile(r"^every\s+(\d+)\s*(m|min|minutes?|h|hours?|d|days?)$")
 DAILY = re.compile(r"^daily\s+(\d{1,2}):(\d{2})$")
 WEEKLY = re.compile(r"^weekly\s+(mon|tue|wed|thu|fri|sat|sun)\w*\s+(\d{1,2}):(\d{2})$")
+AT = re.compile(r"^at\s+(\d{4})-(\d{2})-(\d{2})[ t](\d{1,2}):(\d{2})$")
 STATES = ("on", "paused")
 # What a custom agent may write unless its page says less (Q50): what a run could before.
 DEFAULT_MAY = MIGRATED_MAY
@@ -53,16 +56,37 @@ def check_schedule(schedule: str) -> str:
     m = WEEKLY.match(text)
     if m and int(m.group(2)) < 24 and int(m.group(3)) < 60:
         return f"weekly {m.group(1)} {int(m.group(2)):02d}:{m.group(3)}"
+    m = AT.match(text)
+    if m:
+        try:
+            moment = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                              int(m.group(4)), int(m.group(5)))
+        except ValueError as e:
+            raise Problem(f"'{schedule}' is not a real date and time.") from e
+        return f"at {moment.strftime('%Y-%m-%d %H:%M')}"
     raise Problem(
         f"'{schedule}' isn't a schedule Alpha understands: use 'every 6h', 'every 30m', "
-        "'daily 08:00' or 'weekly mon 08:00'."
+        "'daily 08:00', 'weekly mon 08:00', or 'at 2026-10-24 17:00' for once."
     )
+
+
+def once_at(schedule: str) -> datetime | None:
+    """The moment of an `at` schedule, in UTC; None for a repeating one."""
+    kind, _, rest = schedule.partition(" ")
+    if kind != "at":
+        return None
+    local = datetime.strptime(rest, "%Y-%m-%d %H:%M").astimezone()
+    return local.astimezone(UTC)
 
 
 def next_run(schedule: str, after: datetime) -> datetime:
     """The next time `schedule` fires after `after` (an aware datetime); returned in UTC."""
     local = after.astimezone()
     kind, _, rest = schedule.partition(" ")
+    if kind == "at":
+        moment = once_at(schedule)
+        assert moment is not None
+        return moment  # once: due from then on, however late the Mac wakes
     if kind == "every":
         unit = rest[-1]
         minutes = int(rest[:-1]) * {"m": 1, "h": 60, "d": 1440}[unit]
@@ -86,6 +110,9 @@ def next_run(schedule: str, after: datetime) -> datetime:
 
 def describe(schedule: str) -> str:
     kind, _, rest = schedule.partition(" ")
+    if kind == "at":
+        moment = datetime.strptime(rest, "%Y-%m-%d %H:%M")
+        return f"once, on {moment.strftime('%A %d %B at %H:%M')}"
     if kind == "every":
         n, unit = int(rest[:-1]), {"m": "minute", "h": "hour", "d": "day"}[rest[-1]]
         return f"every {unit}" if n == 1 else f"every {n} {unit}s"
@@ -253,11 +280,16 @@ class Agents:
             self.skills.ran(current["skill"], problem=error)
         upcoming = (next_run(current["schedule"], stamp).isoformat()
                     if current["on"] and current["schedule"] else None)
+        once = bool(current["schedule"]) and once_at(current["schedule"]) is not None
+        if once:
+            upcoming = None  # a time that comes once has come: the agent is paused
         with self.store.tx() as db:
             db.execute(
                 "UPDATE agents SET last_run_at = ?, last_result = ?, last_error = ?,"
-                " next_run_at = ?, updated_at = ? WHERE id = ?",
-                (stamp.replace(microsecond=0).isoformat(), result, error, upcoming, now(), aid),
+                " next_run_at = ?, updated_at = ?, state = CASE WHEN ? THEN 'paused' ELSE state"
+                " END WHERE id = ?",
+                (stamp.replace(microsecond=0).isoformat(), result, error, upcoming, now(),
+                 once, aid),
             )
         return self.get(aid)
 

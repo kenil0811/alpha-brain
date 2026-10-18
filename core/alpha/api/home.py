@@ -67,6 +67,20 @@ def routes(app: FastAPI, s: Served) -> None:
         if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
             # A hand waiting for the person's yes (harness §8): the turn carries on with it.
             return {"answered": jid, "turn": None, "permission": asked["data"]["permission"]}
+        reminder = asked["data"].get("reminder")
+        if reminder:
+            # the reminder's card (slice 4): Done closes it; the same time tomorrow is a new
+            # once, by code; neither starts a turn
+            if body.text.strip().lower().startswith("tomorrow"):
+                agent = world.agents.get(str(reminder))
+                moment = datetime.now().astimezone() + timedelta(days=1)
+                world.agents.update(agent["id"], state="on",
+                                    schedule=f"at {moment.strftime('%Y-%m-%d %H:%M')}")
+                world.journal.append("changed", f"Reminder moved to tomorrow, {moment:%H:%M}:"
+                                     f" {asked['data'].get('words') or agent['name']}.",
+                                     actor="person", data={"agent": agent["id"], "ask": ask_id},
+                                     module=asked["module"], thread=asked["thread"])
+            return {"answered": jid, "turn": None, "reminder": reminder}
         decided = columbo.decide(world, asked, body.text)
         if decided:
             # Columbo's question (two values, two sources): the pick binds, by code; no turn.

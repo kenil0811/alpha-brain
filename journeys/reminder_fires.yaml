@@ -1,0 +1,14 @@
+name: reminder_fires
+title: "First day · \"remind me to call Sara on Friday\" is a reminder that fires"
+why: The harness design's §17, sentence 5 (slice 4, 18 Oct 2026). A time that comes once is a
+  schedule ("at …"); the reminder is the plainest agent, a remind step; when the time comes, one
+  card (Done · Tomorrow, same time). The suite cannot wait until Friday, so it runs the agent now.
+fresh: true
+steps:
+  - say: "remind me to call Sara on Friday"
+    home: true
+  - check: {made_since: {agents: 1}}
+  - agent: "Sara"
+checks:
+  - journal: {kind: asked, contains: "Reminder: call Sara"}
+  - run_verdict: {}
