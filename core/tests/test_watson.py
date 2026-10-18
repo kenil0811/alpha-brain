@@ -337,3 +337,61 @@ def test_the_refiling_moves_what_is_not_about_the_person_once(world: World) -> N
     assert watson.refiled(world, agent)
     [d] = world.decisions.about("agent", agent["id"])
     assert d["by"] == agent["id"] and d["what"].startswith("Refiled the facts kept before Watson")
+
+
+def test_a_kind_of_thing_said_three_times_gets_one_offer_of_a_table(world: World) -> None:
+    """Q79 (18 Oct): things said in passing live in the journal; Watson offers a table once
+    the same kind has come up three times in a week; a no is remembered; a yes carries the
+    sentences into the go-ahead."""
+    from fastapi.testclient import TestClient
+
+    from alpha.api.server import create_app
+
+    builtin.ensure(world)
+    agent = next(a for a in world.agents.all() if a["kind"] == "watson")
+    said = [exchange(world, s, "Noted.") for s in (
+        "walked 20 minutes along the river this morning",
+        "did a 5 km walk after lunch today", "evening walk, about half an hour")]
+    judged: list[TurnRequest] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        if req.kind == "judge" and "The sentences:" in req.sentence:
+            judged.append(req)
+            return RunResult(ok=True, reply=json.dumps({"kinds": [
+                {"kind": "walks", "fields": ["date", "minutes"], "sentences": said}]}))
+        return RunResult(ok=True, reply="[]")
+
+    made = watson.offer(world, agent, runner=runner)
+    assert len(made) == 1 and len(judged) == 1
+    card = world.journal.read(made[0])
+    assert card["kind"] == "proposed" and card["text"].startswith(
+        "Keep a Walks table? You've mentioned walks 3 times this week")
+    assert "date, minutes" in card["text"] and card["data"]["offer"]["sentences"] == said
+    # nothing new said: no second judgement, no second card
+    assert watson.offer(world, agent, runner=runner) == [] and len(judged) == 1
+    # a no is remembered: the kind is never offered again
+    world.journal.answer_proposal(made[0], False)
+    exchange(world, "another walk, 40 minutes", "Noted.")
+    assert watson.offer(world, agent, runner=runner) == [] and len(judged) == 2
+    assert watson.offered_kinds(world) == {"walks": "no"}
+    # a yes: the go-ahead turn carries the sentences, each with its id
+    words = watson.go_ahead_words(world, card)
+    assert words.startswith("Yes, go ahead: keep a walks table with date, minutes")
+    assert all(sid in words for sid in said) and "5 km walk" in words
+    seen: list[TurnRequest] = []
+
+    def turn_runner(req: TurnRequest) -> RunResult:
+        seen.append(req)
+        if req.kind == "judge":
+            return RunResult(ok=True, reply='{"answer": "new item", "confidence": 0.9}')
+        return RunResult(ok=True, reply="Kept.")
+
+    c = TestClient(create_app(world, live=False, runner=turn_runner))
+    out = c.post(f"/api/proposals/{made[0]}/decide", json={"accept": True}).json()
+    assert out["turn"]
+    import time
+    for _ in range(100):
+        if c.get(f"/api/turns/{out['turn']['id']}").json()["state"] == "done":
+            break
+        time.sleep(0.05)
+    assert any(r.kind == "turn" and "keep a walks table" in r.sentence for r in seen)

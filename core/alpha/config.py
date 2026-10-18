@@ -152,6 +152,12 @@ class Scout:
 
 
 @dataclass(frozen=True)
+class Watson:
+    offer_after: int
+    offer_window_days: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -174,6 +180,7 @@ class Settings:
     columbo: Columbo
     sherlock: Sherlock
     scout: Scout
+    watson: Watson
     checks: Checks
 
 

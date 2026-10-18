@@ -112,3 +112,32 @@ asks that the model use its hand ("Log my lunch" has nothing to log until it kno
 passed on a copy of Kenil's world, the model's own card in 6 s (`../journeys/2026-10-18-1110.md`). The
 turn prompt itself, twelve rules and 1,800 words, is next: a rewrite to a handful of
 principles, as a draft for Kenil to read before it binds.
+
+## The prompt rewritten, and Watson's offer of a table (Q79, 12:00)
+
+The draft shown in chat, agreed with one change: "I don't think every log should be a table…
+we need a better and smart way." Live now: `config/prompts/turn.md` is eight short
+principles (about 750 words, from twelve rules and 1,800): who Alpha is and its hands; known,
+assumed or asked; things the person tracks live in tables, things said in passing live in the
+journal; what stands is made now; leaving the world goes through a yes; the person's words;
+asking and answering (a choice through `ask_person`, the measure of what was said); where you
+are (Home and the items). The readers' and procedures' how-to and the file rules left it for
+the hands' docstrings; the walls are in code.
+
+Watson offers a table (`runtime/agents/watson.py`, `offer`): after his pass, the person's
+sentences of the last week that Alpha answered without writing a row go to one small
+judgement (`config/prompts/watson_logs.md`) that names the kinds of thing among them; a kind
+with three sentences in the week (`[watson] offer_after`, `offer_window_days`) gets one
+proposal card, "Keep a Walks table? You've mentioned walks 3 times this week (…). I'd keep them
+in a table with date, minutes, and put these 3 in."; the judgement runs only when there are new
+sentences. A yes starts Alpha's turn with the sentences and their ids ("keep a walks table …
+each row's source the sentence it came from"); a no is remembered per kind. Proven by
+`test_watson` (one offer, no second judgement without new words, the no remembered, the yes
+carrying the sentences into the turn). 315 core tests. The journeys on the new prompt, the real model: `question_card` passed (5 s,
+`../journeys/2026-10-18-1153.md`, the second of that stamp); `remove_asks` (28 s) and
+`two_things_at_once` (85 s; the watch opened one item, the eggs answered in Home, the schedule
+change continued the item) passed in `../journeys/2026-10-18-1151.md`, where `track_then_log`
+and `watch_from_words` failed only because the four fresh journeys of one invocation share one
+fresh world (they found the Food log and the watch already made and rightly declined to make
+them twice: a trait of the suite to fix, one fresh world per fresh journey); rerun alone they
+passed, 18 s (`../journeys/2026-10-18-1153.md`) and 41 s (`../journeys/2026-10-18-1154.md`).

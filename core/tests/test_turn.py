@@ -13,8 +13,9 @@ def test_a_turn_journals_both_sides_and_carries_the_world(world: World) -> None:
     world.collections.create("food_log", "Food log", [{"name": "food", "kind": "text"}],
                              module=world.modules.get("Food")["id"])
     world.collections.add("food_log", {"food": "Two boiled eggs"}, {"by": "alpha"})
-    world.journal.append("said", "log two boiled eggs", actor="person")
-    world.journal.append("replied", "Logged two boiled eggs in Food.")
+    home = world.modules.home_thread()["id"]  # a sentence with no item of its own is Home's
+    world.journal.append("said", "log two boiled eggs", actor="person", thread=home)
+    world.journal.append("replied", "Logged two boiled eggs in Food.", thread=home)
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:

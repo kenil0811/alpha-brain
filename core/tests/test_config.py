@@ -25,7 +25,7 @@ def test_the_limits_load_typed_and_every_table_is_used() -> None:
     code = "\n".join(p.read_text() for p in PACKAGE.rglob("*.py") if p.name != "config.py")
     for group in ("scheduler", "runs", "readers", "prepack", "conversations",
                   "workflows", "browser", "files", "calendar", "views", "accounts",
-                  "checks"):
+                  "watson", "checks"):
         assert re.search(rf"(?:settings|limits)\.{group}\.", code), group
 
 

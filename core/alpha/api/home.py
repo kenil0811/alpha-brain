@@ -22,7 +22,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations, engine
-from alpha.runtime.agents import columbo, scout
+from alpha.runtime.agents import columbo, scout, watson
 from alpha.world.store import Problem, local_midnight_utc
 
 
@@ -129,6 +129,10 @@ def routes(app: FastAPI, s: Served) -> None:
                 world.journal.append("changed", f"Added a standing instruction: {instruction}",
                                      actor="person", data={"proposal": pid})
             return {"decided": pid, "turn": None}
+        if proposal["data"].get("offer") and body.accept:
+            # Watson's offer of a table (Q79): the go-ahead carries the sentences to put in it
+            return {"decided": pid,
+                    "turn": running.start(AskBody(text=watson.go_ahead_words(world, proposal)))}
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}

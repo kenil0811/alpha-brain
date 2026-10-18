@@ -23,15 +23,17 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from alpha import config
+from alpha.config import settings
 from alpha.connectors.files import Files
 from alpha.context.prepack import entities_named
 from alpha.runtime import route, turn
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
 from alpha.runtime.running import TurnRequest
+from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents.watson")
@@ -454,6 +456,113 @@ def refile(world: World, agent: dict[str, Any], *, runner: turn.Runner = route.r
     return {"kept": True, "moved": moved, "facts": len(facts)}
 
 
+# ---- the offer of a table (Q79, 18 Oct 2026) ----
+
+OFFER_SEEN = "watson_offer_seen"
+
+
+def unshaped(world: World) -> list[dict[str, Any]]:
+    """The person's sentences of the last window that Alpha answered without writing a row:
+    said in passing, kept in the journal, shaped nowhere."""
+    since = (datetime.now(UTC) - timedelta(days=settings.watson.offer_window_days)).isoformat()
+    out = []
+    for e in world.journal.between(since, "9999", kinds=["said"], limit=400):
+        if e["actor"] != "person" or not worth_noticing(world, e["id"]):
+            continue
+        wrote = world.store.one(
+            "SELECT 1 AS x FROM journal WHERE json_extract(data, '$.turn') = ? AND kind IN"
+            " ('made', 'changed', 'did') AND (json_extract(data, '$.collection') IS NOT NULL"
+            " OR json_extract(data, '$.table') IS NOT NULL OR json_extract(data, '$.records')"
+            " IS NOT NULL) LIMIT 1", (e["id"],))
+        if wrote is None:
+            out.append(e)
+    return out
+
+
+def offered_kinds(world: World) -> dict[str, str]:
+    """Each kind Watson offered a table for, with how it stands: open, yes or no (a no is
+    remembered: never offered again unless the person asks)."""
+    out: dict[str, str] = {}
+    answers: dict[str, bool | None] = {}
+    for a in world.store.all("SELECT data FROM journal WHERE kind = 'answered'"):
+        d = loads(a["data"], {})
+        if d.get("proposal"):
+            answers[str(d["proposal"])] = d.get("accept")
+    for p in world.journal.recent(200, kinds=["proposed"]):
+        kind = (p["data"].get("offer") or {}).get("kind")
+        if kind:
+            accept = answers.get(p["id"])
+            out[kind] = "open" if p["id"] not in answers else "yes" if accept else "no"
+    return out
+
+
+def offer(world: World, agent: dict[str, Any], *, runner: turn.Runner = route.run,
+          model: str | None = None) -> list[str]:
+    """A kind of thing said in passing `offer_after` times within the window gets one offer
+    of a table, as a proposal card; the person's yes makes it (the generic go-ahead turn,
+    with the sentences), their no is remembered. One small judgement names the kinds; it runs
+    only when there are new sentences to read."""
+    candidates = unshaped(world)
+    if len(candidates) < settings.watson.offer_after:
+        return []
+    newest = candidates[-1]["id"]
+    seen = world.store.one("SELECT value FROM meta WHERE key = ?", (OFFER_SEEN,))
+    if seen is not None and seen["value"] == newest:
+        return []
+    with world.store.tx() as db:
+        db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (OFFER_SEEN, newest))
+    listed = "\n".join(f"- {e['id']} ({e['at'][:10]}): {e['text'][:200]}" for e in candidates)
+    result = runner(TurnRequest(
+        sentence=f"The sentences:\n{listed}", system=config.prompt("watson_logs"),
+        world_path=world.path, turn_id=f"offer:{newest}", kind="judge",
+        model=model_name(model)))
+    if not result.ok:
+        return []
+    data = _json(result.reply)
+    kinds = data.get("kinds") if isinstance(data, dict) else None
+    if not isinstance(kinds, list):
+        return []
+    by_id = {e["id"]: e for e in candidates}
+    standing = offered_kinds(world)
+    made: list[str] = []
+    for k in kinds:
+        if not isinstance(k, dict):
+            continue
+        kind = " ".join(str(k.get("kind") or "").lower().split())
+        ids = [str(i) for i in (k.get("sentences") or []) if str(i) in by_id]
+        fields = [str(f) for f in (k.get("fields") or []) if str(f).strip()][:4]
+        if not kind or len(ids) < settings.watson.offer_after or kind in standing:
+            continue
+        shown = "; ".join(f'"{by_id[i]["text"][:60]}"' for i in ids[:3])
+        n = len(ids)
+        text = (f"Keep a {kind.capitalize()} table? You've mentioned {kind} {n} times this week"
+                f" ({shown}{', …' if n > 3 else ''}). I'd keep them in a table with"
+                f" {', '.join(fields) or 'date and what'}, and put these {n} in.")
+        jid = world.journal.append(
+            "proposed", text, actor=agent["id"],
+            data={"why": f"the same kind of thing {n} times in a week", "agent": agent["id"],
+                  "offer": {"kind": kind, "fields": fields, "sentences": ids}})
+        standing[kind] = "open"
+        made.append(jid)
+    return made
+
+
+def go_ahead_words(world: World, proposal: dict[str, Any]) -> str:
+    """The sentence Alpha is given when the person says yes to an offer: the table, its
+    fields, and the sentences to put in it with their dates, each row's source its sentence."""
+    o = proposal["data"]["offer"]
+    lines = []
+    for sid in o.get("sentences") or []:
+        try:
+            e = world.journal.read(sid)
+        except Problem:
+            continue
+        lines.append(f"- {e['at'][:16]} ({sid}): {e['text'][:300]}")
+    return (f"Yes, go ahead: keep a {o['kind']} table with {', '.join(o.get('fields') or [])}"
+            " in a module that fits, and put these in, each row's source the sentence it came"
+            " from (its journal id):\n" + "\n".join(lines))
+
+
 # ---- the frame: look and run ----
 
 
@@ -528,6 +637,7 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
         _count(counts, out)
         if "why" in out and out["why"].startswith("no answer"):
             failed.append(f"the document {did}")
+    offers = offer(world, agent, runner=runner) if about.get("exchanges") else []
     parts = [f"{n} {name}" for name, n in (
         ("facts", counts["facts"]), ("page lines", counts["pages"]),
         ("commitments", counts["commitments"]), ("decisions", counts["decisions"])) if n]
@@ -536,6 +646,8 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
         line += f"; {counts['to_confirm']} to confirm"
     if moved:
         line += f"; refiled {moved} facts that were not about you"
+    if offers:
+        line += f"; offered {len(offers)} table{'s' if len(offers) != 1 else ''}"
     line += "."
     looked = sum(len(about.get(k) or []) for k in ("exchanges", "closed", "documents"))
     if failed and len(failed) >= max(1, looked):
