@@ -1,0 +1,28 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch, and roughly how much? I'll log it with calories and protein.",
+    "steps": 3,
+    "seconds": 5.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": true,
+    "why": "\"What did you have for lunch, and roughly how much?\" with no options (the model's own)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 5.6,
+  "error": null
+ }
+]

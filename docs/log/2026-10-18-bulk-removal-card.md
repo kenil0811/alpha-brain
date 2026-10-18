@@ -99,3 +99,16 @@ prompt gains rule 11: a greeting gets one friendly line, no status, no list, no 
 the question-reading in `asking.py`: a list of statements under labels is never a reply's
 options, and a closing courtesy ("what would you like to do", "anything else") is never a
 card. 319 core tests; the app restarted.
+
+## No more rules: the derived cards go (02:00, Q78)
+
+Kenil, on the two regexes added for "Hi": "I don't want a thousand rules, because that will
+always mess up… we need a clean simple approach." Agreed and done: a card comes only from the
+model's hand (`ask_person`) or a mechanism (a permission, a routing). `runtime/asking.py` (the
+trailing-question parser, the list-as-options reading, the "A or B?" rule, the offered choice,
+the options seam, tonight's two rules) and its tests are gone, with the `[asking]` limits; the
+turn prompt no longer says a prose question becomes a card. The `question_card` journey now
+asks that the model use its hand ("Log my lunch" has nothing to log until it knows what): it
+passed on a copy of Kenil's world, the model's own card in 6 s (`../journeys/2026-10-18-1110.md`). The
+turn prompt itself, twelve rules and 1,800 words, is next: a rewrite to a handful of
+principles, as a draft for Kenil to read before it binds.

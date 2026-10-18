@@ -1,10 +1,10 @@
 name: question_card
-title: A question Alpha asks in prose becomes a card the person answers in place
-why: "Q35: in a week of use, 23 replies ended with a question in prose against 2 cards. A
-  question must be a card whatever the model did; an open one with no choices still gets its
-  answer box."
+title: A question Alpha needs answered is a card, asked through its own hand
+why: "Q35 (9 Oct) made cards out of questions left in prose, by parsing; Q78 (18 Oct) ended
+  that: a card comes only from ask_person or a mechanism (a permission, a routing). So the
+  model must ask through its hand when the answer changes what it does: \"Log my lunch\" has
+  nothing to log until it knows what."
 steps:
   - say: "Log my lunch"
 checks:
-  - ask: {}
-  - reply: {matches: "\\?"}
+  - ask: {derived: false}

@@ -10,6 +10,7 @@ from conftest import judge_answering
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
+from alpha.mcp.tools import Tools
 from alpha.runtime import conversations, engine
 from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
@@ -223,7 +224,10 @@ def test_an_item_waits_on_a_question_and_a_failure_stops_it(world: World) -> Non
     def runner(req: TurnRequest) -> RunResult:
         if "fail" in req.sentence:
             return RunResult(ok=False, reply="", error="the site stopped it")
-        return RunResult(ok=True, reply="Which size: 330 ml or 500 ml?")
+        # the model asks through its hand (Q78: never read out of its prose)
+        Tools(world, turn=req.turn_id, thread=req.thread_id).ask_person(
+            "Which size was the shake?", ["330 ml", "500 ml"])
+        return RunResult(ok=True, reply="Which size?")
 
     c = TestClient(create_app(world, live=False, runner=runner))
     tid = item(world, "Logging the shake")

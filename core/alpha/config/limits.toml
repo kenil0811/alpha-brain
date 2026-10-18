@@ -48,11 +48,6 @@ fields_line = 320                  # a table's fields in one line, at most
 [conversations]
 confident = 0.6                    # the judge routes a sentence under this confidence by asking, never by guessing
 
-[asking]
-most_option_chars = 90             # a choice longer than this is not an option but a sentence
-most_question_chars = 400          # a question longer than this is not a question card
-most_tail_chars = 140              # a short statement may follow a question; longer is a paragraph
-
 [workflows]
 most_chars = 600                   # a workflow page field's words, at most
 most_questions = 6                 # the interview asks at most this many questions on one page

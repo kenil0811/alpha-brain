@@ -22,7 +22,7 @@ from typing import Any
 from alpha import config
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
-from alpha.runtime import asking, engine, route, running
+from alpha.runtime import engine, route, running
 from alpha.runtime.conversations import first_line
 from alpha.runtime.running import NO_ANSWER, STALLED, RunResult, TurnRequest
 from alpha.world.store import Problem, loads
@@ -207,10 +207,7 @@ def ask(
             "replied", result.reply, actor=replier, data=data, module=module_id, thread=thread
         )
         reply = result.reply
-        if actor == "person":
-            # A question asked in prose becomes a card, whatever the model did (Q35).
-            asking.derive(world, said=said, reply=reply, module=module_id, thread=thread,
-                          runner=runner)
+
     else:
         reply = (result.error or "You stopped it.") if result.stopped else (
             f"That didn't work: {result.error or 'no answer came back'}")

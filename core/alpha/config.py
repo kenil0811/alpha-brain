@@ -84,13 +84,6 @@ class Conversations:
 
 
 @dataclass(frozen=True)
-class Asking:
-    most_option_chars: int
-    most_question_chars: int
-    most_tail_chars: int
-
-
-@dataclass(frozen=True)
 class Workflows:
     most_chars: int
     most_questions: int
@@ -171,7 +164,6 @@ class Settings:
     readers: Readers
     prepack: Prepack
     conversations: Conversations
-    asking: Asking
     workflows: Workflows
     browser: Browser
     files: Files

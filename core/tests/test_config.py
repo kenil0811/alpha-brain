@@ -23,7 +23,7 @@ def test_the_limits_load_typed_and_every_table_is_used() -> None:
     assert s.scheduler.least_minutes_between_runs == 30
     # every group is read somewhere in the code, by name
     code = "\n".join(p.read_text() for p in PACKAGE.rglob("*.py") if p.name != "config.py")
-    for group in ("scheduler", "runs", "readers", "prepack", "conversations", "asking",
+    for group in ("scheduler", "runs", "readers", "prepack", "conversations",
                   "workflows", "browser", "files", "calendar", "views", "accounts",
                   "checks"):
         assert re.search(rf"(?:settings|limits)\.{group}\.", code), group
