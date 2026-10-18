@@ -1,0 +1,63 @@
+[
+ {
+  "name": "page_drawn",
+  "title": "A page the model draws: a line chart of daily calories and protein, the module's front",
+  "steps": [
+   {
+    "say": "track what I eat: a food log with the date, the item, calories and protein in grams",
+    "ok": true,
+    "reply": "I've made a food log table in a new Food module. Each entry has a date, the item, calories (kcal) and protein (g). It's empty so far.\n\nTo add entries, tell me what you ate, for example \"had two eggs and toast for breakfast\". If you don't give numbers, I'll estimate calories and protein and mark them as estimates.",
+    "steps": 2,
+    "routed": "a new item",
+    "routed_by": "judge: A food log that records date, item, calories and protein is a table kept current over time, which is standing work that no open item covers.",
+    "seconds": 12.0
+   },
+   {
+    "say": "log these for the last week: Mon 12 Oct oats 350 kcal 12 g protein, chicken salad 520 kcal 42 g; Tue 13 Oct eggs 300 kcal 20 g, pasta 700 kcal 25 g; Wed 14 Oct yoghurt 200 kcal 15 g, steak 650 kcal 55 g; Thu 15 Oct toast 280 kcal 8 g, curry 800 kcal 30 g; Fri 16 Oct smoothie 320 kcal 18 g, pizza 900 kcal 35 g; Sat 17 Oct pancakes 450 kcal 10 g, salmon 600 kcal 45 g; Sun 18 Oct granola 400 kcal 12 g, soup 350 kcal 14 g",
+    "ok": true,
+    "reply": "I logged all 14 entries, two meals a day from Mon 12 to Sun 18 Oct, with your calorie and protein figures as you gave them.\n\nDaily totals:\n\n| Day | kcal | Protein (g) |\n|---|---|---|\n| Mon 12 | 870 | 54 |\n| Tue 13 | 1,000 | 45 |\n| Wed 14 | 850 | 70 |\n| Thu 15 | 1,080 | 38 |\n| Fri 16 | 1,220 | 53 |\n| Sat 17 | 1,050 | 55 |\n| Sun 18 | 750 | 26 |\n\nSunday's total only covers the two meals you logged so far.",
+    "steps": 2,
+    "routed": "Track what I eat: a food log with the date, the item,…",
+    "routed_by": "judge: The sentence adds seven days of entries to the food log table, which is the subject of the in-focus item, so it belongs in that item's thread rather than standing alone.",
+    "seconds": 16.5
+   },
+   {
+    "check": "rows_since",
+    "ok": true,
+    "detail": "14 rows in food_log (14)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make a summary page for Food with a line chart of my daily calories and protein, one line each, and make it the page the module opens on",
+    "ok": true,
+    "reply": "I made a Summary page in Food and set it as the page the module opens on. I haven't looked at the rendered page, only confirmed it was saved with 7 days of data.\n\n- **Chart:** one line for daily calories and one for protein, over the 7 days from Mon 12 to Sun 18 Oct.\n- **Axes:** calories use the left axis (kcal) and protein uses the right axis (g). Protein is far smaller than calories, so one shared axis would flatten its line. Compare the shapes of the lines, not their heights.\n- **Details:** hover a point to see its exact value. Above the chart are your averages (about 975 kcal and 49 g prot",
+    "steps": 2,
+    "routed": "Track what I eat: a food log with the date, the item,…",
+    "routed_by": "judge: The sentence asks for a summary chart of the same food data the focused item logged, so it reads as a change to that item's output, though making it the module's opening page is a standing change that could justify a new item.",
+    "seconds": 25.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "page",
+    "arg": {
+     "module": "Food",
+     "front": true,
+     "rows": 7
+    },
+    "ok": true,
+    "why": "Summary (summary.html), the front: daily 7 rows; draws with svg.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the answer say a page was made (a summary page or chart) in plain words, without asking the person to do anything first?",
+    "ok": true,
+    "why": "The answer states plainly that a Summary page with the chart was made and set as the opening page, and it asks the person to do nothing first.",
+    "seconds": 3.1
+   }
+  ],
+  "seconds": 57.0,
+  "error": null
+ }
+]

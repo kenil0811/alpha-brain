@@ -18,6 +18,11 @@ from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
 CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "show_gone", "hidden", "sort", "sorts",
                "view", "group_by", "date_by", "measure", "footers"}
+# The ways the window can show a table (desktop/src/modules/views); a board groups rows by a
+# field, a calendar, a timeline and a chart lay them on a date field, a chart adds up a
+# numeric one (or counts).
+VIEW_KINDS = ("table", "list", "board", "gallery", "calendar", "timeline", "chart", "form")
+BY_DATE = ("calendar", "timeline", "chart")
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -58,6 +63,13 @@ class Views:
         for key in ("group_by", "date_by", "measure"):
             if clean.get(key) and clean[key] not in fields:
                 raise Problem(f"'{collection}' has no field '{clean[key]}' ({key}).")
+        view = clean.get("view")
+        if view and view not in VIEW_KINDS:
+            raise Problem(f"A list shows a table as one of {', '.join(VIEW_KINDS)}; not '{view}'.")
+        if view == "board" and not clean.get("group_by"):
+            raise Problem("A board needs group_by: the choice or status field its columns are.")
+        if view in BY_DATE and not clean.get("date_by"):
+            raise Problem(f"A {view} needs date_by: the date field it lays the rows on.")
         clean["hidden"] = [h for h in clean.get("hidden") or [] if h in fields]
         return clean
 

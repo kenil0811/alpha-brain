@@ -302,17 +302,26 @@ class Tables(Base):
     def list_save(self, table: str, title: str, filters: dict[str, str] | None = None,
                   search: str | None = None, hide_done: bool = False,
                   columns: list[str] | None = None, sort_by: str | None = None,
-                  descending: bool = False, default: bool = False) -> dict[str, Any]:
+                  descending: bool = False, default: bool = False, view: str = "table",
+                  group_by: str | None = None, date_by: str | None = None,
+                  measure: str | None = None) -> dict[str, Any]:
         """Keep a saved list on a table: a named way of looking at it the person asked for
-        ("keep a list of the Missouri deals under 500k", "show me only open ones by default").
-        filters: {field: the one value it must have}; search: words to match; columns: the
-        fields to show (others hidden); sort_by with descending; default: the table opens on
-        this list. The person sees it in the table's Lists menu and can change or remove it."""
+        ("keep a list of the Missouri deals under 500k", "show me only open ones by default",
+        "a chart of my calories per day"). filters: {field: the one value it must have};
+        search: words to match; columns: the fields to show (others hidden); sort_by with
+        descending; default: the table opens on this list. view: how it shows: table, list,
+        board (columns by group_by, a choice or status field), gallery, calendar, timeline or
+        chart (rows laid on date_by, a date field; a chart adds up measure, a number field, per
+        day, or counts rows), form (one row at a time). The person sees it in the table's
+        Lists menu and can change or remove it."""
         desc = self.world.collections.describe(table)
         fields = [f["name"] for f in desc["fields"]]
         config: dict[str, Any] = {"search": search or "", "filters": filters or {},
                                   "hide_done": hide_done, "hidden": [], "sort": None,
-                                  "view": "table"}
+                                  "view": view or "table"}
+        for key, value in (("group_by", group_by), ("date_by", date_by), ("measure", measure)):
+            if value:
+                config[key] = value
         if columns:
             missing = [c for c in columns if c not in fields]
             if missing:
@@ -322,7 +331,8 @@ class Tables(Base):
             config["sort"] = {"field": sort_by, "direction": "desc" if descending else "asc"}
         saved = self.world.views.save(table, title, config, default=default,
                                       source=f"turn:{self.turn}" if self.turn else None)
-        self._did("made", f"Kept the list \"{saved['title']}\" on {desc['title']}"
+        kind = "" if config["view"] == "table" else f" ({config['view']})"
+        self._did("made", f"Kept the list \"{saved['title']}\"{kind} on {desc['title']}"
                   f"{' as its default' if default else ''}.", {"list": saved["id"],
                                                                "table": table})
         return saved

@@ -2,8 +2,9 @@
 design §15, Q53, slice 5, 18 October 2026).
 
 A kit is a folder `<Name>.alphakit/`: `kit.yaml` (name, version, the world it was made in, when,
-and what crosses out of the module), `module.yaml`, `NOTES.md`, `skills/`, `agents/`, and
-`files.sha`, every file's hash. Never the tables' rows, never documents, never sign-ins.
+and what crosses out of the module), `module.yaml`, `NOTES.md`, `skills/`, `agents/`, `pages/`
+(slice 7), and `files.sha`, every file's hash. Never the tables' rows, never documents, never
+sign-ins.
 
 Install makes the module with its tables empty from `module.yaml`, copies the skills and the
 agents (paused until the person turns them on), and remembers what it installed: the kit's
@@ -41,7 +42,7 @@ def shipped_kits_dir() -> Path | None:
     if not connectors:
         return None
     return Path(connectors).parent / "kits"
-KIT_DIRS = ("skills", "agents")
+KIT_DIRS = ("skills", "agents", "pages")
 SUFFIX = ".alphakit"
 
 
@@ -230,11 +231,12 @@ class Kits:
             if "already" in str(e):
                 raise
         m = world.modules.create(name, goal=shape.get("goal"))
-        made = {"tables": 0, "lists": 0, "skills": 0, "agents": 0}
+        made = {"tables": 0, "lists": 0, "skills": 0, "agents": 0, "pages": 0}
         self._tables(m, shape, made)
         self._notes(m, folder)
         made["skills"] = self._skills(m, folder)
         made["agents"] = self._agents(m, folder)
+        made["pages"] = self._pages(m, folder)
         world.files.sync_module(m)
         # what was installed, as this world wrote it (its own ids in module.yaml and the
         # agents' files): "unchanged since the install" is measured against this
@@ -361,6 +363,21 @@ class Kits:
             n += 1
         return n
 
+    def _pages(self, m: dict[str, Any], folder: Path, only: set[str] | None = None) -> int:
+        """The kit's pages copied as they are (slice 7): files, read by the directory."""
+        src = folder / "pages"
+        if not src.is_dir():
+            return 0
+        dst = self.world.pages.dir_of(m["id"])
+        n = 0
+        for path in sorted(src.glob("*.html")):
+            if only is not None and path.name not in only:
+                continue
+            dst.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, dst / path.name)
+            n += 1
+        return n
+
     def _update(self, folder: Path, head: dict[str, Any], shape: dict[str, Any],
                 before: dict[str, Any], key: str) -> dict[str, Any]:
         """A newer kit over an installed one: files whose installed hash is still their hash
@@ -384,7 +401,7 @@ class Kits:
                 kept_files.append(rel)
         # named by what the person would call them: a skill, an agent, the notes
         kept = sorted({"/".join(rel.split("/")[:2]) if "/" in rel else rel for rel in kept_files})
-        made = {"tables": 0, "lists": 0, "skills": 0, "agents": 0}
+        made = {"tables": 0, "lists": 0, "skills": 0, "agents": 0, "pages": 0}
         self._tables(m, shape, made)  # fields are only ever added
         if "NOTES.md" in take:
             self._notes(m, folder)
@@ -392,6 +409,8 @@ class Kits:
             rel.split("/")[1] for rel in take if rel.startswith("skills/")})
         made["agents"] = self._agents(m, folder, only={
             rel.split("/")[1] for rel in take if rel.startswith("agents/")})
+        made["pages"] = self._pages(m, folder, only={
+            rel.split("/")[1] for rel in take if rel.startswith("pages/")})
         world.files.sync_module(m)
         after = _hashes(world.files.dir_of(m["id"]))
         record = {**before, "version": int(head.get("version") or 1),

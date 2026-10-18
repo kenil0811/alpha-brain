@@ -159,6 +159,11 @@ class Watson:
 
 
 @dataclass(frozen=True)
+class Pages:
+    ticket_seconds: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -183,6 +188,7 @@ class Settings:
     scout: Scout
     watson: Watson
     checks: Checks
+    pages: Pages
 
 
 def _read_toml(path: Path) -> dict[str, Any]:

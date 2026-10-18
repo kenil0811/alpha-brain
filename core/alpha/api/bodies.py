@@ -37,6 +37,10 @@ class KitExportBody(BaseModel):
     zip: bool = False
 
 
+class PageFrontBody(BaseModel):
+    front: bool = True
+
+
 class KitInstallBody(BaseModel):
     path: str
 

@@ -17,7 +17,7 @@ def hands(world: World) -> Tools:
 def test_the_model_sees_the_hands_and_the_plan_mode_only(world: World) -> None:
     names = sorted(f.__name__ for f in hands(world).all())
     assert names == ["act_outward", "agent_keep", "ask_person", "browser_read", "browser_script",
-                     "connect", "skill_find", "skill_keep", "skill_run", "tell_person",
+                     "connect", "page_keep", "skill_find", "skill_keep", "skill_run", "tell_person",
                      "workflow_agree", "workflow_decline", "workflow_draft", "workflow_revise",
                      "world_change", "world_file", "world_query", "world_remember",
                      "world_search", "world_shape", "world_write"]

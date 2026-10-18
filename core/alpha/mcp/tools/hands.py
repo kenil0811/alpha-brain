@@ -120,9 +120,13 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         says each row is someone, so rows link to people across the world. A module alone
         (module with goal, no table): a named place for a topic the person keeps coming back to;
         parent puts it inside another. saved_list: {title, filters?, search?, hide_done?,
-        columns?} keeps a named way of looking at the table the person asked for. Tables are
-        for things kept over time; a plain log with nowhere to go gets its table here and its
-        first row with world_write."""
+        columns?, default?, view?, group_by?, date_by?, measure?} keeps a named way of looking
+        at the table the person asked for; view is table, list, board (group_by: a choice or
+        status field), gallery, calendar, timeline or chart (date_by: a date field; a chart adds
+        up measure, a number field, per day, or counts), form. "A chart of my calories per day"
+        is a chart list on the table, not a page; a drawing the views cannot make is page_keep.
+        Tables are for things kept over time; a plain log with nowhere to go gets its table
+        here and its first row with world_write."""
         out: dict[str, Any] = {}
         if module and not table and not saved_list:
             try:
@@ -171,11 +175,41 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                                   filters=saved_list.get("filters"),
                                   search=saved_list.get("search"),
                                   hide_done=bool(saved_list.get("hide_done")),
-                                  columns=saved_list.get("columns"))
+                                  columns=saved_list.get("columns"),
+                                  default=bool(saved_list.get("default")),
+                                  view=str(saved_list.get("view") or "table"),
+                                  group_by=saved_list.get("group_by"),
+                                  date_by=saved_list.get("date_by"),
+                                  measure=saved_list.get("measure"))
             if _bad(kept):
                 return kept
             out["saved_list"] = kept
         return out or {"table": table, "note": "Nothing to change."}
+
+    @hand(writes="files")
+    def page_keep(self, module: str, name: str, title: str, html: str,
+                  data: dict[str, str] | None = None, front: bool = False) -> dict[str, Any]:
+        """Draw a page of your own in a module, when the person asks for something the tables'
+        views cannot show (a line chart with several lines, a dashboard, a summary with
+        numbers and a drawing): say in a line what you are making, make it, and name it in
+        your reply. The page is a file in the module's directory (pages/<name>.html; name:
+        snake_case) shown on the module page's Pages tab in a frame of its own; front: true
+        makes it what the module opens on. html: the page's own markup, style and script (a
+        fragment or a whole document); it has no network, so draw by hand with SVG or canvas,
+        never a library from the web. data: {name: one SELECT} on the same views world_query
+        reads; each runs now (a wrong one fails here, in words) and the rows reach the page as
+        alpha.data.<name> (a list of {column: value}); when the module's data changes the rows
+        come again: draw inside a function and call it on load and in alpha.on("data", draw).
+        Use the app's look: the CSS variables --bg, --surface, --surface-2, --text, --text-2,
+        --text-3, --border, --line, --primary, --primary-soft, --good, --warn, --bad,
+        --chart-3, --font-ui, --font-mono, --text-sm, --text-base, --text-lg, --text-xl are set
+        on the page's root in light and dark (alpha.on("theme", draw) when colours matter), so
+        use them for every colour and font, never fixed ones. A page never writes: changes to
+        the data stay in the conversation. To change a page later, Edit the file (its header,
+        the <!--alpha … --> block, is the title, front and data) or call this again with the
+        same name."""
+        return self.world.pages.keep(module, name, title, html, data or {}, front=front,
+                                     source=f"turn:{self.turn}" if self.turn else None)
 
     @hand(writes="files")
     def world_file(self, action: str, ref: str | None = None, url: str | None = None,

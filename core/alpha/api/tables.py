@@ -4,12 +4,16 @@ documents and files dropped in."""
 from __future__ import annotations
 
 import csv
+import json
+import secrets
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Form, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse
 
 from alpha.api.bodies import (
     AddFieldBody,
@@ -20,6 +24,7 @@ from alpha.api.bodies import (
     KitInstallBody,
     ListBody,
     MoveModuleBody,
+    PageFrontBody,
     RecordBody,
     RelabelFieldBody,
     RenameModuleBody,
@@ -32,10 +37,12 @@ from alpha.api.views import (
     module_card,
     relation_titles,
 )
+from alpha.config import settings
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
 from alpha.world.knowledge import RECORD_NOTE
 from alpha.world.modtables import is_qualified
+from alpha.world.pages import POLICY
 from alpha.world.purge import document_removal, removal_plan, remove_document, remove_module
 from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
@@ -106,6 +113,63 @@ def routes(app: FastAPI, s: Served) -> None:
                                    source="person")
         world.files.sync_module(m)
         return {"module": m["id"], "text": body.text.strip()}
+
+    # ---- the pages the model draws (slice 7) ----
+
+    @app.get("/api/modules/{ref}/pages", dependencies=[api])
+    def module_pages(ref: str) -> list[dict[str, Any]]:
+        """The module's pages: name, title, front, data names, a header problem if any."""
+        return world.pages.all(ref)
+
+    @app.get("/api/modules/{ref}/pages/{name}/data", dependencies=[api])
+    def page_data(ref: str, name: str) -> dict[str, Any]:
+        """The page's rows, fresh: the window hands them to the frame when the world changes."""
+        return world.pages.data(ref, name)
+
+    @app.patch("/api/modules/{ref}/pages/{name}", dependencies=[api])
+    def page_front(ref: str, name: str, body: PageFrontBody) -> dict[str, Any]:
+        return world.pages.set_front(ref, name, body.front)
+
+    @app.delete("/api/modules/{ref}/pages/{name}", dependencies=[api])
+    def remove_page(ref: str, name: str) -> dict[str, Any]:
+        world.pages.remove(ref, name)
+        return {"removed": name}
+
+    # A frame cannot carry the window's bearer token, so the window asks for a one-use ticket
+    # and loads the page by it; the page then comes with its own content policy (no network,
+    # its own script only) on an origin of its own, which is what keeps it out of the app.
+    tickets: dict[str, tuple[str, str, float]] = {}
+
+    @app.post("/api/modules/{ref}/pages/{name}/ticket", dependencies=[api])
+    def page_ticket(ref: str, name: str) -> dict[str, Any]:
+        m = world.modules.get(ref)
+        if name not in world.pages.names(m["id"]):
+            raise Problem(f"There is no page {name} in {m['name']}.")
+        now_ = time.monotonic()
+        for t, (_, _, until) in list(tickets.items()):
+            if until < now_:
+                tickets.pop(t, None)
+        ticket = secrets.token_urlsafe(24)
+        tickets[ticket] = (m["id"], name, now_ + settings.pages.ticket_seconds)
+        return {"ticket": ticket, "url": f"/api/pages/{ticket}"}
+
+    @app.get("/api/pages/{ticket}")
+    def page_html(ticket: str, request: Request) -> HTMLResponse:
+        host = request.client.host if request.client else ""
+        if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
+            raise HTTPException(403, "Alpha only answers this Mac.")
+        found = tickets.pop(ticket, None)
+        if found is None or found[2] < time.monotonic():
+            raise HTTPException(404, "This page's ticket is used or stale; open the page again.")
+        module_id, name, _ = found
+        try:
+            html = world.pages.render(module_id, name)
+        except Problem as e:
+            html = ("<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
+                    "<script>parent.postMessage({alpha: 'error', text: "
+                    + json.dumps(str(e)) + "}, '*')</script></body></html>")
+        return HTMLResponse(html, headers={"Content-Security-Policy": POLICY,
+                                           "Cache-Control": "no-store"})
 
     @app.post("/api/modules/{ref}/kit", dependencies=[api])
     def export_kit(ref: str, body: KitExportBody | None = None) -> dict[str, Any]:

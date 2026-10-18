@@ -17,6 +17,7 @@ from alpha.world.knowledge import Knowledge
 from alpha.world.modfiles import ModuleFiles
 from alpha.world.modtables import ModuleTables
 from alpha.world.modules import Modules
+from alpha.world.pages import Pages
 from alpha.world.preferences import Preferences
 from alpha.world.readers import Readers
 from alpha.world.runs import Runs
@@ -66,6 +67,7 @@ class World:
         # A world that kept its skills as rows writes them out as files, once (17 Oct 2026).
         self.skills.migrate_from_tables()
         self.files = ModuleFiles(self)
+        self.pages = Pages(self)
         self.kits = Kits(self)
         self.files.sync()  # the modules' directories brought in line (slice 5)
 

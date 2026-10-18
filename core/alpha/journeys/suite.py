@@ -787,6 +787,32 @@ class Run:
         return True, ", ".join(f"{r['title']} ({r['size']} bytes, {len(r['text'].split())} words)"
                                for r in rows) + "."
 
+    def check_page(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A page the model drew (slice 7): in the module, with a header that reads, its data
+        running and (when asked) that many rows in a named set, the module's front when
+        asked, and a drawing of the kind asked (an <svg> or a <canvas>) in its text."""
+        pages = [p for p in self.world.pages.all(arg["module"]) if not p["problem"]]
+        broken = [p for p in self.world.pages.all(arg["module"]) if p["problem"]]
+        if not pages:
+            return False, ("No page draws" + (f": {broken[0]['problem']}" if broken else "") + ".")
+        fronts = [p for p in pages if p["front"]]
+        page = fronts[0] if arg.get("front") and fronts else pages[0]
+        if arg.get("front") and not fronts:
+            return False, f"{len(pages)} page(s), none the module's front."
+        try:
+            rows = self.world.pages.data(arg["module"], page["name"])
+        except Problem as e:
+            return False, f"The page {page['title']}: {e}"
+        counts = {k: len(v) for k, v in rows.items()}
+        html = self.world.pages.render(arg["module"], page["name"]).lower()
+        draws = "<svg" in html or "<canvas" in html
+        how = ("draws with " + ("svg" if "<svg" in html else "canvas")) if draws \
+            else "no svg or canvas in it"
+        words = (f"{page['title']} ({page['name']}.html){', the front' if page['front'] else ''}:"
+                 f" {', '.join(f'{k} {n} rows' for k, n in counts.items()) or 'no data'}; {how}")
+        enough = all(n >= int(arg["rows"]) for n in counts.values()) if arg.get("rows") else True
+        return bool(counts) and enough and draws, words + "."
+
     def check_journal(self, arg: dict[str, Any]) -> tuple[bool, str]:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])
                    if e["at"] >= self.mark.at

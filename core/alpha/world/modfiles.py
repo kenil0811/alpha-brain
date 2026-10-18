@@ -9,6 +9,7 @@ as files, and what a kit copies:
     modules/<id>/agents/<name>.md each agent, both ways: YAML front matter (schedule, state,
                                   steps, what it may write), the brief as the body
     modules/<id>/skills/          as since 2b (world/skills.py)
+    modules/<id>/pages/<name>.html the pages the model draws (world/pages.py; slice 7)
     ALPHA.md                      the standing instructions, both ways
 
 "Both ways" by content: a file newer than the world's row whose text differs is read into the
@@ -120,6 +121,9 @@ class ModuleFiles:
         data["skills"] = sorted(s["name"] for s in world.skills.index()
                                 if s.get("module") == m["id"])
         data["agents"] = sorted(a["name"] for a in world.agents.all(m["id"]))
+        pages = world.pages.names(m["id"])
+        if pages:
+            data["pages"] = pages
         return _dump(data)
 
     # ---- NOTES.md ----
