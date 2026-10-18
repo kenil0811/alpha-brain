@@ -179,18 +179,11 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
 /** A work item's state in words (harness §7). */
 const ITEM_STATE: Record<string, string> = { open: "Open", working: "Working", needs_you: "Needs you", done: "Done", stopped: "Stopped" };
 
-/** Home's lanes (harness §7): Needs you · Working · Done today, newest first in each. An item
- *  that is merely open (between turns, between an agent's runs) is nobody's business on Home;
- *  the Assistant page lists it. */
-export function laneThreads(items: Thread[], now = new Date()): [string, Thread[]][] {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const lanes: Record<string, Thread[]> = { "Needs you": [], Working: [], "Done today": [] };
-  items.forEach((t) => {
-    if (t.state === "needs_you") lanes["Needs you"].push(t);
-    else if (t.state === "working") lanes.Working.push(t);
-    else if ((t.state === "done" || t.state === "stopped") && new Date(t.updated_at).getTime() >= midnight) lanes["Done today"].push(t);
-  });
-  return Object.entries(lanes).filter(([, rows]) => rows.length);
+/** Home shows the work items that wait on the person, nothing else (Kenil, 18 Oct 2026: "only
+ *  things it needs me for", Q77); working and finished items are the Assistant page's. */
+export function laneThreads(items: Thread[]): [string, Thread[]][] {
+  const waiting = items.filter((t) => t.state === "needs_you");
+  return waiting.length ? [["Waiting on you", waiting]] : [];
 }
 
 /** The kinds of Scout's picks, in words (Q48). */
@@ -353,8 +346,8 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       {laneThreads(home.threads).length ? (
         <div className="section">
           <div className="section__head">
-            <h2>Alpha is working on</h2>
-            <span className="faint">One card per piece of work; the steps are behind Open</span>
+            <h2>Waiting on you</h2>
+            <span className="faint">Work that stopped for your word; the rest is on the Assistant page</span>
           </div>
           <div className="lanes">
             {laneThreads(home.threads).map(([lane, rows]) => (

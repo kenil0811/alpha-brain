@@ -454,7 +454,7 @@ Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What chan
 
 | Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice3.md`) | |
 |---|---|
-| Built | One work item per request as a card in Home (the sentence, the item's title, state and one line, Open); "Alpha is working on" is lanes by state with the steps behind Open; the Assistant page lists Home and the items by lane; the panel speaks in Home and in an item's own box. |
+| Built | One work item per request as a card in Home's conversation (the sentence, the item's title, state and one line, Open; a later sentence sent to it a quiet row); Home's page lists only the items waiting on the person (Q77); the Assistant page lists Home and every item by lane (Needs you · Working · Done today · Earlier); the panel speaks in Home and in an item's own box. |
 | Differs | The module page, the text pages for skills and agents (slice 2b did skills), Needs you narrowed to cards and questions, Settings' folders: slice 6. |
 | Not built | The engine's step lines rewritten by code into plain words everywhere (the step words exist for the hands; the fold is the item). |
 
@@ -659,6 +659,7 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q74 | The form of a skill (§6.1): by reading, by script, or a pipeline; mechanical steps are scripts from the first run, judgement stays with the model or at a marked point inside a script; promotion from reading to script is automatic after a shadow run, with Undo and a line; demotion when a script cannot be repaired; the person's sentence "do this exactly the same every time" binds; the form shown in the window; packages installed in the module's environment without asking, in the sandbox, journaled. |
 | Q75 | 18 Oct 2026, slice 3 agreed as written ("Yes to slice 3 as written: keep approvals at their card, every item as a card, and the session fingerprint fix"): an approval is given only at its card or in its item, never by "go ahead" in Home; every work item is a card in Home (Done today folds them); a conversation's session is resumed only when it was made with the same tools (the fingerprint kept with it), after the 17 Oct failure of a session resumed across the change of the hands. |
 | Q76 | 18 Oct 2026, found building slice 3: an agent made inside a work item makes that item its own (a watch and its runs are one item, never two: the journey's first run opened two); the built-in agents' own items live on their pages, never on Home or the roster (§10); "split" is not one of the coordinator's answers (one sentence, one item). |
+| Q77 | 18 Oct 2026, Kenil on seeing Home after slice 3 ("only things it needs me for"): Home's page shows the work items that wait on him and nothing else; what is working and what finished live on the Assistant page, by lane. The "Done today" lane of §7 is the Assistant page's, not Home's. |
 
 Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one
 approval is pending; the density of cards in Home (all items, or only what needs him); where

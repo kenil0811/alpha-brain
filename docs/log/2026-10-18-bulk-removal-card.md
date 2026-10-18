@@ -84,3 +84,9 @@ not run stops its item with the reason; a card's line is one line; a sentence se
 item that already has its card is a quiet "Sent to X" row, the card itself only where the item
 opened; a card with no line of its own says its state, never a step. The words on a card are
 the reply's first line: the model's, under the turn prompt's "plain words, no tool names".
+
+Then, at 01:20, on the Done today lane: "only things it needs me for" (Q77). Home's page now
+lists the items waiting on him and nothing else, under "Waiting on you"; working and finished
+items are the Assistant page's lanes. A stale item stopped at start keeps its own day (the first
+version stamped it as today's). The lane's grid let a one-line card push its Open button off the
+page; fixed.
