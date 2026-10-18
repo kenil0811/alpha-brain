@@ -5,6 +5,5 @@ why: The harness design's §17, sentence 4 (slice 4, 18 Oct 2026). Read from the
   account, so it runs only on his say.
 steps:
   - say: "what did Vikas email me about last week"
-    home: true
 checks:
   - judge: "Does the answer name specific emails from Vikas (subjects or what they were about) from the last week, read from Gmail, or say plainly that Gmail is not signed in and ask for the sign-in?"

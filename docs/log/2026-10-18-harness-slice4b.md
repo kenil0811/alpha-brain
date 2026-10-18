@@ -35,9 +35,14 @@ Sherlock's went with the triggers); ruff and mypy clean.
 
 ## Ran for real
 
-`gmail_last_week` (sentence 4) on a copy of Kenil's world (`../journeys/2026-10-18-1219.md`):
-passed by the rubric's sign-in branch only: his copied world has no Gmail sign-in since the
-16 Oct reset, and Alpha said so and offered to open Gmail, in prose, without the `connect`
-hand's card. The prompt's hands line now says the sign-in goes through `connect`'s card; the
-sentence is accepted only when he has signed in to Gmail in the app and it is answered with
-the emails named. The quieter agents are seen in the app over his next days, not in a journey.
+`gmail_last_week` (sentence 4) on copies of Kenil's world: first (`../journeys/2026-10-18-1219.md`)
+his world had no Gmail sign-in since the 16 Oct reset, and Alpha said so; after he signed in
+(11:25), a run still asked him to connect: the sentence had been routed into a resumed session
+that believed Gmail unconnected, the pre-pack's "connected" line notwithstanding. Two things
+followed. The `connect` hand on a site signed in already now answers so and opens nothing (the
+hand knows what is held; the model's memory does not), with `again` for a sign-in asked afresh.
+And run as a plain turn on the signed-in copy (`../journeys/2026-10-18-1228.md`, 19 s), the
+sentence passed for real: "Last week, Vikas Badami sent you one email. It's a Google Drive
+notification…", the 14 Oct share of "Legal Platform" named, read from Gmail's search results
+through his session. Sentence 4 is answered; its acceptance is the same sentence in his app.
+The quieter agents are seen in the app over his next days, not in a journey.

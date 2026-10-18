@@ -1,0 +1,26 @@
+[
+ {
+  "name": "gmail_last_week",
+  "title": "First day · \"what did Vikas email me about last week\" is answered from the signed-in Gmail",
+  "steps": [
+   {
+    "say": "what did Vikas email me about last week",
+    "ok": true,
+    "reply": "Last week, Vikas Badami sent you one email. It's a Google Drive notification, not a written message.\n\n- **14 Oct:** Vikas Badami (badami@wustl.edu) shared a folder called **\"Legal Platform\"** with you and invited you to contribute.\n\nThere is also one from the week before, on 8 Oct. GitHub notified you that @badami-vikas invited you to collaborate on the **project-waterways** repository.\n\nI searched your Gmail (kenilshah081198@gmail.com) for senders named \"Vikas\" from 4 Oct onward. These were the only two results. I didn't open either one, so I only have the preview text. Nothing came from Vika",
+    "steps": 3,
+    "seconds": 15.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Does the answer name specific emails from Vikas (subjects or what they were about) from the last week, read from Gmail, or say plainly that Gmail is not signed in and ask for the sign-in?",
+    "ok": true,
+    "why": "The answer names specific emails from Vikas (the 14 Oct Google Drive share of \"Legal Platform\" and the earlier GitHub invite), drawn from the Gmail search results Alpha read, and it states that only previews were seen.",
+    "seconds": 3.3
+   }
+  ],
+  "seconds": 19.0,
+  "error": null
+ }
+]

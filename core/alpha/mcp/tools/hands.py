@@ -431,11 +431,13 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
 
     @hand(writes="connections")
     def connect(self, what: str = "list", target: str | None = None,
-                start: str | None = None, end: str | None = None) -> Any:
+                start: str | None = None, end: str | None = None, again: bool = False) -> Any:
         """What Alpha can reach, and reaching more. what "list": the watched folders, the sites
         signed into in Alpha's browser, the calendar. "site" with target (example.com): open a
         window so the person signs in themselves; Alpha never sees the password; say so and
-        carry on once signed in. "folder" with target (a path): start reading it. "calendar":
+        carry on once signed in (a site signed in already answers so and nothing opens;
+        again=true only when they ask to sign in afresh). "folder" with target (a path): start
+        reading it. "calendar":
         connect the person's calendars (macOS asks them once) or read their changes now;
         "events" with start and end (ISO times): the events in that span."""
         if what == "list":
@@ -443,7 +445,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         if what == "site":
             if not target:
                 return {"error": "site needs target: the site, e.g. linkedin.com."}
-            return self.browser_signin(target)
+            return self.browser_signin(target, again=again)
         if what == "folder":
             if not target:
                 return {"error": "folder needs target: the path."}

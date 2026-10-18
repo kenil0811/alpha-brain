@@ -182,3 +182,14 @@ def test_several_rows_are_removed_in_one_call_with_one_journal_line(world: World
     assert line["data"]["records"] == ids[:3]
     assert "error" in t.world_change("jobs", ids=ids[3:], remove=False)
     assert "error" in t.world_change("jobs")
+
+
+def test_a_site_signed_in_already_answers_so_and_opens_no_window(world: World) -> None:
+    """18 Oct: a resumed session believed Gmail unconnected and asked the person to sign in
+    again; the hand knows what is held and says so instead of opening a window."""
+    from alpha.connectors.base import Connections
+
+    Connections(world.store).upsert("browser", "gmail.com", status="connected")
+    out = hands(world).connect(what="site", target="gmail.com")
+    assert out["status"] == "connected" and out["note"].startswith("gmail.com is signed in already")
+    assert "error" not in hands(world).connect(what="list")

@@ -195,12 +195,22 @@ class Reading(Base):
         return skill
 
     @tool(writes="connections")
-    def browser_signin(self, site: str) -> dict[str, Any]:
+    def browser_signin(self, site: str, again: bool = False) -> dict[str, Any]:
         """Open a window on a site (e.g. example.com) so the person signs in themselves; Alpha
         never sees what they type. Only after a page read says needs_signin: reads already use
         every sign-in Alpha holds, including one made on another site (gmail.com for
         google.com). Returns at once; tell them to sign in and close the window, and the next
-        page read uses the sign-in."""
+        page read uses the sign-in. A site signed into already answers so and opens nothing
+        (again=true when the person asks to sign in afresh)."""
+        clean = site_of(site if "://" in site else f"https://{site}")
+        held = next((c for c in Connections(self.world.store).all("browser")
+                     if c["target"] == clean), None)
+        if held and held["status"] == "connected" and not again:
+            # 18 Oct 2026: a resumed session believed Gmail unconnected and asked the person to
+            # sign in again; the hand, not the model's memory, knows what is held
+            return {"connection": held["id"], "site": held["target"], "status": "connected",
+                    "note": f"{held['target']} is signed in already: read it (browser_read,"
+                            " browser_script); no window was opened."}
         conn = Browser(self.world).start_signin(site)
         return {"connection": conn["id"], "site": conn["target"], "status": conn["status"]}
 
