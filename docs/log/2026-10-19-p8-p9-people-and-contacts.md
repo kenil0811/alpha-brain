@@ -210,3 +210,8 @@ from his world:
 - **Not tried in the app:** a Keep apart and an Unmerge (the tests cover both; the browser pane
   saw them work).
 - **His word:** "ok looks good". P8 and P9 accepted in his app.
+
+## Committed
+
+On Kenil's word ("Yes, commit P8–P9 with their docs to main"): `e340f78`, all checks clean
+(420 core, 238 desktop, lint and types).

@@ -5,7 +5,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
 **As of 19 October 2026, evening.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
-- **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); uncommitted).
+- **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
   - **A table's rows are people** by any of their keys.
   - **Organisations** come by email domain and by the exact company name.
@@ -15,7 +15,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
   - **Journeys:** people_from_two_sources passed (`docs/journeys/2026-10-19-1753.md`); when_did_we_last_talk passed (`-1759.md`) once the person's card carried the numbers and the suite's judge was shown what is true in the world it set up (a SQL read leaves no journal line). `contacts_from_the_mac` runs only on his say.
   - **Checked** in the browser pane on a copy.
   - **Accepted by Kenil in his app** ("ok looks good"): 746 contacts read into 651 people and 18 organisations; phones read as India and the UK from his own numbers; a card of 15 pairs (including a gamil.com typo), all merged on his word.
-  - **Next:** the commits, on his word.
+  - Committed as `e340f78` on his word.
 - **P6, P5 and P7 built** ([`log/2026-10-19-p6-p5-p7.md`](log/2026-10-19-p6-p5-p7.md); Q96, [`design/provenance-documents-triggers-proposal.md`](design/provenance-documents-triggers-proposal.md); committed as `1f682a1` on his word, 19 Oct). **Documents with positions:**
   - a PDF is read page by page, and a sheet cell by cell with its formulas (`.xls` through `xlrd`);
   - a hash per file, so the same bytes are the document already kept ("You have this already" on an agent's card);
@@ -69,7 +69,7 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 19 Oct evening, P8–P9 built and uncommitted)
+## Numbers (`just stats`, 19 Oct evening, P8–P9 built)
 
 | | |
 |---|---|
@@ -80,7 +80,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Desktop check | `docs/checks/2026-10-19-1027.md` (Q92: 25 of 25 pages clean at every size, on a copy of Kenil's world); before, `docs/checks/2026-10-18-1440.md` (Home, Settings, Assistant, Intelligence: 16 of 19 clean, the three fixed) and `-1442.md` (the 15 Intelligence pages: all clean), on a copy of Kenil's world, both sizes, light and dark; the full 91-page sweep's hang of 17 Oct still to look at |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 293 total; 293 since 1 Oct 2026 (P1 `535f6f9`; P2 with Q92 and Q93 `dfb12fc`; Kenil's models change `fadcf46`; P3a `fe5fceb`; P3b–P3d and P6/P5/P7 `1f682a1`, its docs after it; P8–P9 uncommitted) |
+| Commits | 295 total; 295 since 1 Oct 2026 (P1 `535f6f9`; P2 with Q92 and Q93 `dfb12fc`; Kenil's models change `fadcf46`; P3a `fe5fceb`; P3b–P3d and P6/P5/P7 `1f682a1`, its docs after it; P8–P9 `e340f78`, its docs after it) |
 | Lines | core 28,823 Python; tests 10,932; desktop 21,476 TS/TSX |
 
 ## What is built, against the design's order of work
