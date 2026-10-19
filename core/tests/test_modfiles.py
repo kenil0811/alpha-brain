@@ -28,7 +28,7 @@ def test_a_modules_directory_holds_its_shape_notes_and_agents(world: World) -> N
         module=module, title_field="title")
     world.views.save("remote_job", "Applied", {"filters": []})
     auto = t.agent_create("Daily jobs", "daily 07:00", brief="read the boards and tell me",
-                          module="Jobs")
+                          module="Jobs", name="Daily jobs")
     world.knowledge.write_note("module:Jobs", "Jobs", "What this is for: a back-end role by Q1.")
     world.files.sync()
     folder = Path(world.path).parent / "modules" / module

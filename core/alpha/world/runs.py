@@ -4,7 +4,9 @@ partial when something was read and something was not (a source unreachable, a r
 and not repaired, a sign-in needed); failed when nothing was read, or the run itself broke. A
 built-in kind judges by its own rule (Q50). The verdict is never the model's opinion; the
 model's own time in the run is counted, as are repairs. `trigger` says what started the run
-(schedule, event, mention, now, again) and `called_by` the run that called for it."""
+(schedule, event, mention, now, again, task, answer: the person answered what an earlier run
+asked) and `called_by` the run that called for it; `task` the task the run serves (P2: one given
+to the agent and started; a run on its schedule serves none, Q92)."""
 
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from alpha.world.store import Problem, Store, new_id, now
 
 # stopped: the person stopped the run (Skip on Sherlock's look, Stop on an agent's page)
 VERDICTS = ("succeeded", "partial", "failed", "stopped")
-TRIGGERS = ("schedule", "event", "mention", "now", "again", "called")
+TRIGGERS = ("schedule", "event", "mention", "now", "again", "called", "task", "answer")
 
 
 def _row(row: sqlite3.Row) -> dict[str, Any]:
@@ -27,13 +29,13 @@ class Runs:
         self.store = store
 
     def start(self, agent: str, *, trigger: str = "schedule",
-              called_by: str | None = None) -> str:
+              called_by: str | None = None, task: str | None = None) -> str:
         if trigger not in TRIGGERS:
             raise Problem(f"A run's trigger is one of {TRIGGERS}.")
         rid = new_id("run")
         with self.store.tx() as db:
-            db.execute("INSERT INTO runs (id, agent, started_at, trigger, called_by)"
-                       " VALUES (?,?,?,?,?)", (rid, agent, now(), trigger, called_by))
+            db.execute("INSERT INTO runs (id, agent, started_at, trigger, called_by, task)"
+                       " VALUES (?,?,?,?,?,?)", (rid, agent, now(), trigger, called_by, task))
         return rid
 
     def finish(self, rid: str, *, verdict: str, why: str | None = None, line: str | None = None,
@@ -65,6 +67,18 @@ class Runs:
         row = self.store.one("SELECT * FROM runs WHERE agent = ? AND ended_at IS NOT NULL"
                              " ORDER BY started_at DESC LIMIT 1", (agent,))
         return _row(row) if row else None
+
+    def of_task(self, task: str, limit: int = 10) -> list[dict[str, Any]]:
+        """The runs that served a task, newest first."""
+        return [_row(r) for r in self.store.all(
+            "SELECT * FROM runs WHERE task = ? ORDER BY started_at DESC LIMIT ?", (task, limit))]
+
+    def steps(self, rid: str, limit: int = 200) -> list[dict[str, Any]]:
+        """What a run did, in order: the journal lines that carry its id (P2)."""
+        return [{"id": r["id"], "at": r["at"], "kind": r["kind"], "actor": r["actor"],
+                 "text": r["text"]} for r in self.store.all(
+            "SELECT id, at, kind, actor, text FROM journal WHERE json_extract(data, '$.run') = ?"
+            " AND deleted_at IS NULL ORDER BY at, rowid LIMIT ?", (rid, limit))]
 
     def open(self, agent: str) -> dict[str, Any] | None:
         """The run of this agent that has not ended, if one is going."""

@@ -448,6 +448,12 @@ button.tree__fold:hover { background: var(--hover); color: var(--text); }
 .tasks__notes { white-space: pre-wrap; font-size: var(--text-md); color: var(--text-2); margin: 4px 0 0; }
 .tasks__picker { display: flex; flex-direction: column; min-width: 280px; max-width: 380px; padding: 6px; }
 .tasks__picker .textfield { margin-bottom: 6px; }
+/* The agent a task was given and the runs that served it (P2). */
+.tasks__agent { gap: 10px; align-items: center; }
+.tasks__run { border-top: 1px solid var(--line); padding-top: 8px; }
+.tasks__runhead { gap: 8px; width: 100%; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex-wrap: nowrap; }
+.tasks__runline { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tasks__runhead > b, .tasks__runhead > .badge, .tasks__runhead > .faint { flex: none; white-space: nowrap; }
 /* Several values in one cell (a relation holding many): side by side, clipped by the cell. */
 .pills { display: inline-flex; gap: 4px; flex-wrap: nowrap; max-width: 100%; overflow: hidden; }
 .calendar { padding: 12px; }

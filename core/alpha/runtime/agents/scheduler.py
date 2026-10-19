@@ -119,10 +119,12 @@ class Scheduler:
             self.running.add(aid)
             return True
 
-    def _work(self, aid: str, trigger: str, work: Work | None) -> None:
+    def _work(self, aid: str, trigger: str, work: Work | None, task: str | None = None,
+              answered: str | None = None) -> None:
         self._hold()
         try:
-            agent_runner.run(self.world, aid, trigger=trigger, runner=self.runner, work=work)
+            agent_runner.run(self.world, aid, trigger=trigger, runner=self.runner, work=work,
+                             task=task, answered=answered)
             if work is not None:
                 self.world.agents.advance_cursor(aid, work.upto)
         except Exception:
@@ -185,19 +187,42 @@ class Scheduler:
             # Just woke, or only in a maintenance wake: nothing starts yet.
             return
         self.acts()
+        self.tasks()
         for agent in self.world.agents.due():
             if self.stop_event.is_set():
                 return
             self._run(agent["id"])
         self.looks()
 
-    def run_now(self, aid: str, trigger: str = "now") -> None:
-        """Run one agent at once in the background: Run now, or Try again (`again`)."""
-        self.world.agents.get(aid)  # a Problem if it doesn't exist
+    def run_now(self, aid: str, trigger: str = "now", task: str | None = None,
+                answered: str | None = None) -> None:
+        """Run one agent at once in the background: Run now, Try again (`again`), a task it
+        was given, started (`task`, P2), or the person's answer to what its run asked
+        (`answer`, with `answered`, Q92)."""
+        agent = self.world.agents.get(aid)  # a Problem if it doesn't exist
+        if task is not None and not agent_runner.takes_tasks(self.world, agent):
+            raise Problem(f"{agent['name']} only runs its steps; it can't take a task.")
         if not self._claim(aid):
             raise Problem("It's already running.")
-        threading.Thread(target=self._work, args=(aid, trigger, None), daemon=True,
-                         name=f"agent-{aid}").start()
+        threading.Thread(target=self._work, args=(aid, trigger, None, task, answered),
+                         daemon=True, name=f"agent-{aid}").start()
+
+    def tasks(self) -> None:
+        """Start the tasks agents were given and someone moved to Working (P2: Start in the
+        window does it at once; "start it" in words reaches here at the next tick)."""
+        for task in self.world.tasks.waiting_to_start():
+            if self.stop_event.is_set():
+                return
+            owner = str(task["owner"])
+            try:
+                agent = self.world.agents.get(owner)
+            except Problem:
+                continue  # its agent was removed: the task came back to the person
+            if not agent_runner.takes_tasks(self.world, agent):
+                continue
+            if self._claim(owner):
+                threading.Thread(target=self._work, args=(owner, "task", None, task["id"]),
+                                 daemon=True, name=f"agent-{owner}").start()
 
     def start(self) -> None:
         def loop() -> None:

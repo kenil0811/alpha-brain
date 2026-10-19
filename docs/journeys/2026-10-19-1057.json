@@ -1,0 +1,71 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I made a list called \"Deal list\" in a new Deals module. Each deal has the firm's name and the asking price. It's empty so far.\n\nI assumed the price is in dollars. Tell me if it should be another currency.\n\nSend me a deal, for example \"Acme Corp, 2.5M\", and I'll add it.",
+    "steps": 3,
+    "seconds": 11.0
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I added Midwest HVAC to your deal list with an asking price of $900,000. I assumed \"900k\" means 900,000 US dollars.",
+    "steps": 2,
+    "seconds": 12.0
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "I made the Deal Analyst agent. It's in the Deals module and it only runs when you give it a task. It has no schedule. Giving it a task doesn't start it. You start it yourself, or name it with @.\n\n**What it does with a task about a deal**\n- It reads the deal's row in your Deal list (such as Midwest HVAC) and works the task out from that.\n- It looks up what can be looked up instead of guessing.\n- It saves what it found on the row, along with where it came from: a link, a document, or \"estimated\" if it couldn't be known.\n- It asks you for anything the row doesn't have and can't be looked up, such",
+    "steps": 3,
+    "seconds": 17.1
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task \"Ask the broker for 3 years of P&L\" on the Midwest HVAC row, gave it to the Deal Analyst, and started it. The Deal Analyst should pick it up within about 30 seconds, and you can follow its runs on the task's page.\n\nThe Deal Analyst can't contact the broker itself, because anything sent outside goes through your approval. If it drafts a message to the broker, you'll see it first and nothing goes out until you say yes.",
+    "steps": 3,
+    "seconds": 11.2
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 9.9
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC (name and email)? A draft request for 3 years of P&L is saved on the deal row, ready to send once I know who it's for.",
+    "ok": true,
+    "detail": "{\"answered\":\"j_a86c2b3b5cbc\",\"turn\":null,\"agent\":\"a_5c0ab875fc05\"}",
+    "seconds": 12.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: I addressed the P&L request to Kenil Shah (kenilshah081198@gmail.com) and saved it in the Midwest HVAC findings, but I did not send it, so the task is Blocked. Sending needs your approval, and I can't",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 73.4,
+  "error": null
+ }
+]

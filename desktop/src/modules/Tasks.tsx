@@ -6,11 +6,13 @@
  * The tasks are a table the world keeps itself, so every view, edit and History is the table's.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, ModuleCard, RecordRow, TableDesc, TaskAround, TaskItem } from "../core/client";
+import type { Agent, Client, ModuleCard, RecordRow, TableDesc, TaskAround, TaskItem, TaskRuns } from "../core/client";
 import { say } from "../core/client";
 import { surfaceFromPath } from "../shell/address";
 import { TASKS_TABLE, type Surface } from "../shell/Rail";
 import { Button, Popover } from "../ui";
+import { Check, X } from "../ui/icons";
+import { VERDICT } from "../shell/Agents";
 import { DataPage } from "./DataPage";
 import { showValue } from "./fields";
 import { humanize, when } from "./format";
@@ -407,5 +409,157 @@ function PlacePicker({ client, onPick }: { client: Client; onPick: (place: { anc
         </button>
       </div>
     </Popover>
+  );
+}
+
+/** The agent a task was given and the runs that served it (P2): give it to an agent (never a
+ *  start), Start, Stop while it runs, each run with its verdict, its line and its steps. */
+export function TaskAgent({ client, row, version, onChanged, onGo }: { client: Client; row: RecordRow; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+  const [runs, setRuns] = useState<TaskRuns | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    client
+      .taskRuns(row.id)
+      .then((r) => live && (setRuns(r), setProblem(null)))
+      .catch((e: unknown) => live && setProblem(say(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, row.id, row.revision, version, tick]);
+  useEffect(() => {
+    let live = true;
+    client.agents().then((a) => live && setAgents(a.filter((x) => x.kind === "custom"))).catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [client]);
+  async function act(fn: () => Promise<unknown>, what: string) {
+    try {
+      await fn();
+      setProblem(null);
+      setTick((n) => n + 1);
+      onChanged();
+    } catch (e) {
+      setProblem(`Couldn't ${what}: ${say(e)}`);
+    }
+  }
+  if (!runs) return null;
+  const agent = runs.agent;
+  const owner = String(row.values.owner ?? "person");
+  const give = (aid: string) => void act(() => client.editRecord(TASKS_TABLE, row.id, { owner: aid }, row.revision), "give it");
+  const done = row.values.state === "Done" || row.values.state === "Dropped";
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Agent</h2>
+        <span className="faint">give it to an agent, then Start</span>
+      </div>
+      <div className="card card--pad stack">
+        <div className="row tasks__agent">
+          {agent ? (
+            <>
+              <button type="button" className="linkbtn" onClick={() => onGo({ kind: "agent", id: agent.id })}>
+                {agent.name}
+              </button>
+              {agent.running ? <span className="badge badge--running">Running</span> : null}
+              <span className="spacer" />
+              {!agent.running && agent.takes_tasks && !done ? (
+                <Button size="sm" variant="primary" onClick={() => void act(() => client.startTask(row.id), "start it")}>
+                  Start
+                </Button>
+              ) : null}
+              {agent.running ? (
+                <Button size="sm" onClick={() => void act(() => client.stopAgent(agent.id), "stop it")}>
+                  Stop
+                </Button>
+              ) : null}
+              {!agent.running ? (
+                <Button size="sm" onClick={() => give("person")}>
+                  Take it back
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <span className="faint">{owner === "person" ? "Yours." : "Not an agent's."}</span>
+              <span className="spacer" />
+              {agents.length ? (
+                <select className="btn btn--sm" value="" onChange={(e) => e.target.value && give(e.target.value)} aria-label="Give it to an agent">
+                  <option value="">Give it to…</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="faint">No agent of yours yet.</span>
+              )}
+            </>
+          )}
+        </div>
+        {agent && !agent.takes_tasks ? <p className="faint">{agent.name} only runs its steps; it can't take a task. Take it back, or give it to an agent with a brief.</p> : null}
+        {runs.runs.length ? (
+          <div className="stack">
+            {runs.runs.map((r) => (
+              <div key={r.id} className="tasks__run">
+                <button type="button" className="row tasks__runhead" aria-expanded={open === r.id} onClick={() => setOpen((o) => (o === r.id ? null : r.id))}>
+                  <b>{when(r.started_at)}</b>
+                  {r.verdict ? <span className={`badge ${VERDICT[r.verdict].cls}`}>{VERDICT[r.verdict].words}</span> : <span className="badge badge--running">Running</span>}
+                  <span className="muted tasks__runline">{r.line ?? r.why ?? ""}</span>
+                  <span className="faint">{r.steps.length} step{r.steps.length === 1 ? "" : "s"}</span>
+                </button>
+                {open === r.id || !r.verdict ? (
+                  <ul className="stages">
+                    {r.steps.map((st) => (
+                      <li key={st.id} className={st.kind === "failed" ? "notice" : "stages__done"}>
+                        {st.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {st.text.length > 240 ? `${st.text.slice(0, 240)}…` : st.text}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : agent ? (
+          <p className="faint">No run has served it yet.</p>
+        ) : null}
+        {problem ? <p className="notice" role="alert">{problem}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** An agent's tasks, on its page (P2): its own job first, then what it was given. */
+export function AgentTasks({ client, agentId, version, onGo }: { client: Client; agentId: string; version: number; onGo: (s: Surface) => void }) {
+  const [tasks, setTasks] = useState<TaskItem[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    client.tasksOf(agentId, true).then((r) => live && setTasks(r.tasks)).catch(() => live && setTasks([]));
+    return () => {
+      live = false;
+    };
+  }, [client, agentId, version]);
+  if (!tasks?.length) return null;
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Its tasks</h2>
+        <span className="faint">what it was given</span>
+      </div>
+      <div className="card list">
+        {tasks.map((t) => (
+          <button key={t.id} type="button" className="list__row" onClick={() => onGo({ kind: "record", table: TASKS_TABLE, id: t.id })}>
+            <span className={isDone(t) ? "faint" : undefined}>{t.title}</span>
+            <span className={`pill pill--${isDone(t) ? "good" : "gray"}`}>{humanize(t.state)}</span>
+            {t.due ? <span className="faint">due {showValue(t.due, "date")}</span> : null}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

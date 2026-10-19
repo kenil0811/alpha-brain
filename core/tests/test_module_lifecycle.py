@@ -28,7 +28,7 @@ def seed(world: World) -> dict[str, Any]:
     t.records_add("deal_listings", {"title": "Bakery in Austin"}, source="stated")
     t.note_write("module:Deal Tracker", "Deal Tracker", "What it is for.")
     auto = t.agent_create("Daily brokers", "daily 07:00", "reader_run brokers",
-                               module="Deal Tracker")
+                               module="Deal Tracker", name="Daily brokers")
     return {"avilo": avilo, "deals": deals, "auto": auto}
 
 

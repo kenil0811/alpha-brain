@@ -1,0 +1,10 @@
+[
+ {
+  "name": "agent_verdict",
+  "title": "A run of an agent ends with a verdict judged by code, and the run is kept",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: 0 agents match 'Daily deal tracker — read all broker sources, flag new listings'."
+ }
+]

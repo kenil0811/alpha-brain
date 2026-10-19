@@ -341,8 +341,10 @@ def test_a_skill_and_an_automation_have_pages(world: World) -> None:
     Tools(world).note_write("skill:brokers", "brokers", "The list paginates by 50.")
     t = building(world)
     pipe = t.agent_create("Daily brokers", "daily 07:00",
-                               steps=[{"read": "brokers", "into": "deals", "key": "title"}])
-    judged = t.agent_create("Weekly look", "weekly mon 09:00", brief="look and say")
+                               steps=[{"read": "brokers", "into": "deals", "key": "title"}],
+                               name="Daily brokers")
+    judged = t.agent_create("Weekly look", "weekly mon 09:00", brief="look and say",
+                            name="Weekly look")
     c = TestClient(create_app(world, live=False))
     page = c.get("/api/skills/brokers").json()
     assert page["kind"] == "read" and page["script"] == "return []"
@@ -409,7 +411,7 @@ def test_the_companion_hears_about_runs_that_went_wrong(world: World) -> None:
     t = building(world, turn="j_1")
     t.module_create("Network", "x")
     auto = t.agent_create("Daily brokers", "daily 07:00", "read the brokers",
-                               module="Network")
+                               module="Network", name="Daily brokers")
     world.agents.finished(auto["id"], result=None, error="brokers couldn't be reached.")
     c = client(world)
     troubles = c.get("/api/companion").json()["troubles"]
@@ -424,7 +426,7 @@ def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
     t = building(world, turn="j_1")
     t.module_create("Network", "x")
     auto = t.agent_create("Daily brokers", "daily 07:00", "read the brokers",
-                               module="Network", goal="deals")
+                               module="Network", goal="deals", name="Daily brokers")
     rid = world.runs.start(auto["id"])
     world.journal.append("did", "Read 3 with brokers.", thread=auto["thread"])
     world.runs.finish(rid, verdict="partial", why="walled couldn't be reached.",
@@ -479,7 +481,8 @@ def test_an_agents_file_and_a_modules_notes_are_text_both_ways(world: World) -> 
 
     t = building(world)
     t.module_create("Jobs")
-    auto = t.agent_create("Daily jobs", "daily 07:00", brief="read the boards", module="Jobs")
+    auto = t.agent_create("Daily jobs", "daily 07:00", brief="read the boards", module="Jobs",
+                          name="Daily jobs")
     c = client(world)
     text = c.get(f"/api/agents/{auto['id']}/text").json()["text"]
     assert text.startswith("---\nagent: Daily jobs\n") and "read the boards" in text

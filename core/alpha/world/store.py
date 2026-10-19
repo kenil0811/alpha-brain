@@ -456,6 +456,8 @@ ADDED_COLUMNS = [
     # (harness slice 3, 18 Oct 2026: a session resumed on other tools called a name it lacked)
     ("threads", "last_line", "TEXT"),
     ("threads", "session_tools", "TEXT"),
+    # the task a run serves (P2, 18 Oct 2026): one given to its agent and started
+    ("runs", "task", "TEXT"),
 ]
 
 
@@ -589,6 +591,10 @@ class Store:
                        "json_extract(data, '$.turn'))")
             db.execute("CREATE INDEX IF NOT EXISTS journal_ask ON journal("
                        "json_extract(data, '$.ask'))")
+            # a run's steps, read by its id (P2), and the runs a task was served by
+            db.execute("CREATE INDEX IF NOT EXISTS journal_run ON journal("
+                       "json_extract(data, '$.run'))")
+            db.execute("CREATE INDEX IF NOT EXISTS runs_task ON runs(task, started_at)")
             # A failure tried again, and a goal's history (slice 2 D5, D12).
             db.execute("CREATE INDEX IF NOT EXISTS journal_again ON journal("
                        "json_extract(data, '$.again_of'))")

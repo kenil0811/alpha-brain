@@ -8,9 +8,15 @@ one is a tombstone that blanks its text and data, so search and the model no lon
 from __future__ import annotations
 
 import sqlite3
+from contextvars import ContextVar
 from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, fts_query, loads, new_id, now
+
+# The agent run going on in this thread of work (P2, 18 Oct 2026): every line written while it
+# goes carries it as `data.run`, so a run's steps are read by its id, never by a window of time.
+# The runner sets it for its run; the tools set it for a tool call their run made.
+RUN: ContextVar[str | None] = ContextVar("alpha_run", default=None)
 
 KINDS = {
     "said",
@@ -64,6 +70,9 @@ class Journal:
         if kind not in KINDS:
             raise Problem(f"'{kind}' is not a kind of journal entry; use one of {sorted(KINDS)}.")
         jid = new_id("j")
+        run = RUN.get()
+        if run and (data is None or "run" not in data):
+            data = {**(data or {}), "run": run}
         with self.store.tx() as db:
             db.execute(
                 "INSERT INTO journal (id, at, kind, actor, text, data, module, thread, entity_ids,"

@@ -84,11 +84,12 @@ def test_a_pipeline_is_a_run_skill_named_after_its_agent(world: World) -> None:
                        description="Reads brokers", to_end=False, count=3)
     t = building(world)
     one = t.agent_create("Daily deals, read the brokers", "daily 07:00",
-                              steps=[{"read": "brokers", "into": "deals", "key": "title"}])
+                              steps=[{"read": "brokers", "into": "deals", "key": "title"}],
+                              name="Daily deals, read the brokers")
     assert one["skill"] == "run_deals_brokers"  # the words that carry meaning
     assert world.skills.get(one["skill"])["kind"] == "run"
     two = t.agent_create("Daily deals, read the brokers", "daily 08:00",
-                              steps=[{"tell": "deals"}])
+                              steps=[{"tell": "deals"}], name="Daily deals, read the brokers")
     assert two["skill"] == "run_deals_brokers_2"  # a second of the same title
     # Updating the steps replaces the skill's steps, same name, version up.
     t.agent_update(one["id"], steps=[{"read": "brokers", "into": "deals", "key": "title"},
@@ -107,9 +108,11 @@ def test_a_step_may_call_another_run_skill_but_never_itself(world: World) -> Non
                        description="Reads brokers", to_end=False, count=3)
     t = building(world)
     base = t.agent_create("Read the brokers", "daily 07:00",
-                               steps=[{"read": "brokers", "into": "deals", "key": "title"}])
+                               steps=[{"read": "brokers", "into": "deals", "key": "title"}],
+                               name="Read the brokers")
     composed = t.agent_create("Brokers, then tell", "daily 07:30",
-                                   steps=[{"run": base["skill"]}, {"tell": "deals"}])
+                                   steps=[{"run": base["skill"]}, {"tell": "deals"}],
+                                   name="Brokers, then tell")
     flat = pipeline._flatten(world, world.agents.get(composed["id"])["steps"])
     assert [list(s)[0] for s in flat] == ["read", "tell"]
     with pytest.raises(Problem, match="call itself"):
@@ -163,7 +166,8 @@ def test_removing_a_module_takes_its_run_skills(world: World) -> None:
     world.readers.save("deals_site", site="d.com", url="https://d.com", script="return []",
                        description="Reads deals", to_end=False, count=3)
     auto = t.agent_create("Daily deals", "daily 07:00", module="Deals",
-                               steps=[{"read": "deals_site", "into": "deals", "key": "title"}])
+                               steps=[{"read": "deals_site", "into": "deals", "key": "title"}],
+                               name="Daily deals")
     assert world.skills.get(auto["skill"])["module"] == mod["id"]
     remove_module(world, "Deals")
     assert world.skills.names() == []

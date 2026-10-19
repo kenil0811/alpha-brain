@@ -164,7 +164,7 @@ def test_a_goal_s_page_has_its_history(world: World) -> None:
 
 
 def test_an_agent_s_failed_run_runs_again_and_reports_how_it_went(world: World) -> None:
-    auto = building(world).agent_create("Sync", "every 1h", "do it")
+    auto = building(world).agent_create("Sync", "every 1h", "do it", name="Sync")
     results = iter([RunResult(ok=False, reply="", error="the page was down"),
                     RunResult(ok=True, reply="Nothing new.")])
     c = TestClient(create_app(world, live=False, runner=lambda req: next(results)))

@@ -11,6 +11,7 @@ import os
 from collections.abc import Callable
 from typing import Any, Protocol, cast, overload
 
+from alpha.world.journal import RUN
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -108,6 +109,8 @@ def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
     def decorate[F: Callable[..., Any]](fn: F) -> F:
         @functools.wraps(fn)
         def wrapper(self: Base, *args: Any, **kwargs: Any) -> Any:
+            # a call an agent's run made: what it journals is that run's (P2)
+            bound = RUN.set(self.run) if self.run and RUN.get() != self.run else None
             try:
                 if writes is not None:
                     refused = self._refused(writes, fn, args, kwargs)
@@ -119,6 +122,9 @@ def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
             except Exception as e:  # a bug of ours: say so plainly, keep the details in the log
                 log.exception("tool %s failed", fn.__name__)
                 return {"error": f"Alpha hit an internal problem in {fn.__name__}: {e}"}
+            finally:
+                if bound is not None:
+                    RUN.reset(bound)
 
         wrapper.is_tool = True  # type: ignore[attr-defined]
         wrapper.writes = writes  # type: ignore[attr-defined]
@@ -149,8 +155,11 @@ class Base:
         thread: str | None = None,
         module: str | None = None,
         actor: str | None = None,
+        run: str | None = None,
     ) -> None:
         self.world = world
+        # the agent run these tools serve, if one (P2): every line they journal carries it
+        self.run = run if run is not None else os.environ.get("ALPHA_RUN") or None
         self.turn = turn if turn is not None else os.environ.get("ALPHA_TURN") or None
         self.thread = thread if thread is not None else os.environ.get("ALPHA_THREAD") or None
         self.module = module if module is not None else os.environ.get("ALPHA_MODULE") or None

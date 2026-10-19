@@ -23,6 +23,7 @@ from alpha.api.views import (
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations, engine
 from alpha.runtime.agents import columbo, scout, watson
+from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem, local_midnight_utc
 
 
@@ -60,10 +61,51 @@ def routes(app: FastAPI, s: Served) -> None:
             "picks": [p for p in scout.picks_of_day(world) if not p["decided"]],
         }
 
+    def its_run(asked: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
+        """The agent and the run that asked, when an agent's run asked and the agent can take
+        it on (Q92): a run is over by the time the person answers (nobody watches it), so the
+        answer goes back to its agent, never to Alpha's conversation as a bare sentence."""
+        data = asked["data"]
+        if not data.get("run") or any(data.get(k) for k in ("permission", "scout", "reminder")):
+            return None
+        try:
+            run = world.runs.get(str(data["run"]))
+            agent = world.agents.get(run["agent"])
+        except Problem:
+            return None
+        if not agent_runner.takes_tasks(world, agent):
+            return None
+        if world.runs.open(agent["id"]) is not None:
+            raise Problem(f"{agent['name']} is still working; answer when its run has ended.")
+        return agent, run
+
+    def carry_on(agent: dict[str, Any], run: dict[str, Any], asked: list[dict[str, Any]],
+                 answers: dict[str, str]) -> dict[str, Any]:
+        """The agent runs again, for the task its run served, with what it asked, the
+        person's answer and how its last run ended in front of it."""
+        ended = run.get("line") or run.get("why")
+        answered = "\n".join(([f"Your last run ended: {ended}"] if ended else []) + [
+            f"You asked the person: {a['text']}\nTheir answer: {answers[a['id']]}"
+            for a in asked])
+        task = run.get("task")
+        try:
+            if task:
+                world.tasks.get(str(task))
+        except Problem:
+            task = None  # the task went since: the answer is the run's whole work
+        if live:
+            s.scheduler.run_now(agent["id"], "answer", task=task, answered=answered)
+        else:
+            agent_runner.run(world, agent["id"], trigger="answer", task=task,
+                             answered=answered, runner=s.runner)
+        return {"turn": None, "agent": agent["id"]}
+
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
         asked = world.journal.read(ask_id)
-        jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
+        back = its_run(asked)
+        jid = world.journal.append("answered", body.text, actor="person",
+                                   data={"ask": ask_id, **({"to": back[0]["id"]} if back else {})},
                                    module=asked["module"], thread=asked["thread"])
         if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
             # A hand waiting for the person's yes (harness §8): the turn carries on with it.
@@ -104,9 +146,13 @@ def routes(app: FastAPI, s: Served) -> None:
             # "Which is this about?": the pick sends the original sentence there.
             started = running.start(AskBody(text=routed["text"], conversation=routed["thread"]))
             return {"answered": jid, "turn": started}
+        if back:
+            return {"answered": jid, **carry_on(*back, [asked], {ask_id: body.text})}
         # The answer is also the person's next message: Alpha carries on with it, in the
-        # conversation that asked.
-        started = running.start(AskBody(text=body.text, module=asked["module"],
+        # conversation that asked; a question another run asked goes with it, since that
+        # conversation never saw it (Q92).
+        text = f"{asked['text']} — {body.text}" if asked["data"].get("run") else body.text
+        started = running.start(AskBody(text=text, module=asked["module"],
                                         thread=asked["thread"]))
         return {"answered": jid, "turn": started}
 
@@ -121,11 +167,17 @@ def routes(app: FastAPI, s: Served) -> None:
         if len({(a["thread"], a["module"]) for a in asked}) != 1:
             raise Problem("These questions were asked in different conversations;"
                           " answer them where each was asked.")
+        backs = [its_run(a) for a in asked]
+        back = backs[0] if len({b[1]["id"] if b else None for b in backs}) == 1 else None
         answered = [world.journal.append("answered", answers[a["id"]], actor="person",
-                                         data={"ask": a["id"]}, module=a["module"],
-                                         thread=a["thread"]) for a in asked]
-        text = (answers[asked[0]["id"]] if len(asked) == 1 else
-                "\n".join(f"{a['text']} — {answers[a['id']]}" for a in asked))
+                                         data={"ask": a["id"],
+                                               **({"to": back[0]["id"]} if back else {})},
+                                         module=a["module"], thread=a["thread"]) for a in asked]
+        if back:
+            # one agent's run asked them all: they go back to it together (Q92)
+            return {"answered": answered, **carry_on(*back, asked, answers)}
+        text = (answers[asked[0]["id"]] if len(asked) == 1 and not asked[0]["data"].get("run")
+                else "\n".join(f"{a['text']} — {answers[a['id']]}" for a in asked))
         started = running.start(AskBody(text=text, module=asked[0]["module"],
                                         thread=asked[0]["thread"]))
         return {"answered": answered, "turn": started}

@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from alpha.api.server import create_app
 from alpha.connectors.base import Connections, skills_text
 from alpha.mcp.tools import Tools
-from alpha.runtime.agents.runner import worth_telling
 from alpha.runtime.running import RunResult, TurnRequest
 from alpha.runtime.turn import ask
 from alpha.world.readers import health_problem
@@ -101,10 +100,6 @@ def test_page_script_is_read_only_and_summarises_long_results(
     assert "error" in Tools(world).page_script("http://127.0.0.1/admin", "return 1")
 
 
-def test_worth_telling_is_found_anywhere() -> None:
-    assert worth_telling("Synced 20.\n\nWorth telling: 3 new people") == "3 new people"
-    assert worth_telling("nothing new") is None
-
 
 def test_the_model_gets_the_connector_skills(world: World) -> None:
     assert "Readers" in skills_text() and "---" not in skills_text().split("\n")[0]
@@ -128,7 +123,7 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
             time.sleep(0.02)
         return RunResult(reply="Synced.", ok=True)
 
-    auto = building(world).agent_create("Sync", "every 1h", "do it")
+    auto = building(world).agent_create("Sync", "every 1h", "do it", name="Sync")
     c = TestClient(create_app(world, live=False, runner=runner))
     assert c.post(f"/api/agents/{auto['id']}/run").json()["running"] is True
     end = time.time() + 5
@@ -147,7 +142,7 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
 
 def test_an_agent_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
     table(world)
-    auto = building(world).agent_create("Sync", "every 1h", "page_to_table …")
+    auto = building(world).agent_create("Sync", "every 1h", "page_to_table …", name="Sync")
     inside = Tools(world, thread=auto["thread"])
     out = inside.page_to_table(URL, "/in/", "connections", {"name": "text", "linkedin_url": "url"})
     assert "write a reader" in out["error"].lower() or "Write a reader" in out["error"]

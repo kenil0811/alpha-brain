@@ -108,6 +108,12 @@ All four projects stand on three things Alpha lacks:
 
 ## P2: runs serve tasks
 
+> **Changed by Q92 (19 Oct 2026, after Kenil's first try in his app):** an agent's own work is
+> not a task. The standing job below was built and removed the same day: it sat in his Open list
+> as a to-do. A run on its schedule serves no task; a run started for a task serves it. An agent
+> with a brief can be on call (no schedule), a new agent needs a short name, and the answer to a
+> question a run asked goes back to that agent. Item 1 as first agreed:
+
 1. **`runs.task`**: the task a run serves. A custom agent has one standing task, its job:
    - it is made with the agent, owned by it and placed on its module;
    - every scheduled run serves it;
@@ -173,7 +179,7 @@ All four projects stand on three things Alpha lacks:
      offered.
 
    What the person uploads or types is filed at once, as now, and a turn in conversation never
-   stages. An agent still never acts outward (unchanged).
+   stages. An agent still never acts outward; it may draft for the person's yes (item 9, Q93).
 6. **"Always" for a kind.** After the same agent's staged writes to the same place were said
    yes to unchanged a few times in a row, the card offers **Always keep what Intake files into
    Source documents**. That is a standing permission (the `permissions` table gains agent and
@@ -195,6 +201,44 @@ All four projects stand on three things Alpha lacks:
 
    A task's page lists its cards in its Approvals section. A card stays answerable at its card
    and in its item (Q75); Home lists it by the task's or item's name.
+9. **An agent drafts; only the person's yes acts (Q93, written 19 Oct; agreed with questions 6–8, Q94).**
+
+   **Why.** On 19 Oct Kenil gave the Deal Analyst "Ask the broker of Midwest HVAC for 3 years
+   of P&L". The run could not draft the email: `action_propose` refuses in a run ("An agent
+   never acts outward…"). So it left the wording and the broker's address as words on the row,
+   asked him to sign in to Gmail first (for nothing: signed in, it still could not draft), and
+   told him to ask Alpha in chat. Drafting outreach for a yes is what DealPilot, the
+   accounting intake and Network need from their agents. The wall moves from proposing to
+   acting: an agent may propose, and nothing leaves until the person's yes.
+
+   - **In a run, `action_propose` makes the card and stops there.**
+     - The card is the same `actions` row and card as Alpha's: the exact payload, the
+       procedure and its dry run (code, no model), with the screenshot.
+     - It adds who drafted it, the run, the task, and what it rests on: "Drafted by Deal
+       Analyst for you · from its run of 10:48 · for Ask the broker for 3 years of P&L".
+     - A failed dry run leaves a card that can't be approved, as today. The run's line says so.
+       The repair happens in conversation, never in the run.
+   - **Every agent draft waits for a yes.**
+     - A standing permission ("always make the draft") never covers an agent's draft;
+       `action_approve` stays refused in a run.
+     - A send asks every time, as it always has.
+   - **The task waits for the yes.**
+     - The run settles its task Blocked, and the task shows "Waiting for your yes" (item 1's
+       field).
+     - On the yes, the action runs in the person's session, as Alpha's does. Then the agent
+       runs again for the task, with "your draft was approved; done: <outcome>" in front
+       (Q92's answer route), and settles the task itself.
+     - On No, the reason goes on the card and in front of the agent's next run (item 3). The
+       task stays Blocked with "you said no: <reason>", and nothing runs by itself.
+   - **The first time a site needs a procedure,** the agent cannot learn it: looking at a site
+     in the person's session is not a run's work. Its card says what it would send, to whom,
+     through which site, and asks for it to be set up. The yes goes to Alpha in the agent's
+     item, with the draft in front: Alpha writes the procedure with the person there,
+     dry-runs it and shows the card. From then on, the agent's drafts on that site are real
+     cards.
+   - **The rules for runs** (`agent_run.md`) lose "Never send, post, message, apply or submit
+     anything" and gain "propose it with act_outward; it waits for the person's yes". The wall
+     stays in code: in a run, `action_propose` only proposes, and `action_approve` is refused.
 
 ## What stays the same
 
@@ -227,6 +271,13 @@ On a fresh world, with the real model:
   - "what's open on it?" lists exactly that.
 - **`agent_takes_a_task`:** an agent with a brief and a task assigned to it, then Start. The
   checks: `runs.task` set, every step line carrying the run, the task Done with the run's line.
+- **`agent_drafts_for_yes`** (Q93): an agent on call with a brief, a site procedure for a
+  draft already kept, and a task "ask the broker for the P&L" with the broker's address on the
+  row; Start. The checks:
+  - one card drafted by the agent, with its run and task;
+  - nothing done before the yes;
+  - the task waiting for the yes;
+  - on yes, the action done, then the agent's next run settles the task Done.
 - **`staged_from_a_run`:** an agent with `stage:` on a table, run twice. The checks:
   - one card holding the rows, the twin held back, the line said;
   - on yes, the rows with their source and the card;
@@ -244,7 +295,9 @@ Kenil, in his app:
 - one assigned to an agent and started, its steps seen on the task;
 - a staged batch from an agent's run: one declined with a reason, one approved, both in
   Decisions;
-- an old reminder still firing.
+- an old reminder still firing;
+- an agent's draft (Q93): the broker email drafted by the Deal Analyst, approved on its card,
+  and the task settled by the agent's next run.
 
 ## Size
 
@@ -253,7 +306,8 @@ About twelve days in all:
   the Tree view and relative dates, and the places' Tasks sections with "Around it".
 - **P2, two.**
 - **P3, five to six:** the cards table and its producers, staged writes, keys and withdrawal,
-  reasons and "rests on", the window's cards and Decisions, and the `defer` spike.
+  reasons and "rests on", the window's cards and Decisions, and the `defer` spike; agents'
+  drafts (item 9, Q93) about one more.
 
 Each slice is its own commits: the core, then the window.
 
@@ -273,3 +327,15 @@ Answered 18 Oct: the recommendation on each (Q91).
    today.
 5. **Decisions in Activity** rather than in Settings (the scope's place)? I'd keep Settings for
    what is not a record.
+
+Asked 19 Oct with item 9 (Q93); answered the same day: the recommendation on each (Q94).
+
+6. **Agent drafts at all:** an agent may propose an outward step as a card, and only the
+   person's yes acts? I'd say yes. The agent still acts on nothing; DealPilot's outreach needs
+   it.
+7. **Standing permissions for agents' drafts:** never, so every agent draft asks; or let
+   "Always" cover a prepare-level draft after a few yeses, as for Alpha? I'd say never for now.
+   An unwatched run filling the person's drafts folder is the risk, and asking costs one tap.
+8. **After the yes:** the agent runs again for the task with the outcome and settles it; or the
+   task is Done when the action is done? I'd take the run. Sending the email isn't always the
+   whole task ("ask for the P&L" may be Done when sent; "get the P&L" is not).

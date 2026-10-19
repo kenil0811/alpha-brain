@@ -10,21 +10,18 @@ of it and its hands cut to its write list."""
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime
 from typing import Any, cast
 
 from alpha import config
 from alpha.runtime import pipeline, route, turn
 from alpha.runtime.agents import MENTIONS, RUNS, Work
+from alpha.world.journal import RUN
+from alpha.world.store import Problem
+from alpha.world.tasks import DONE, OPEN, WORKING
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents")
-
-def worth_telling(reply: str) -> str | None:
-    """The part of a run's answer marked for the person, wherever it appears."""
-    match = re.search(r"worth telling\s*:\s*(.+)", reply, re.I | re.S)
-    return match.group(1).strip() if match else None
 
 
 def brief_of(world: World, agent: dict[str, Any]) -> str:
@@ -60,21 +57,79 @@ def front(world: World, agent: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
+def takes_tasks(world: World, agent: dict[str, Any]) -> bool:
+    """Whether an agent can be given a task: one that follows a brief (judgement each run); an
+    agent that only runs its steps does the same thing every time."""
+    return agent["kind"] == "custom" and bool(brief_of(world, agent))
+
+
 def run(world: World, agent_id: str, *, trigger: str = "schedule",
         called_by: str | None = None, runner: turn.Runner = route.run,
-        work: Work | None = None) -> dict[str, Any]:
+        work: Work | None = None, task: str | None = None,
+        answered: str | None = None) -> dict[str, Any]:
     """One run of an agent: a row in `runs` from start to its verdict, judged by code. A kind
     with a frame of its own runs that (over `work`, what its look found). The custom frame:
     steps run with no model; a brief is a model turn with the agent's pages in front of it; a
-    brief that converts itself to steps runs them at once."""
+    brief that converts itself to steps runs them at once. A run started for a task serves it
+    (P2): the task is Working while the run goes and settles with its verdict; a run on its
+    schedule serves none (Q92). `answered`: what an earlier run asked and the person's answer,
+    in front of this one (Q92). Every line the run writes carries its id."""
     agent = world.agents.get(agent_id)
+    if task is not None and not takes_tasks(world, agent):
+        raise Problem(f"{agent['name']} only runs its steps; it can't take a task. Give the task"
+                      " to an agent with a brief, or do it here.")
     thread = agent["thread"]
     if not thread:
         thread = world.modules.open_thread(agent["name"], "work", agent["module"])["id"]
         world.agents.set_thread(agent_id, thread)
         agent = world.agents.get(agent_id)
     world.modules.update_thread(thread, state="working")
-    run_id = world.runs.start(agent_id, trigger=trigger, called_by=called_by)
+    run_id = world.runs.start(agent_id, trigger=trigger, called_by=called_by, task=task)
+    bound = RUN.set(run_id)
+    try:
+        if task is not None:
+            world.tasks.run_started(task, agent_id)
+        out = _run(world, agent, run_id, thread, runner=runner, work=work, task=task,
+                   answered=answered)
+        if task is not None:
+            _settle(world, agent, run_id, task, thread)
+        return out
+    finally:
+        RUN.reset(bound)
+
+
+def _settle(world: World, agent: dict[str, Any], run_id: str, task: str, thread: str) -> None:
+    """The task after its run (Q93): Done only when the agent said so in the run; what it said
+    stands; one it left Working is Blocked (Open when the person stopped the run), since a run
+    that answered is not a task done (found 19 Oct: four runs that said "I couldn't" left the
+    task Done). Its line says which, from the states, never from the run's words."""
+    said = world.tasks.get(task)["state"] != WORKING
+    done = world.runs.get(run_id)
+    verdict = done.get("verdict") or "failed"
+    world.tasks.run_ended(task, agent["id"], verdict)
+    after = world.tasks.get(task)
+    title = after["title"]
+    if after["state"] == DONE:
+        what = f"did the task {title}"
+    elif after["state"] == OPEN:
+        what = f"stopped on the task {title}"
+    elif said or verdict != "succeeded":
+        what = f"could not finish the task {title}"
+    elif any(a["data"].get("run") == run_id for a in world.journal.open_asks()):
+        what = f"is waiting for your answer on the task {title}, so it is Blocked"
+    else:
+        what = f"ended without saying the task {title} was done, so it is Blocked"
+    world.journal.append(
+        "did" if verdict == "succeeded" else "failed",
+        f"{agent['name']} {what}: {done.get('line') or done.get('why') or verdict}"[:600],
+        actor=agent["id"], module=agent["module"], thread=thread,
+        data={"task": task, "run": run_id, "agent": agent["id"]})
+
+
+def _run(world: World, agent: dict[str, Any], run_id: str, thread: str, *,
+         runner: turn.Runner, work: Work | None, task: str | None,
+         answered: str | None) -> dict[str, Any]:
+    agent_id = agent["id"]
     frame = RUNS.get(agent["kind"])
     if frame is not None:
         try:
@@ -92,12 +147,26 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
     if not brief:
         return _ended(world, agent, run_id, "failed",
                       "it has no steps and no brief, so there is nothing for it to do", None, 0)
-    prompt = (f"Run now ({agent['when']}).\n\n{front(world, agent)}")
+    # the task it was given, with what is around it (P2), and what an earlier run asked with
+    # the person's answer (Q92): the run's whole work
+    parts = ["Run now, for a task you were given." if task is not None else
+             f"Run now ({agent['when']})."]
+    if answered:
+        parts.append(answered)
+    if task is not None:
+        parts.append(world.tasks.around_text(task))
+    parts.append(front(world, agent))
+    if task is not None or answered:
+        parts.append(("Do this task, then settle it: Done, or Blocked with what stops it."
+                      if task is not None else "Carry on from their answer.")
+                     + " End with what you did in a line.")
+    prompt = "\n\n".join(p for p in parts if p)
+    journal_as = (f"Run of {agent['name']} for the task {world.tasks.get(task)['title']}."
+                  if task is not None else f"Run of {agent['name']} ({agent['when']}).")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner,
                            rules=config.prompt("agent_run", name=agent["name"]), actor=agent_id,
-                           agent=agent_id,
-                           journal_as=f"Run of {agent['name']} ({agent['when']}).")
+                           agent=agent_id, journal_as=journal_as)
     except Exception as e:
         log.exception("agent %s failed", agent_id)
         return _ended(world, agent, run_id, "failed", str(e), None, 0)
@@ -110,10 +179,6 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
         return _steps(world, after, run_id, runner, model_ms=outcome.result.duration_ms or 0)
     model_ms = int(outcome.result.duration_ms or 0)
     if outcome.ok:
-        worth = worth_telling(outcome.reply)
-        if worth:
-            world.journal.append("noticed", worth, actor=agent_id, data={"agent": agent_id},
-                                 module=agent["module"])
         return _ended(world, agent, run_id, "succeeded", None, outcome.reply[:2000], model_ms)
     return _ended(world, agent, run_id, "failed", outcome.result.error or outcome.reply, None,
                   model_ms)

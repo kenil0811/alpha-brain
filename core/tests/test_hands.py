@@ -118,7 +118,7 @@ def test_skill_keep_and_agent_keep_refuse_what_is_missing(world: World) -> None:
     assert "needs url and script" in h.skill_keep("x", "read", "Reads x")["error"]
     assert "needs url, steps and effect" in h.skill_keep("x", "act", "Does x")["error"]
     assert "kind is read or act" in h.skill_keep("x", "run", "Runs x")["error"]
-    assert "needs title and schedule" in h.agent_keep(title="Weekly")["error"]
+    assert "needs a title (what it does) and a name" in h.agent_keep(title="Weekly")["error"]
     assert "to propose" in h.act_outward(title="Send it")["error"]
     assert "decision is yes or no" in h.act_outward(action="a_1")["error"]
     teleport: Any = h.connect("teleport")
@@ -135,8 +135,8 @@ def test_agent_keep_makes_a_pipeline_and_changes_it(world: World) -> None:
     world.readers.save("jobs_site", site="j.test", url="https://j.test", script="return []",
                        description="Reads jobs", to_end=False, count=3)
     made = h.agent_keep(title="Every morning, check jobs", schedule="daily 08:30",
-                        steps=[{"read": "jobs_site", "into": "jobs", "key": "url"},
-                               {"tell": "jobs"}])
+                        name="Job Check", steps=[{"read": "jobs_site", "into": "jobs",
+                                                  "key": "url"}, {"tell": "jobs"}])
     assert made["schedule"] == "daily 08:30" and made["steps"][0]["read"] == "jobs_site"
     paused = h.agent_keep(id=made["id"], state="paused")
     assert paused["state"] == "paused"

@@ -81,7 +81,7 @@ def argv(req: TurnRequest, cwd: Path, last: Path, binary: str = "codex") -> list
     if req.kind == "turn":
         env = {"ALPHA_WORLD": str(req.world_path), "ALPHA_TURN": req.turn_id,
                "ALPHA_THREAD": req.thread_id or "", "ALPHA_MODULE": req.module_id or "",
-               "ALPHA_ACTOR": req.actor or "alpha"}
+               "ALPHA_ACTOR": req.actor or "alpha", "ALPHA_RUN": req.run or ""}
         table = ",".join(f"{k}={_toml_string(v)}" for k, v in env.items())
         args += ["-c", f"mcp_servers.alpha.command={_toml_string(sys.executable)}",
                  "-c", 'mcp_servers.alpha.args=["-m","alpha.mcp.server"]',

@@ -98,8 +98,8 @@ export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client;
       ref={card}
       tabIndex={0}
       className="askcard"
-      eyebrow="Alpha asks"
-      aria-label="Alpha asks"
+      eyebrow={`${ask.by ?? "Alpha"} asks`}
+      aria-label={`${ask.by ?? "Alpha"} asks`}
       onKeyDown={(e) => keys(e, ask.options, pick, () => void answer(chosen))}
       foot={
         <>
@@ -162,7 +162,7 @@ export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Cl
     setTyped((t) => ({ ...t, [a.id]: "" }));
   };
   return (
-    <Card ref={card} tabIndex={0} className="askcard askcard--group" eyebrow={`Alpha asks ${asks.length} things`} aria-label="Alpha asks">
+    <Card ref={card} tabIndex={0} className="askcard askcard--group" eyebrow={`${asks[0].by ?? "Alpha"} asks ${asks.length} things`} aria-label={`${asks[0].by ?? "Alpha"} asks`}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -205,13 +205,22 @@ export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Cl
 }
 
 /** A question that was answered or skipped: one dim line where it was asked, so the
- *  conversation still reads in order. */
+ *  conversation still reads in order. An answer that went back to the agent that asked is no
+ *  message of the conversation's, so the line shows it (Q92). */
 export function AskedRow({ entry }: { entry: JournalEntry }) {
   return (
-    <div className="asked">
-      <span className="asked__who">Alpha asked</span>
-      <span className="asked__q">{entry.text}</span>
-    </div>
+    <>
+      <div className="asked">
+        <span className="asked__who">{entry.by ?? "Alpha"} asked</span>
+        <span className="asked__q">{entry.text}</span>
+      </div>
+      {entry.answer ? (
+        <div className="asked">
+          <span className="asked__who">You answered</span>
+          <span className="asked__q">{entry.answer}</span>
+        </div>
+      ) : null}
+    </>
   );
 }
 

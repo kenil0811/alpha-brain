@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Ask, Client, Convo, JournalEntry } from "../core/client";
-import { AskCard, pickWords } from "./AskCard";
+import { AskCard, AskedRow, pickWords } from "./AskCard";
 import { Conversation } from "./AssistantPanel";
 import { keptWords } from "./Reply";
 
@@ -10,6 +10,16 @@ const convo: Convo = { id: "c_1", title: "Food", kind: "work", state: "open", mo
 const ask = (id: string, text: string, options: string[], over: Partial<Ask> = {}): Ask => ({ id, text, at: "2026-10-16T09:00:02Z", options, thread: "c_1", module: null, turn: "s_1", ...over });
 
 describe("the question card", () => {
+  it("names the agent whose run asked, and an answered one shows the answer that went back to it (Q92)", () => {
+    const client = { answerAsk: vi.fn(), dismissAsk: vi.fn() } as unknown as Client;
+    render(<AskCard ask={ask("a9", "Who is the broker?", [], { by: "Deal Analyst" })} client={client} onAnswered={vi.fn()} />);
+    expect(screen.getByRole("article", { name: "Deal Analyst asks" })).toBeInTheDocument();
+    render(<AskedRow entry={{ ...entry("a9", "asked", "Who is the broker?", "2026-10-19T09:13:45Z"), by: "Deal Analyst", answer: "Kenil, k@x.test" }} />);
+    expect(screen.getByText("Deal Analyst asked")).toBeInTheDocument();
+    expect(screen.getByText("You answered")).toBeInTheDocument();
+    expect(screen.getByText("Kenil, k@x.test")).toBeInTheDocument();
+  });
+
   it("picks a row by its key and answers at once; a typed answer goes with Answer", async () => {
     const client = { answerAsk: vi.fn().mockResolvedValue({ answered: "a1", turn: null }), dismissAsk: vi.fn() } as unknown as Client;
     const onAnswered = vi.fn();

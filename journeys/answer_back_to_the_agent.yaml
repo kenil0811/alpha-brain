@@ -1,0 +1,23 @@
+name: answer_back_to_the_agent
+title: "Tasks · an agent made on call, and the answer to its question goes back to it"
+why: >
+  Found 19 Oct 2026 in Kenil's app (Q92). "Make an agent called Deal Analyst that…" made an agent
+  named after the whole sentence, on a daily run it did not need, with a task of its own in his
+  Tasks. Then its run asked who the broker is, and his answer went to Alpha's conversation as a
+  bare sentence, which Alpha kept as his own name and email. Now the agent is named, on call and
+  owns no task; the question is the agent's, and the answer runs it again for the task. His
+  sentence gains "and asks me for anything the row doesn't have", so the run asks every time
+  (in his run it asked on its own; on 19 Oct 10:30 it only reported the gap).
+fresh: true
+steps:
+  - say: "keep a list of deals: the firm's name and the asking price"
+  - say: "add Midwest HVAC, asking 900k"
+  - say: "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have"
+checks:
+  - agent_made: {on_call: true, name_words_max: 3}
+steps_after:
+  - say: "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it"
+  - start_tasks: {}
+  - answer_ask: {matches: "broker", text: "Kenil Shah, kenilshah081198@gmail.com"}
+checks_after:
+  - answer_went_back: {}

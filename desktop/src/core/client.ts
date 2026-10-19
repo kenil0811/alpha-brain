@@ -166,6 +166,9 @@ export interface JournalEntry {
   tried?: { at: string; state: "running" | "worked" | "failed"; words: string } | null;
   /** Something since removed that the entry was about, in a few words. */
   removed?: string;
+  /** A question: the agent whose run asked it (Q92), and the answer that went back to it. */
+  by?: string | null;
+  answer?: string | null;
 }
 
 /** What an activity entry touched, each opening its own page (slice 2 D12). */
@@ -584,6 +587,27 @@ export interface TaskBrief {
   due?: string | null;
 }
 
+/** A run that served a task (P2), with its steps read by its id. */
+export interface TaskRun {
+  id: string;
+  agent: string;
+  agent_name: string;
+  started_at: string;
+  ended_at: string | null;
+  verdict: "succeeded" | "partial" | "failed" | "stopped" | null;
+  why: string | null;
+  line: string | null;
+  trigger: string | null;
+  steps: { id: string; at: string; kind: string; actor: string; text: string }[];
+}
+
+/** The runs that served a task and the agent that owns it, if one. */
+export interface TaskRuns {
+  task: string;
+  agent: { id: string; name: string; kind: string; takes_tasks: boolean; running: boolean } | null;
+  runs: TaskRun[];
+}
+
 /** What is around a task, nearest first (its page's "Around it"; the same a turn about it sees). */
 export interface TaskAround {
   task: string;
@@ -868,6 +892,8 @@ export interface Ask {
   choose?: "one" | "several";
   /** What a free answer should be, when there are no options ("a number of days"). */
   hint?: string | null;
+  /** The agent whose run asked it (Q92); none when Alpha asked. */
+  by?: string | null;
 }
 
 /** One event of a turn pushed by the core as it happens (`/api/turns/{id}/events`). */
@@ -1099,6 +1125,12 @@ export class Client {
    *  (on a place, it lives there); a suggestion kept or dropped; a task moved to another place. */
   tasksAt = (at: string, opts: { within?: boolean; done?: boolean } = {}) =>
     this.call<{ at: string; place: string | null; table: string; tasks: TaskItem[] }>("GET", `/api/tasks?at=${encodeURIComponent(at)}${opts.within === false ? "&within=false" : ""}${opts.done ? "&done=true" : ""}`);
+  /** The tasks someone owns (an agent's page, P2): its job and what it was given. */
+  tasksOf = (owner: string, done = false) => this.call<{ tasks: TaskItem[] }>("GET", `/api/tasks?owner=${encodeURIComponent(owner)}${done ? "&done=true" : ""}`);
+  /** The runs that served a task, and its agent (P2). */
+  taskRuns = (id: string) => this.call<TaskRuns>("GET", `/api/tasks/${encodeURIComponent(id)}/runs`);
+  /** Start: the agent the task was given runs for it now (P2). */
+  startTask = (id: string) => this.call<TaskItem>("POST", `/api/tasks/${encodeURIComponent(id)}/start`);
   taskAround = (id: string) => this.call<TaskAround>("GET", `/api/tasks/${encodeURIComponent(id)}/around`);
   addTask = (task: { title: string; anchor?: string | null; due?: string | null; owner?: string | null; parent?: string | null }) => this.call<TaskItem>("POST", "/api/tasks", task);
   keepTask = (id: string) => this.call<TaskItem>("POST", `/api/tasks/${encodeURIComponent(id)}/keep`);
@@ -1296,9 +1328,9 @@ export class Client {
   agentRemoval = (id: string) => this.call<AgentRemoval>("GET", `/api/agents/${encodeURIComponent(id)}/removal`);
   deleteAgent = (id: string) => this.call<AgentRemoval>("DELETE", `/api/agents/${encodeURIComponent(id)}`);
 
-  answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
+  answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null; agent?: string }>("POST", `/api/asks/${id}/answer`, { text });
   /** Questions asked together, answered together: ask id → words; one turn carries them. */
-  answerAsks = (answers: Record<string, string>) => this.call<{ answered: string[]; turn: Turn | null }>("POST", "/api/asks/answer", { answers });
+  answerAsks = (answers: Record<string, string>) => this.call<{ answered: string[]; turn: Turn | null; agent?: string }>("POST", "/api/asks/answer", { answers });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
   approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
   declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);

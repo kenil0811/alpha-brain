@@ -12,27 +12,37 @@ from alpha.world.store import Problem
 class AgentTools(Base):
     @tool(writes="agents")
     def agent_create(
-        self, title: str, schedule: str, brief: str = "",
+        self, title: str, schedule: str = "", brief: str = "",
         steps: list[dict[str, Any]] | None = None, module: str | None = None,
-        goal: str | None = None, name: str | None = None,
+        goal: str | None = None, *, name: str,
     ) -> dict[str, Any]:
-        """Make an agent that works on its own from now on. title: the sentence the person
-        reads, e.g. "Every morning at 08:00, read the listings and tell you what's new".
-        schedule: "every 6h", "every 30m", "daily 08:00" or "weekly mon 08:00" (local time).
-        steps (the default, run with no model): [{"read": reader, "into": table, "key": field,
-        "keep": [fields the person edits], "map": {field: {site's word: table's word}}}, …,
-        {"tell": table, "where": {filter for what matters}}, {"run": another agent's run
+        """Make an agent of the person's. name: what the person calls it, two or three words
+        ("Deal Analyst"); title: the sentence the person reads saying what it does, e.g.
+        "Every morning at 08:00, read the listings and tell you what's new".
+        schedule: when it works on its own: "every 6h", "every 30m", "daily 08:00" or
+        "weekly mon 08:00" (local time). Leave it out for an agent on call: one with a brief
+        that works only when the person gives it a task and starts it, or names it with @.
+        Giving a task to an agent never starts it; Start does (the task's Start button, or
+        world_remember with state "start").
+        steps (run with no model, on a schedule): [{"read": reader, "into": table, "key":
+        field, "keep": [fields the person edits], "map": {field: {site's word: table's word}}},
+        …, {"tell": table, "where": {filter for what matters}}, {"run": another agent's run
         skill, to reuse its steps}]; a tell step reports what is new, changed and gone since
         the last run. The steps are kept as a run skill named after the title. You are called
         only if a step breaks.
         brief: its page (Markdown), which the person reads and edits and the agent reads on
         every run: what it is for, what to do each run (only for work that needs judgement
-        on every run, with exact instructions; do the first run yourself now, before creating
-        it), what a good run looks like, what to do when a source needs a sign-in or stops
-        reading, what to tell. Only things that read and update Alpha's own tables; never
-        anything that sends, posts or submits.
-        goal: what it is for, in the person's words. name: a short name for it (the title
-        when not given); the person can rename it."""
+        on every run, with exact instructions; for one on a schedule, do the first run yourself
+        now, before creating it), what a good run looks like, what to do when a source needs a
+        sign-in or stops reading, what to tell. Only things that read and update Alpha's own
+        tables; never anything that sends, posts or submits.
+        goal: what it is for, in the person's words. The person can rename it."""
+        name = " ".join(name.split())
+        if not name:
+            raise Problem("Give the agent a short name, two or three words.")
+        if steps and not schedule.strip():
+            raise Problem("An agent that runs steps works on a schedule: give it one"
+                          " (\"daily 08:00\"), or give it a brief to make it an agent on call.")
         clean = pipeline.check_steps(self.world, steps) if steps else None
         if not clean and not brief.strip():
             raise Problem("Give the agent steps (or, for judgement work, a brief).")
@@ -44,10 +54,11 @@ class AgentTools(Base):
         if (here and here["kind"] == "work" and self.world.agents.of_thread(here["id"]) is None):
             thread = here
         else:
-            thread = self.world.modules.open_thread((name or title).strip(), "work", module_id)
+            thread = self.world.modules.open_thread(name, "work", module_id)
             self.world.modules.update_thread(thread["id"], state="done")
-        agent = self.world.agents.create(title, name=name, schedule=schedule, module=module_id,
-                                         thread=thread["id"], steps=clean, goal=goal)
+        agent = self.world.agents.create(title, name=name, schedule=schedule.strip() or None,
+                                         module=module_id, thread=thread["id"], steps=clean,
+                                         goal=goal)
         if brief.strip():
             self.world.knowledge.write_note(f"agent:{agent['id']}", "Brief", brief,
                                             source=self.turn)

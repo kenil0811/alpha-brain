@@ -74,6 +74,7 @@ describe("an agent's look on its page", () => {
     const { AgentPage } = await import("../AgentPage");
     const prefs: Record<string, unknown> = { companion_look: { animal: "panda" } };
     const client = {
+      tasksOf: vi.fn(async () => ({ tasks: [] })),
       agentPage: vi.fn().mockResolvedValue({ ...auto("a1"), runs: [], brief: null, notes: null, decisions: [], pipeline: null, good_run: null }),
       agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
       editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
@@ -99,6 +100,7 @@ describe("an agent's page", () => {
   it("renames, pauses, says what it may touch and lists the decisions about it", async () => {
     const { AgentPage } = await import("../AgentPage");
     const client = {
+      tasksOf: vi.fn(async () => ({ tasks: [] })),
       agentPage: vi.fn().mockResolvedValue(page()),
       agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
       editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
@@ -128,6 +130,7 @@ describe("an agent's page", () => {
     const { AgentPage } = await import("../AgentPage");
     const onGo = vi.fn();
     const client = {
+      tasksOf: vi.fn(async () => ({ tasks: [] })),
       agentPage: vi.fn().mockResolvedValue(page()),
       agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
       editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
@@ -155,6 +158,7 @@ describe("a built-in agent's face", () => {
     const { AgentPage } = await import("../AgentPage");
     const prefs: Record<string, unknown> = { companion_look: { animal: "panda" } };
     const client = {
+      tasksOf: vi.fn(async () => ({ tasks: [] })),
       agentPage: vi.fn().mockResolvedValue({ ...auto("w1", { kind: "watson", name: "Watson" }), runs: [], brief: null, notes: null, decisions: [], pipeline: null, good_run: null }),
       agentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "---\nagent: Sync\nschedule: every 6h\nstate: on\n---\nRead the brokers and tell me.\n" }),
       editAgentText: vi.fn().mockResolvedValue({ id: "a1", name: "Sync", text: "" }),
@@ -175,6 +179,7 @@ describe("Doc's repairs on its page", () => {
   it("offers Undo on a run line that changed a skill, and nothing on the others", async () => {
     const { AgentPage } = await import("../AgentPage");
     const client = {
+      tasksOf: vi.fn(async () => ({ tasks: [] })),
       agentText: vi.fn().mockResolvedValue({ id: "d1", name: "Doc", text: "---\nagent: Doc\n---\n" }),
       agentPage: vi.fn().mockResolvedValue({ ...auto("d1", { kind: "doc", name: "Doc" }), brief: null, notes: null, decisions: [], pipeline: null, good_run: null, runs: [
         { id: "run_1", started_at: "2026-10-16T10:54:04Z", ended_at: "2026-10-16T10:54:19Z", verdict: "succeeded", why: null, line: "Doc fixed the reader brokers: the layout changed", model_ms: 2500, repairs: 1, read: null, sources: null, lines: [

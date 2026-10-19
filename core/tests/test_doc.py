@@ -40,7 +40,8 @@ def broken_reader_agent(world: World) -> dict[str, Any]:
     t = building(world, turn="j_1")
     return t.agent_create("Daily brokers", "daily 07:00", module="Network",
                           steps=[{"read": "brokers", "into": "connections",
-                                  "key": "linkedin_url"}, {"tell": "connections"}])
+                                  "key": "linkedin_url"}, {"tell": "connections"}],
+                                  name="Daily brokers")
 
 
 def test_whose_fault_from_the_failures_shape() -> None:
@@ -190,7 +191,8 @@ def test_doc_repairs_a_procedure_after_an_approved_action_failed(world: World) -
 
 def test_the_macs_own_failures_are_reported_not_fixed(world: World) -> None:
     me = with_doc(world)
-    agent = building(world).agent_create("Deal Tracker", "daily 07:00", "read the brokers")
+    agent = building(world).agent_create("Deal Tracker", "daily 07:00", "read the brokers",
+                                         name="Deal Tracker")
     world.journal.append("failed", "Run of Deal Tracker failed: The browser didn't answer:"
                          " on.33.dylib (no such file), '/opt/homebrew/Cellar/simdjson/5.0.5/lib/"
                          "libsimdjson.33.dylib'", actor=agent["id"],

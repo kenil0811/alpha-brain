@@ -52,9 +52,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from fastapi.testclient import TestClient
 
 from alpha import config
+from alpha.api.server import create_app
 from alpha.context import prepack
+from alpha.mcp.tools import Tools
 from alpha.runtime import acting, conversations, engine, look, pipeline, route, running, turn
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
@@ -257,6 +260,31 @@ class Run:
             record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
                       "result": self.last_agent.get("last_result"),
                       "problem": self.last_agent.get("last_error")}
+        elif "start_tasks" in spec:
+            # what the scheduler's tick does (P2): the tasks agents were given and someone moved
+            # to Working, run now with the journey's model
+            started = []
+            for task in self.world.tasks.waiting_to_start():
+                agent_runner.run(self.world, str(task["owner"]), trigger="task",
+                                 task=task["id"], runner=self.runner)
+                started.append(task["title"])
+            record = {"start_tasks": started, "ok": bool(started),
+                      "detail": f"{len(started)} task(s) started" + (
+                          f": {'; '.join(started)}" if started else "")}
+        elif "answer_ask" in spec:
+            # the person answers the newest open question matching on its card, through the
+            # app's own route (Q92: one a run asked goes back to the agent that asked it)
+            arg = spec["answer_ask"]
+            pattern = re.compile(str(arg.get("matches") or "."), re.I)
+            asks = [a for a in self.world.journal.open_asks() if pattern.search(a["text"])]
+            if not asks:
+                record = {"answer_ask": arg["text"], "ok": False,
+                          "detail": "No open question to answer."}
+            else:
+                app = TestClient(create_app(self.world, live=False, runner=self.runner))
+                res = app.post(f"/api/asks/{asks[-1]['id']}/answer", json={"text": arg["text"]})
+                record = {"answer_ask": asks[-1]["text"][:160], "ok": res.status_code == 200,
+                          "detail": res.text[:300]}
         elif "break_reader" in spec:
             # A reader broken on purpose on the copy (its script returns nothing), so the
             # journey can watch Doc repair it with the real model (Q49, 16 Oct).
@@ -279,6 +307,16 @@ class Run:
                 with self.world.store.tx() as db:
                     db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (at, said, replied))
                 record = {"seed": f"{days} day(s) ago: {seed['said'][:60]}", "ok": True}
+            elif seed.get("kind") == "agent":
+                # an agent of the person's, with a brief, there before the journey (P2)
+                from_tools = Tools(self.world, turn=None)
+                made = from_tools.agent_create(seed["title"], seed.get("schedule", "weekly mon"
+                                                                   " 09:00"),
+                                               brief=seed["brief"],
+                                               name=seed.get("name") or seed["title"])
+                if "error" in made:
+                    raise Problem(made["error"])
+                record = {"seed": f"agent {made['name']}", "ok": True}
             elif seed.get("kind") == "fact":
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
@@ -715,6 +753,62 @@ class Run:
         where = " › ".join(s["words"] for s in steps) or "no place"
         want = arg.get("on")
         return (want is None or kind == want), f"{task['title']}: on {where} ({kind})."
+
+    def check_task_run(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A task the journey made was served by an agent's run (P2): the run's verdict, the
+        task's state after it, and steps that carry the run."""
+        pattern = re.compile(str(arg.get("matches") or "."), re.I)
+        tasks = [t for t in self._new_rows(TASKS) if pattern.search(str(t.get("title") or ""))]
+        if not tasks:
+            return False, f"No task matching {arg.get('matches')!r}."
+        task = self.world.tasks.get(tasks[-1]["id"])
+        runs = self.world.runs.of_task(task["id"])
+        if not runs:
+            return False, f"{task['title']}: no run served it (state {task['state']})."
+        run = runs[0]
+        steps = self.world.runs.steps(run["id"])
+        ok = (run["verdict"] == arg.get("verdict", "succeeded")
+              and task["state"] == arg.get("state", "Done") and bool(steps))
+        said = (run.get("line") or run.get("why") or "")[:160]
+        return ok, (f"{task['title']}: run {run['verdict']} ({run['trigger']}), {len(steps)}"
+                    f" steps, task {task['state']}: {said}")
+
+    def check_agent_made(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The agent the journey made in words (Q92): a short name, not the sentence; on call
+        (no schedule) when `on_call`; and no task of its own."""
+        rows = self.world.store.all("SELECT id FROM agents WHERE kind = 'custom' AND"
+                                    " created_at >= ? ORDER BY created_at", (self.mark.at,))
+        if not rows:
+            return False, "No agent was made."
+        agent = self.world.agents.get(rows[-1]["id"])
+        words = len(agent["name"].split())
+        owned = [t["title"] for t in self.world.tasks.of(agent["id"], finished=True)]
+        ok = (words <= int(arg.get("name_words_max", 4)) and not owned
+              and (not arg.get("on_call") or agent["schedule"] is None))
+        return ok, (f"{agent['name']!r} ({words} words), works {agent['when']}; tasks it owns:"
+                    f" {owned or 'none'}.")
+
+    def check_answer_went_back(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The person's answer to a question a run asked went back to the agent that asked
+        (Q92): a run of it, started by the answer; nothing about the person kept from it."""
+        answers = [e for e in self.world.journal.recent(50, kinds=["answered"])
+                   if e["at"] >= self.mark.at]
+        if not answers:
+            return False, "Nothing was answered."
+        last = answers[-1]
+        to = last["data"].get("to")
+        if not to:
+            return False, f"The answer {last['text'][:80]!r} went to Alpha's conversation."
+        runs = [r for r in self.world.runs.of(str(to)) if r["trigger"] == "answer"]
+        if not runs:
+            return False, "No run of the agent took the answer."
+        run = runs[0]
+        kept = [e["text"] for e in self.world.journal.recent(50, kinds=["noticed"])
+                if e["at"] >= last["at"] and e["data"].get("subject") == "person"]
+        ok = not kept and ("verdict" not in arg or run["verdict"] == arg["verdict"])
+        return ok, (f"{self.world.agents.get(str(to))['name']}'s run {run['verdict']}:"
+                    f" {(run.get('line') or run.get('why') or '')[:200]}"
+                    + (f"; kept about the person: {kept}" if kept else ""))
 
     def check_count(self, arg: dict[str, Any]) -> tuple[bool, str]:
         rows = self.world.collections.query(arg["collection"], limit=None)

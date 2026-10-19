@@ -22,7 +22,7 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
                        count=3, when_to_use="Every broker listing")
     pipe = t.agent_create("Daily brokers", "daily 07:00", module=module,
                                steps=[{"read": "brokers", "into": "deals", "key": "title"},
-                                      {"tell": "deals"}])
+                                      {"tell": "deals"}], name="Daily brokers")
     world.sources.add("Brokers", "https://brokers.com/listings", module=module,
                       reader="brokers", status="working")
     world.sources.add("Walled", "https://walled.com/list", module=module, status="needs_signin",

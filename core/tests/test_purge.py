@@ -30,7 +30,8 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     t.note_write("module:Network", "Network", "Notes")
     world.readers.save("connections", site="x.com", url="https://x.com", script="return []",
                        description="d", to_end=False, count=1)
-    auto = t.agent_create("Sync", "daily 08:00", "reader_run connections", module="Network")
+    auto = t.agent_create("Sync", "daily 08:00", "reader_run connections", module="Network",
+                          name="Sync")
     world.journal.append("replied", "LinkedIn only renders 20", thread=auto["thread"])
     entity = world.entities.resolve("person", "Priya", {"email": "p@x.com"})["entity"]
     world.readers.save("people_feed", site="x.com", url="https://x.com/feed", script="return []",
@@ -155,7 +156,8 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
                        url="https://www.linkedin.com/mynetwork/", script="return []",
                        description="d", to_end=True, count=1)
     auto = t.agent_create("Daily LinkedIn sync", "daily 07:00",
-                               'reader_run(name="linkedin_connections")', module="Network")
+                               'reader_run(name="linkedin_connections")', module="Network",
+                               name="Daily LinkedIn sync")
     world.journal.append("replied", "LinkedIn caps the list", thread=auto["thread"])
     world.journal.append("saw", "Read My Network (linkedin.com, signed in).",
                          data={"url": "https://www.linkedin.com/mynetwork/"},

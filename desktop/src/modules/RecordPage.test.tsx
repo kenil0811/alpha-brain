@@ -138,6 +138,7 @@ const task: RecordRow = {
 };
 
 describe("a task's own page (P1)", () => {
+  let runs: unknown = { task: "t1", agent: null, runs: [] };
   function mountTask() {
     const client = {
       record: vi.fn(async () => ({ table: tasksTable, record: task, relations: {}, note: null })),
@@ -153,6 +154,11 @@ describe("a task's own page (P1)", () => {
       keepTask: vi.fn(async () => ({ ...task, suggested: false })),
       dropTask: vi.fn(async () => ({})),
       addTask: vi.fn(async () => ({})),
+      taskRuns: vi.fn(async () => runs),
+      agents: vi.fn(async () => [{ id: "a_2", name: "Deal Reader", kind: "custom" }, { id: "a_w", name: "Watson", kind: "watson" }]),
+      editRecord: vi.fn(async () => task),
+      startTask: vi.fn(async () => ({ ...task.values, id: "t1" })),
+      stopAgent: vi.fn(async () => ({})),
     };
     const onGo = vi.fn();
     render(
@@ -179,4 +185,30 @@ describe("a task's own page (P1)", () => {
     await user.click(screen.getByRole("button", { name: "Tasks" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "tasks" });
   });
+
+  it("gives a task to an agent, and Start runs it; a run shows its steps (P2)", async () => {
+    const user = userEvent.setup();
+    runs = { task: "t1", agent: null, runs: [] };
+    const { client } = mountTask();
+    const give = await screen.findByRole("combobox", { name: "Give it to an agent" });
+    expect(within(give).queryByText("Watson")).not.toBeInTheDocument(); // only the person's agents
+    await user.selectOptions(give, "a_2");
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("alpha_tasks", "t1", { owner: "a_2" }, 2));
+    expect(client.startTask).not.toHaveBeenCalled(); // giving never starts it
+  });
+
+  it("starts the agent it was given and shows the run's steps (P2)", async () => {
+    const user = userEvent.setup();
+    runs = {
+      task: "t1",
+      agent: { id: "a_2", name: "Deal Reader", kind: "custom", takes_tasks: true, running: false },
+      runs: [{ id: "run_1", agent: "a_2", agent_name: "Deal Reader", started_at: "2026-10-19T08:00:00+00:00", ended_at: "2026-10-19T08:01:00+00:00", verdict: "succeeded", why: null, line: "Asked the broker; the P&L comes Friday.", trigger: "task", steps: [{ id: "j1", at: "2026-10-19T08:00:10+00:00", kind: "did", actor: "a_2", text: "Drafted the request to the broker." }] }],
+    };
+    const { client } = mountTask();
+    await user.click(await screen.findByRole("button", { name: "Start" }));
+    await waitFor(() => expect(client.startTask).toHaveBeenCalledWith("t1"));
+    await user.click(screen.getByRole("button", { name: /Asked the broker; the P&L comes Friday/ }));
+    expect(screen.getByText(/Drafted the request to the broker/)).toBeInTheDocument();
+  });
 });
+

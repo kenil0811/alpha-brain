@@ -1,0 +1,25 @@
+name: agent_takes_a_task
+title: "Tasks · a task given to an agent in words is done by its run, with its steps"
+why: >
+  P2 of the tasks-and-cards proposal (19 Oct 2026, Q91). A task can be given to an agent;
+  giving never starts it, Start does ("start it" in words reaches the scheduler's next tick);
+  the run that serves it has the task and what is around it in front of it, every line it
+  writes carries the run, and the task is Done when the run succeeded.
+fresh: true
+steps:
+  - seed:
+      kind: agent
+      name: "Deal Analyst"
+      title: "When given a task about a deal, work it out from the deal's own row"
+      schedule: "weekly mon 09:00"
+      brief: >
+        You are given tasks about deals. Read the task and what is around it, do the work
+        from the world's tables, and write any number you work out back to the deal's row,
+        with where it came from. End with one line saying what you did.
+  - say: "keep a list of deals: the firm's name, the asking price and the yearly revenue"
+  - say: "add Midwest HVAC, asking 900k, revenue 1.2M"
+  - say: "add a task on Midwest HVAC to work out the asking price as a multiple of revenue, give it to the Deal Analyst and start it"
+  - start_tasks: {}
+checks:
+  - task: {matches: "multiple|revenue", on: "record"}
+  - task_run: {matches: "multiple|revenue", verdict: succeeded, state: Done}

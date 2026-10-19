@@ -1,0 +1,180 @@
+[
+ {
+  "name": "agent_takes_a_task",
+  "title": "Tasks · a task given to an agent in words is done by its run, with its steps",
+  "steps": [
+   {
+    "seed": "agent Deal Analyst",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "keep a list of deals: the firm's name, the asking price and the yearly revenue",
+    "ok": true,
+    "reply": "I've made an empty deal list in a new Deals module. Each deal has three fields:\n\n- **Firm:** the firm's name.\n- **Asking price:** a number in USD.\n- **Yearly revenue:** a number in USD.\n\nI assumed USD because you didn't name a currency. If you use another one, tell me and I'll change it.\n\nSend me the first deal and I'll add it, for example \"Acme Ltd, asking 2M, revenue 800k\".",
+    "steps": 3,
+    "seconds": 16.9
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k, revenue 1.2M",
+    "ok": true,
+    "reply": "I added Midwest HVAC to your deal list: asking $900,000, yearly revenue $1,200,000. Both figures are in USD, as before.\n\nThe asking price is 0.75 times yearly revenue. Send the next deal when you have it.",
+    "steps": 2,
+    "seconds": 15.6
+   },
+   {
+    "say": "add a task on Midwest HVAC to work out the asking price as a multiple of revenue, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task \"Work out Midwest HVAC's asking price as a multiple of its yearly revenue\" to the Midwest HVAC row in your deal list. It's given to the Deal Analyst and started, and it should begin within about half a minute. Its progress shows on the task's page.\n\nFrom the figures you gave, I expect about 0.75 times revenue ($900,000 against $1,200,000). The Deal Analyst will confirm that figure from the deal list.",
+    "steps": 5,
+    "seconds": 14.5
+   },
+   {
+    "start_tasks": [
+     "Work out Midwest HVAC's asking price as a multiple of its yearly revenue"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Work out Midwest HVAC's asking price as a multiple of its yearly revenue",
+    "seconds": 22.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "task",
+    "arg": {
+     "matches": "multiple|revenue",
+     "true": "record"
+    },
+    "ok": true,
+    "why": "Work out Midwest HVAC's asking price as a multiple of its yearly revenue: on Deals › Deal list › Midwest HVAC (record).",
+    "seconds": 0.0
+   },
+   {
+    "check": "task_run",
+    "arg": {
+     "matches": "multiple|revenue",
+     "verdict": "succeeded",
+     "state": "Done"
+    },
+    "ok": true,
+    "why": "Work out Midwest HVAC's asking price as a multiple of its yearly revenue: run succeeded (task), 6 steps, task Done: Midwest HVAC's asking price is 0.75× its yearly revenue ($900,000 ÷ $1,200,000). I added a \"price_to_revenue\" field to the deal list and saved 0.75 on the row, ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 69.1,
+  "error": null
+ },
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "You already have this list. The Deals module's deal list holds the firm's name and the asking price. It also has yearly revenue and the price-to-revenue multiple, which the Deal Analyst added. I haven't made a second list.\n\nIt has one deal so far: Midwest HVAC, asking $900,000. If you want a list with only name and asking price, I can add a view that hides the other columns. Send the next deal whenever you have it.",
+    "steps": 1,
+    "seconds": 10.6
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "Midwest HVAC is already on your deal list with an asking price of $900,000, so I didn't add a second row. It also has yearly revenue of $1,200,000 and a price-to-revenue multiple of 0.75.\n\nSend the next deal when you have it.",
+    "steps": 1,
+    "seconds": 11.4
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row and saves what it found on the row with its source",
+    "ok": true,
+    "reply": "The Deal Analyst agent was already made earlier this morning, so I updated that one instead of creating a second.\n\n- **What it does:** when you give it a task about a deal, it reads the deal's row and works the answer out from the row's own figures. It saves the result on that row and notes which fields it came from. It won't overwrite figures you entered.\n- **Proof it works:** its first task, Midwest HVAC's asking price as a multiple of revenue, came out at 0.75× ($900,000 ÷ $1,200,000). It saved that on the row as `price_to_revenue`.\n- **Still to fix:** it also runs every Monday at 09:00 (ne",
+    "steps": 8,
+    "seconds": 38.3
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task \"Ask the broker for 3 years of P&L for Midwest HVAC\" to the Midwest HVAC row in your deal list. I gave it to the Deal Analyst and started it, and it should begin within about half a minute.\n\nThe Deal Analyst can only work from the deal's row. It has no way to contact the broker, and nothing has been sent. If you want a message drafted to the broker, I can prepare it, and it would only go out once you approve it. The broker's contact isn't on the row yet, so send me the name or email when you want that.",
+    "steps": 5,
+    "seconds": 20.9
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L for Midwest HVAC"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L for Midwest HVAC",
+    "seconds": 7.3
+   },
+   {
+    "answer_ask": "Kenil Shah, kenilshah081198@gmail.com",
+    "ok": false,
+    "detail": "No open question to answer.",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": false,
+    "why": "No agent was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": false,
+    "why": "Nothing was answered.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 88.5,
+  "error": null
+ },
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category. It's checked every day at 09:00, or when your Mac next wakes, and the first check will be tomorrow.\n\nI read the page once now and saved the 5 listings it shows. Each has the role, company, link, HQ, job type and where you can work from. They're in a new \"Back-end roles on We Work Remotely\" list under a Job watch module:\n\n- Senior Backend Developer (Python), Proxify AB\n- Senior Backend Developer (Node.js / Nest.js), Proxify AB\n- Staff Software Engineer, Revenue Systems, Squarespace\n- Senior Java Developer, Twikey (open to 31 Eur",
+    "steps": 10,
+    "seconds": 70.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 1 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "5 rows in wwr_backend_jobs (5)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: weworkremotely_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 70.0,
+  "error": null
+ }
+]

@@ -25,6 +25,7 @@ from alpha.context import prepack
 from alpha.runtime import engine, route, running
 from alpha.runtime.conversations import first_line
 from alpha.runtime.running import NO_ANSWER, STALLED, RunResult, TurnRequest
+from alpha.world.journal import RUN
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
@@ -183,6 +184,7 @@ def ask(
         actor=agent or "alpha",
         resume=resume,
         persist=conversation,
+        run=RUN.get(),
     )
     result = runner(request)
     if (not result.ok and not result.stopped and result.error in (NO_ANSWER, STALLED)

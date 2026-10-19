@@ -57,7 +57,7 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
     is the caller's to close when the run ends."""
     world = World(req.world_path)
     tools = tools_cls(world, turn=req.turn_id, thread=req.thread_id, module=req.module_id,
-                      actor=req.actor)
+                      actor=req.actor, run=req.run)
     fast = FastMCP("alpha")
     served: list[SdkMcpTool[Any]] = []
     for fn in tools.all():

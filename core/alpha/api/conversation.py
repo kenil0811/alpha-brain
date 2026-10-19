@@ -20,6 +20,7 @@ from alpha.api.bodies import (
 from alpha.api.served import Served
 from alpha.api.views import (
     action_view,
+    asked_by,
     conversation_view,
     fold_failures,
     items_today,
@@ -105,6 +106,12 @@ def routes(app: FastAPI, s: Served) -> None:
         turns_ = [e for e in turns_ if e["kind"] != "did"
                   or (e["data"].get("routed") and e["data"]["routed"] != chat["id"])]
         turns_ = [({**e, "kept": kept} if (kept := kept_from(world, e)) else e) for e in turns_]
+        # a question shows who asked; one that went back to the agent that asked shows the
+        # answer too, which is no message of the conversation's (Q92)
+        to_agents = {str(e["data"].get("ask")): e["text"] for e in world.journal.recent(
+            limit, thread=chat["id"], kinds=["answered"]) if e["data"].get("to")}
+        turns_ = [({**e, "by": asked_by(world, e), "answer": to_agents.get(e["id"])}
+                   if e["kind"] == "asked" else e) for e in turns_]
         return {"turns": fold_failures(turns_),
                 "conversation": conversation_view(world, chat["id"], chat),
                 # Home and the items of the day, done ones too: a card in Home shows its
@@ -124,7 +131,7 @@ def routes(app: FastAPI, s: Served) -> None:
                           "module": a["module"], "turn": a["data"].get("turn"),
                           "derived": bool(a["data"].get("derived")),
                           "choose": a["data"].get("kind") or "one",
-                          "hint": a["data"].get("hint")}
+                          "hint": a["data"].get("hint"), "by": asked_by(world, a)}
                          for a in world.journal.open_asks()]}
 
     def kept_from(world_: Any, e: dict[str, Any]) -> dict[str, int] | None:

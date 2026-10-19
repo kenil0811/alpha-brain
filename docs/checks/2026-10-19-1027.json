@@ -1,0 +1,756 @@
+{
+ "began": "2026-10-19T09:27:47.741Z",
+ "ended": "2026-10-19T09:28:52.586Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 967,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 863,
+   "shot": "activity@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 821,
+   "shot": "people@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_8d25dde7dbc9",
+   "title": "Activity: the newest entry",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "activity-j_8d25dde7dbc9@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_3dbd32e42391",
+   "title": "Conversation: Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "assistant-t_3dbd32e42391@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930",
+   "title": "Module: Deals",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_2dfc6e865930@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec",
+   "title": "Module: Nutrition",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_4fd7bea4e7ec@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930/deal_list/r_84d2e6ce1bbc",
+   "title": "Record: deal_list",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_2dfc6e865930-deal_list-r_84d2e6ce1bbc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec/food_log/r_341337991c06",
+   "title": "Record: food_log",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_4fd7bea4e7ec-food_log-r_341337991c06@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-map@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-agents@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_3361f5912f73",
+   "title": "Agent: Watson",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-agents-a_3361f5912f73@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_eee596cbe975",
+   "title": "Agent: Doc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-agents-a_eee596cbe975@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_311ef0266877",
+   "title": "Agent: Columbo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-agents-a_311ef0266877@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_40117d55bed6",
+   "title": "Agent: Sherlock",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-agents-a_40117d55bed6@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_82b0a88a288e",
+   "title": "Agent: Scout",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-agents-a_82b0a88a288e@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_72e180d4829b",
+   "title": "Agent: Reminders",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-agents-a_72e180d4829b@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_9cd490a20153",
+   "title": "Agent: Deal Analyst: when given a task about a deal, work it out from the deal's row and save what it found on the row with its source",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-agents-a_9cd490a20153@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_773625e155d7",
+   "title": "Goal: Build muscle: eat about 2,500 kcal, 115 g protein, 350 g carbs, 70 g fat and 35 g fibre a day",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 830,
+   "shot": "intelligence-goals-g_773625e155d7@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1075,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 928,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 878,
+   "shot": "activity@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "people@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_8d25dde7dbc9",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "activity-j_8d25dde7dbc9@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_3dbd32e42391",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "assistant-t_3dbd32e42391@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930",
+   "title": "Module: Deals",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 830,
+   "shot": "m-m_2dfc6e865930@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "m-m_4fd7bea4e7ec@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930/deal_list/r_84d2e6ce1bbc",
+   "title": "Record: deal_list",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "m-m_2dfc6e865930-deal_list-r_84d2e6ce1bbc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec/food_log/r_341337991c06",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_4fd7bea4e7ec-food_log-r_341337991c06@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-map@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "intelligence-agents@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_3361f5912f73",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "intelligence-agents-a_3361f5912f73@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_eee596cbe975",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents-a_eee596cbe975@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_311ef0266877",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-agents-a_311ef0266877@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_40117d55bed6",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-agents-a_40117d55bed6@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_82b0a88a288e",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-agents-a_82b0a88a288e@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_72e180d4829b",
+   "title": "Agent: Reminders",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-agents-a_72e180d4829b@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_9cd490a20153",
+   "title": "Agent: Deal Analyst: when given a task about a deal, work it out from the deal's row and save what it found on the row with its source",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 868,
+   "shot": "intelligence-agents-a_9cd490a20153@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_773625e155d7",
+   "title": "Goal: Build muscle: eat about 2,500 kcal, 115 g protein, 350 g carbs, 70 g fat and 35 g fibre a day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-goals-g_773625e155d7@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1087,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 932,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 878,
+   "shot": "activity@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 819,
+   "shot": "people@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_8d25dde7dbc9",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 828,
+   "shot": "activity-j_8d25dde7dbc9@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 829,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_3dbd32e42391",
+   "title": "Conversation: Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "assistant-t_3dbd32e42391@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930",
+   "title": "Module: Deals",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_2dfc6e865930@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "m-m_4fd7bea4e7ec@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_2dfc6e865930/deal_list/r_84d2e6ce1bbc",
+   "title": "Record: deal_list",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "m-m_2dfc6e865930-deal_list-r_84d2e6ce1bbc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_4fd7bea4e7ec/food_log/r_341337991c06",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "m-m_4fd7bea4e7ec-food_log-r_341337991c06@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 832,
+   "shot": "intelligence-map@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents",
+   "title": "Intelligence: agents",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "intelligence-agents@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 847,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_3361f5912f73",
+   "title": "Agent: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 864,
+   "shot": "intelligence-agents-a_3361f5912f73@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_eee596cbe975",
+   "title": "Agent: Doc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-agents-a_eee596cbe975@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_311ef0266877",
+   "title": "Agent: Columbo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 860,
+   "shot": "intelligence-agents-a_311ef0266877@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_40117d55bed6",
+   "title": "Agent: Sherlock",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-agents-a_40117d55bed6@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_82b0a88a288e",
+   "title": "Agent: Scout",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "intelligence-agents-a_82b0a88a288e@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_72e180d4829b",
+   "title": "Agent: Reminders",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-agents-a_72e180d4829b@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/agents/a_9cd490a20153",
+   "title": "Agent: Deal Analyst: when given a task about a deal, work it out from the deal's row and save what it found on the row with its source",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "intelligence-agents-a_9cd490a20153@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_773625e155d7",
+   "title": "Goal: Build muscle: eat about 2,500 kcal, 115 g protein, 350 g carbs, 70 g fat and 35 g fibre a day",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 832,
+   "shot": "intelligence-goals-g_773625e155d7@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1086,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

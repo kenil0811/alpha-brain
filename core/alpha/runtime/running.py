@@ -198,6 +198,8 @@ class TurnRequest:
     thread_id: str | None = None
     module_id: str | None = None
     model: str | None = None
+    # the agent run this turn belongs to, if one (P2): its tools journal under it
+    run: str | None = None
     # Who does this turn: "alpha", or an agent's id (its steps and reply are journaled under
     # it, and the tools cut its hands to its write list, Q50).
     actor: str = "alpha"

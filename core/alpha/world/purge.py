@@ -202,6 +202,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         db.execute("DELETE FROM runs WHERE agent IN (SELECT id FROM agents WHERE module = ?)",
                    (mid,))
         for a in autos:
+            Tasks.release_agent(db, a["id"])  # its job goes; what it was given comes back
+        for a in autos:
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             Decisions.remove_about(db, "agent", a["id"])
         Decisions.remove_about(db, "module", mid)
@@ -470,6 +472,7 @@ def remove_agent(world: World, aid: str) -> dict[str, Any]:
             if a.get("thread") and a["thread"] == agent.get("thread")]
     with world.store.tx() as db:
         db.execute("DELETE FROM runs WHERE agent = ?", (aid,))
+        Tasks.release_agent(db, aid)  # its job goes; what it was given comes back (P2)
         db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{aid}",))
         Decisions.remove_about(db, "agent", aid)
         if agent.get("skill"):

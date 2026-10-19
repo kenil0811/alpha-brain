@@ -287,7 +287,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         reminder), about (whose it is: "person" by default, an agent's id, or entity:<id> for
         what someone owes them), repeats ("weekly", "every Monday", "monthly on the 1st"),
         priority (P0–P4), parent (the task it is part of); say in a line where you put it.
-        With id and state (Open, Working, Blocked, Done, Dropped) it changes one; with id
+        With id and state (Open, Working, Blocked, Done, Dropped) it changes one; about with
+        an agent's id gives a task to that agent, and state "Start" starts it (the agent runs
+        for it within the half minute; giving it never starts it); with id
         alone it gives what is around the task (its place's values and sources, its parent,
         children and neighbours, the module's notes), as its page shows it. kind
         "fact": about ("person", or "entity:<id>"), predicate (snake_case: weight_kg,
@@ -357,12 +359,23 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
               parent: str | None, id: str | None, state: str | None) -> dict[str, Any]:
         """A task made where it belongs, or one changed (world_remember kind "task")."""
         tasks = self.world.tasks
-        if id and not state and not text:
+        if id and not state and not text and not owner:
             return {"task": id, "around": tasks.around_text(id)}
-        if id and state:
-            row = tasks.set_state(id, state, by=self.actor if self.actor != "person" else "alpha")
-            self._did("changed", f"{row['title']}: {row['state']}.", {"task": id})
-            return {"task": id, "state": row["state"]}
+        if id and (state or owner):
+            if owner:
+                tasks._set(id, {"owner": owner}, by=self.actor if self.actor != "person"
+                           else "alpha")
+            if state and state.strip().lower() == "start":
+                state = "Working"  # an agent's task in Working is started by the scheduler (P2)
+            row = (tasks.set_state(id, state, by=self.actor if self.actor != "person"
+                                   else "alpha") if state else tasks.get(id))
+            who = tasks.who_words(row.get("owner")) or "You"
+            self._did("changed", f"{row['title']}: {row['state']}, {who}.", {"task": id})
+            out: dict[str, Any] = {"task": id, "state": row["state"], "owner": who}
+            if row["state"] == "Working" and str(row.get("owner")).startswith("a_"):
+                out["note"] = (f"{who} starts on it within the half minute; its runs show on the"
+                               " task's page.")
+            return out
         if not text:
             return {"error": "a task needs text (what is to be done, in the person's words)."}
         try:
@@ -442,9 +455,13 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         that no other hand records, in Activity. kind "proposal": something they did not ask for
         (a target, a new field, a follow-up, a standing instruction you noticed), with the
         evidence in why; it waits for their yes on Home. What they must decide now goes through
-        ask_person, not here."""
+        ask_person, not here. In a run nobody watches, a note is what you noticed that is worth
+        their attention."""
         if kind == "proposal":
             return self.propose(text, why or "")
+        if self._in_run() and self.actor not in ("alpha", "person"):
+            # an agent's run tells the person by a hand, never by a label in its reply (Q78)
+            return self.journal_note("noticed", text, {"agent": self.actor}, module=module)
         return self.journal_note("did", text, module=module)
 
     # ---- skills ----
@@ -509,24 +526,29 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    steps: list[dict[str, Any]] | None = None, module: str | None = None,
                    goal: str | None = None, state: str | None = None,
                    name: str | None = None) -> dict[str, Any]:
-        """Make or change an agent: something that works on its own from now on. New: title
-        (the sentence the person would say: "Every Monday at 08:00, sync my LinkedIn
-        connections and tell me who is new"), schedule ("daily 07:30", "weekly mon 08:00",
-        "every 6h", or "at 2026-10-24 17:00" for a time that comes once: "on Friday at 5" is
-        that, worked out from today's date), steps ([{"read": reader, "into": table, "key":
-        field}, …, {"tell": table}]: a pipeline the scheduler runs with no model; the tell step
-        reports what is new, changed and gone in that table since the last run), or brief
-        (plain words for an agent that needs judgement each run), module, goal. Its first run is
+        """Make or change an agent of the person's. New: name (what the person calls it, two or
+        three words: "Deal Analyst"), title (the sentence the person would say: "Every Monday
+        at 08:00, sync my LinkedIn connections and tell me who is new"), and schedule when it
+        works on its own ("daily 07:30", "weekly mon 08:00", "every 6h", or "at 2026-10-24
+        17:00" for a time that comes once: "on Friday at 5" is that, worked out from today's
+        date). No schedule makes an agent on call: one with a brief that works only when the
+        person gives it a task and starts it, or names it with @. Giving a task to an agent
+        never starts it; Start does (the task's Start, or world_remember with state "start").
+        steps ([{"read": reader, "into": table, "key": field}, …, {"tell": table}]: a pipeline
+        the scheduler runs with no model, on a schedule; the tell step reports what is new,
+        changed and gone in that table since the last run), or brief (plain words for an agent
+        that needs judgement each run), module, goal. For one on a schedule, its first run is
         yours to do now (skill_run). Existing (id): state "paused" or "on", a new schedule,
         brief, title, name, or steps (an agent that read by its brief converts itself to steps).
         The agent's page shows its runs and verdicts."""
         if id:
             return self.agent_update(id, state=state, schedule=schedule, brief=brief, title=title,
                                      name=name, steps=steps)
-        if not (title and schedule):
-            return {"error": "a new agent needs title and schedule."}
-        return self.agent_create(title, schedule, brief=brief or "", steps=steps, module=module,
-                                 goal=goal)
+        if not (title and name and name.strip()):
+            return {"error": "a new agent needs a title (what it does) and a name (two or three"
+                             " words the person calls it by)."}
+        return self.agent_create(title, schedule or "", brief=brief or "", steps=steps,
+                                 module=module, goal=goal, name=name)
 
     # ---- acting outward ----
 

@@ -93,10 +93,12 @@ class Modules(Base):
         there are no options ("a number of days", "a date", "the person's name")."""
         if kind not in ("one", "several"):
             raise Problem('kind is "one" or "several".')
+        # asked as whoever uses the tools: an agent's run asks as the agent, and the answer
+        # goes back to it (Q92)
         jid = self.world.journal.append(
             "asked", question, data={"options": options or [], "turn": self.turn, "kind": kind,
                                      "hint": hint or None},
-            module=self.module, thread=self.thread,
+            actor=self.actor, module=self.module, thread=self.thread,
         )
         return {"asked": jid}
 

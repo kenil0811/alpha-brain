@@ -25,7 +25,8 @@ def jobs_module(world: World) -> str:
                       site="weworkremotely.com")
     t.agent_create("Daily jobs", "daily 07:00", steps=[{"read": "wwr_backend_jobs",
                                                          "into": "remote_job", "key": "url"},
-                                                        {"tell": "remote_job"}], module="Jobs")
+                                                        {"tell": "remote_job"}], module="Jobs",
+                                                        name="Daily jobs")
     world.knowledge.write_note("module:Jobs", "Jobs", "A back-end role by Q1; UK only.")
     world.collections.add("remote_job", {"title": "A role", "url": "https://x/1"}, {"by": "alpha"})
     return module

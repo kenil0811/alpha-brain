@@ -1,0 +1,46 @@
+[
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category for you. It's checked every morning at 08:00. If your Mac is asleep then, the check runs when it wakes. The first check is tomorrow, 20 October. You'll be told which roles are new and which have disappeared.\n\nI read the page once now and saved the three roles listed today in a table called \"We Work Remotely: back-end roles\":\n\n| Role | Company | Open to |\n|---|---|---|\n| Staff Software Engineer, Revenue Systems | Squarespace | Anywhere in the world |\n| Senior Java Developer | Twikey | 31 European countries |\n| AI Experience Engin",
+    "steps": 10,
+    "seconds": 68.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "3 rows in wwr_backend_jobs (3)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 68.7,
+  "error": null
+ }
+]

@@ -19,6 +19,7 @@ import { LookEditor } from "../avatar/LookPicker";
 import type { Look } from "../avatar/looks";
 import { usePreference } from "../core/preferences";
 import { say } from "../core/client";
+import { AgentTasks } from "../modules/Tasks";
 
 /** The face this agent wears in Agents (section 7c): its own look, or Alpha's until one is
  *  picked; the companion's pickers from Settings. */
@@ -244,6 +245,8 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
       ) : agent.last_error ? (
         <p className="notice">Last run didn't work: {agent.last_error}</p>
       ) : null}
+
+      <AgentTasks client={client} agentId={agent.id} version={version} onGo={onGo} />
 
       <AgentLookSection client={client} id={agent.id} kind={agent.kind} />
 

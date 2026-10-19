@@ -187,9 +187,32 @@ class Tasks:
             if missing:
                 cols.add_fields(TABLE, missing)
         self._move_commitments()
+        self._drop_jobs()
         with self.store.tx() as db:  # Watson's write list says what it writes now
             db.execute("UPDATE agents SET may = replace(may, '\"commitments\"', '\"tasks\"')"
                        " WHERE may LIKE '%\"commitments\"%'")
+
+    def _drop_jobs(self) -> None:
+        """An agent's job is not a task (Q92, 19 Oct 2026): the jobs P2 made for the custom
+        agents go, once, with their versions; a run that served one keeps its steps and serves
+        none. The journal says so."""
+        rows = self.store.all("SELECT id, \"values\" FROM records WHERE collection = ? AND"
+                              " json_extract(provenance, '$.standing') IS NOT NULL", (TABLE,))
+        if not rows:
+            return
+        with self.store.tx() as db:
+            for r in rows:
+                db.execute("DELETE FROM records WHERE collection = ? AND id = ?", (TABLE, r["id"]))
+                db.execute("DELETE FROM record_versions WHERE collection = ? AND record_id = ?",
+                           (TABLE, r["id"]))
+                db.execute("DELETE FROM records_fts WHERE collection = ? AND record_id = ?",
+                           (TABLE, r["id"]))
+                db.execute("UPDATE runs SET task = NULL WHERE task = ?", (r["id"],))
+        titles = "; ".join(str(loads(r["values"], {}).get("title") or r["id"])[:80] for r in rows)
+        self.world.journal.append(
+            "changed", f"An agent's own work is no longer a task; it shows on the agent's page."
+            f" Removed from Tasks: {titles}.", actor="alpha",
+            data={"collection": TABLE, "records": [r["id"] for r in rows]})
 
     def _move_commitments(self) -> None:
         """A world that kept commitments as rows (Q46, before 18 Oct 2026): each becomes a task
@@ -254,6 +277,10 @@ class Tasks:
             out["anchor"] = self.check_anchor(str(out["anchor"]))
         if out.get("repeats"):
             repeat_step(str(out["repeats"]))  # a rule Alpha can't read is refused now
+        if (before is not None and owner != before.get("owner") and out["state"] == WORKING
+                and before.get("state") == WORKING and self._custom_agent(owner)):
+            # assigning never starts the work (P2): Start does, or the person's Working after
+            out["state"] = OPEN
         if before is None:
             # an agent's own writes carry it (`agent`, the tools' provenance in a run)
             by = str(out.get("by") or provenance.get("agent") or provenance.get("by")
@@ -576,6 +603,52 @@ class Tasks:
     def _brief(t: dict[str, Any]) -> dict[str, Any]:
         return {"id": t["id"], "title": t.get("title"), "state": t.get("state"),
                 "due": t.get("due")}
+
+    # ---- runs serve tasks (P2, 18 Oct 2026) ----
+
+    def run_started(self, tid: str, agent_id: str) -> None:
+        """A run began serving the task: it is Working while the run goes."""
+        if self.get(tid).get("state") != WORKING:
+            self._set(tid, {"state": WORKING}, by=agent_id)
+
+    def run_ended(self, tid: str, agent_id: str, verdict: str) -> None:
+        """The run serving the task ended. A task is Done only when its agent said so in the
+        run (Q93); what the run said of the task stands (found 19 Oct: a run that blocked the
+        task, and succeeded, left it Done). One it left Working is Blocked, or Open when the
+        person stopped the run: a run that answered is not a task done."""
+        if self.get(tid).get("state") != WORKING:
+            return
+        self._set(tid, {"state": OPEN if verdict == "stopped" else BLOCKED}, by=agent_id)
+
+    def waiting_to_start(self) -> list[dict[str, Any]]:
+        """Tasks an agent owns that the person (or Alpha) moved to Working and no run has taken
+        since: the scheduler starts them."""
+        out = []
+        for t in self._open_rows(" AND json_extract(\"values\", '$.state') = ?", (WORKING,)):
+            owner = str(t.get("owner") or "")
+            if not self._custom_agent(owner):
+                continue
+            last = self.store.one("SELECT started_at, ended_at FROM runs WHERE task = ?"
+                                  " ORDER BY started_at DESC LIMIT 1", (t["id"],))
+            if last is None or (last["ended_at"] and last["started_at"] < t["updated_at"]):
+                out.append(t)
+        return out
+
+    @staticmethod
+    def release_agent(db: sqlite3.Connection, agent_id: str) -> int:
+        """Inside an agent's removal: what the person gave it comes back to them, Open."""
+        n = 0
+        for r in db.execute(
+            "SELECT id, \"values\" FROM records WHERE collection = ? AND deleted_at IS NULL AND"
+            " json_extract(\"values\", '$.owner') = ?", (TABLE, agent_id)).fetchall():
+            values = loads(r["values"], {})
+            values["owner"] = "person"
+            if values.get("state") == WORKING:
+                values["state"] = OPEN
+            db.execute("UPDATE records SET \"values\" = ? WHERE collection = ? AND id = ?",
+                       (dumps(values), TABLE, r["id"]))
+            n += 1
+        return n
 
     # ---- reading ----
 

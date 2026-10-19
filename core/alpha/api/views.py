@@ -41,6 +41,14 @@ def fold_failures(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def asked_by(world: World, a: dict[str, Any]) -> str | None:
+    """Who asked: the agent's name when its run asked (Q92); None when Alpha did."""
+    if a["actor"] in ("alpha", "person"):
+        return None
+    row = world.store.one("SELECT name FROM agents WHERE id = ?", (a["actor"],))
+    return str(row["name"]) if row else None
+
+
 def needs_you(world: World) -> list[dict[str, Any]]:
     """Everything waiting on the person: questions, proposals, suggested facts, same-name
     people to confirm."""
@@ -49,7 +57,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
         items.append({"kind": "ask", "id": a["id"], "text": a["text"], "at": a["at"],
                       "options": a["data"].get("options", []), "module": a["module"],
                       "turn": a["data"].get("turn"), "derived": bool(a["data"].get("derived")),
-                      "choose": a["data"].get("kind") or "one", "hint": a["data"].get("hint")})
+                      "choose": a["data"].get("kind") or "one", "hint": a["data"].get("hint"),
+                      "by": asked_by(world, a)})
     answered = {loads(r["data"], {}).get("proposal")
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):

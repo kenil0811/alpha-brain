@@ -113,18 +113,21 @@ def test_an_agent_runs_in_its_own_thread_and_reports(world: World) -> None:
     connections_table(world)
     t = building(world, turn="j_1")
     auto = t.agent_create("Every morning, sync LinkedIn connections", "daily 08:00",
-                               "page_to_table … into connections", module="Network")
+                               "page_to_table … into connections", module="Network",
+                               name="Every morning, sync LinkedIn connections")
     assert auto["when"].startswith("every day at 08:00") and auto["thread"]
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
         seen.append(req)
-        return RunResult(reply="Worth telling: 3 new connections, including Dana Okafor.",
-                         ok=True, session_id="s-auto")
+        # what is worth the person's attention goes by a hand, never a label in the reply
+        Tools(world, turn=req.turn_id, thread=req.thread_id, actor=req.actor,
+              run=req.run).tell_person("3 new connections, including Dana Okafor.")
+        return RunResult(reply="Synced 3 new connections.", ok=True, session_id="s-auto")
 
     done = agent_runner.run(world, auto["id"], runner=runner)
     assert "nobody is watching" in seen[0].system and seen[0].thread_id == auto["thread"]
-    assert done["last_result"].startswith("Worth telling") and done["last_error"] is None
+    assert done["last_result"] == "Synced 3 new connections." and done["last_error"] is None
     assert done["next_run_at"] > datetime.now(UTC).isoformat()
     noticed = world.journal.recent(5, kinds=["noticed"])
     assert noticed[-1]["text"] == "3 new connections, including Dana Okafor."
@@ -134,7 +137,7 @@ def test_an_agent_runs_in_its_own_thread_and_reports(world: World) -> None:
 
 def test_due_and_switching_off(world: World) -> None:
     t = building(world)
-    auto = t.agent_create("Sync", "every 1h", "do it")
+    auto = t.agent_create("Sync", "every 1h", "do it", name="Sync")
     assert world.agents.due() == []
     later = datetime.now(UTC) + timedelta(hours=2)
     assert [a["id"] for a in world.agents.due(later)] == [auto["id"]]
@@ -167,8 +170,8 @@ def test_the_scheduler_waits_for_a_properly_awake_mac(world: World) -> None:
 
 def test_the_scheduler_runs_due_agents_side_by_side(world: World) -> None:
     t = building(world)
-    one = t.agent_create("Sync one", "every 1h", "do one")
-    two = t.agent_create("Sync two", "every 1h", "do two")
+    one = t.agent_create("Sync one", "every 1h", "do one", name="Sync one")
+    two = t.agent_create("Sync two", "every 1h", "do two", name="Sync two")
     later = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
     with world.store.tx() as db:
         db.execute("UPDATE agents SET next_run_at = ?", (later,))
@@ -200,7 +203,7 @@ def test_the_scheduler_runs_due_agents_side_by_side(world: World) -> None:
 
 def test_the_api_lists_switches_and_runs_now(world: World) -> None:
     t = building(world)
-    auto = t.agent_create("Sync", "every 1h", "do it")
+    auto = t.agent_create("Sync", "every 1h", "do it", name="Sync")
     calls: list[str] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -265,7 +268,8 @@ def test_a_page_that_does_not_answer_at_wake_is_tried_again_in_a_minute(world: W
                        description="d", to_end=False, count=2)
     auto = t.agent_create("Daily brokers", "daily 07:00", module="Network",
                                steps=[{"read": "brokers", "into": "connections",
-                                       "key": "linkedin_url"}, {"tell": "connections"}])
+                                       "key": "linkedin_url"}, {"tell": "connections"}],
+                                       name="Daily brokers")
     calls: list[int] = []
     pauses: list[float] = []
 
@@ -311,7 +315,8 @@ def test_an_agent_that_reads_by_its_brief_converts_itself_to_steps(world: World)
                        script="x", description="d", to_end=True, count=5)
     auto = t.agent_create("Daily at 07:00, read your LinkedIn connections", "daily 07:00",
                                "Run reader_run(linkedin_connections into connections).",
-                               module="Network")
+                               module="Network",
+                               name="Daily at 07:00, read your LinkedIn connections")
     refused = Tools(world, thread=auto["thread"]).reader_run("linkedin_connections",
                                                              "connections", "linkedin_url")
     assert "error" in refused and "agent_update" in refused["error"]
@@ -352,7 +357,8 @@ def test_a_run_is_kept_with_a_verdict_judged_by_code(world: World) -> None:
                                steps=[{"read": "brokers", "into": "connections",
                                        "key": "linkedin_url"},
                                       {"read": "walled", "into": "connections",
-                                       "key": "linkedin_url"}, {"tell": "connections"}])
+                                       "key": "linkedin_url"}, {"tell": "connections"}],
+                                       name="Daily brokers")
     assert world.agents.get(auto["id"])["goal"] == "deals"
 
     class Browser:
@@ -398,22 +404,22 @@ def test_a_brief_run_has_its_pages_in_front_of_it_and_a_verdict(world: World) ->
     auto = t.agent_create(
         "Sunday summary", "weekly sun 18:00",
         "## What it is for\nA short honest summary: compare the week to the targets.\n"
-        "## A good run\nOne line.", module="Network", goal="know how the week went")
+        "## A good run\nOne line.", module="Network", goal="know how the week went",
+        name="Sunday summary")
     page = world.knowledge.find_note(f"agent:{auto['id']}", "Brief")
     assert page and page["body"].startswith("## What it is for")
     seen: list[str] = []
 
     def runner(req: TurnRequest) -> RunResult:
         seen.append(req.sentence)
-        return RunResult(reply="Worth telling: protein ran 20 g under.", ok=True,
-                         duration_ms=4000)
+        return RunResult(reply="Protein ran 20 g under.", ok=True, duration_ms=4000)
 
     agent_runner.run(world, auto["id"], runner=runner)
     assert "Your brief (what you are for, what to do, what to tell):" in seen[0]
     assert "A short honest summary" in seen[0]
     last = world.runs.last(auto["id"])
     assert last and last["verdict"] == "succeeded" and last["model_ms"] == 4000
-    assert last["line"].startswith("Worth telling")
+    assert last["line"] == "Protein ran 20 g under."
 
     def failing(req: TurnRequest) -> RunResult:
         return RunResult(reply="Approved.", ok=False,
@@ -436,7 +442,8 @@ def test_a_broken_reader_is_repaired_at_most_twice_in_a_run(world: World) -> Non
                        description="d", to_end=False, count=5)
     auto = t.agent_create("Daily brokers", "daily 07:00", module="Network",
                                steps=[{"read": "brokers", "into": "connections",
-                                       "key": "linkedin_url"}, {"tell": "connections"}])
+                                       "key": "linkedin_url"}, {"tell": "connections"}],
+                                       name="Daily brokers")
 
     class Empty:
         def script(self, *a: Any, **k: Any) -> dict[str, Any]:
@@ -522,7 +529,7 @@ def test_automations_become_agents_under_the_same_ids(tmp_path: Any) -> None:
 
 def test_an_agents_run_is_journaled_under_its_name_and_the_tools_know_it(world: World) -> None:
     t = building(world, turn="j_1")
-    auto = t.agent_create("Sync", "every 1h", "do it")
+    auto = t.agent_create("Sync", "every 1h", "do it", name="Sync")
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -547,7 +554,8 @@ def test_an_at_mention_makes_the_agent_answer_in_the_conversation(world: World) 
     """Q44: "@Name …" picks who answers, by structure; the reply is the agent's own, in the
     same conversation, and a run with trigger `mention` is kept."""
     t = building(world, turn="j_1")
-    auto = t.agent_create("Deal Scout", "daily 07:00", "Look at the deals table and say.")
+    auto = t.agent_create("Deal Scout", "daily 07:00", "Look at the deals table and say.",
+                          name="Deal Scout")
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -588,14 +596,14 @@ def test_an_agent_may_change_only_what_its_write_list_says(world: World) -> None
     world.collections.create("deals", "Listings", [{"name": "title", "kind": "text"}],
                              module=world.modules.get("Deals")["id"])
     t = building(world, turn="j_1")
-    asker = t.agent_create("Asker", "every 1h", "ask", module="Network")
+    asker = t.agent_create("Asker", "every 1h", "ask", module="Network", name="Asker")
     world.agents.update(asker["id"], may=["asks"])
     inside = Tools(world, turn="j_2", thread=asker["thread"], actor=asker["id"])
     refused = inside.records_add("connections", {"name": "A"}, source="stated")
     assert refused["error"].startswith("Asker may not change records; it may change asks.")
     assert "error" not in inside.ask_person("Which list?")
     assert world.collections.query("connections") == []
-    writer = t.agent_create("Writer", "every 1h", "write", module="Network")
+    writer = t.agent_create("Writer", "every 1h", "write", module="Network", name="Writer")
     own = Tools(world, turn="j_3", thread=writer["thread"], actor=writer["id"])
     assert own.records_add("connections", {"name": "A"}, source="stated")["id"]
     out = own.records_add("deals", {"title": "B"}, source="stated")
@@ -610,7 +618,7 @@ def test_a_kind_that_looks_for_work_runs_on_what_the_journal_gained(world: World
     from alpha.runtime import agents as kinds
 
     t = building(world, turn="j_1")
-    watcher = t.agent_create("Watcher", "weekly mon 09:00", "Say what failed.")
+    watcher = t.agent_create("Watcher", "weekly mon 09:00", "Say what failed.", name="Watcher")
     with world.store.tx() as db:
         db.execute("UPDATE agents SET kind = 'watcher' WHERE id = ?", (watcher["id"],))
     looked: list[int] = []
@@ -654,7 +662,7 @@ def test_a_custom_agent_goes_with_everything_it_made(world: World) -> None:
     t = building(world, turn="j_1")
     auto = t.agent_create("Sync", "every 1h", module="Network",
                           steps=[{"read": "brokers", "into": "connections",
-                                  "key": "linkedin_url"}], brief="Read then tell.")
+                                  "key": "linkedin_url"}], brief="Read then tell.", name="Sync")
     world.decisions.record(by="person", what="Only warm leads", about={"agent": auto["id"]})
     world.preferences.set("agent_looks", {auto["id"]: {"body": "fox"}})
     rid = world.runs.start(auto["id"], trigger="now")
@@ -683,7 +691,7 @@ def test_the_api_renames_pauses_and_deletes_an_agent(world: World,
 
     connections_table(world)
     t = building(world, turn="j_1")
-    auto = t.agent_create("Sync", "every 1h", "do it", module="Network")
+    auto = t.agent_create("Sync", "every 1h", "do it", module="Network", name="Sync")
     c = TestClient(create_app(world, live=False))
     assert c.patch(f"/api/agents/{auto['id']}", json={}).status_code == 400
     renamed = c.patch(f"/api/agents/{auto['id']}", json={"name": "Deal Scout"}).json()
@@ -698,7 +706,8 @@ def test_the_api_renames_pauses_and_deletes_an_agent(world: World,
     assert c.delete(f"/api/agents/{auto['id']}").json()["name"] == "Deal Scout"
     assert c.get(f"/api/agents/{auto['id']}").status_code == 400
     # The CLI lists and renames (the way Kenil's five get their names, 15 Oct).
-    other = t.agent_create("Daily brokers", "daily 07:00", "look", module="Network")
+    other = t.agent_create("Daily brokers", "daily 07:00", "look", module="Network",
+                           name="Daily brokers")
     monkeypatch.setenv("ALPHA_WORLD", str(world.path))
     assert main(["agent-rename", other["id"], "Deal", "Tracker"]) == 0
     assert world.agents.get(other["id"])["name"] == "Deal Tracker"
@@ -723,7 +732,8 @@ def test_a_time_that_comes_once_runs_once(world: World) -> None:
         schedules.check_schedule("at 2026-13-01 10:00")
     past = (datetime.now().astimezone() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
     connections_table(world)
-    auto = building(world).agent_create("Once", f"at {past}", steps=[{"tell": "connections"}])
+    auto = building(world).agent_create("Once", f"at {past}", steps=[{"tell": "connections"}],
+                                        name="Once")
     assert [a["id"] for a in world.agents.due()] == [auto["id"]]
     out = agent_runner.run(world, auto["id"], trigger="schedule")
     assert not out["on"] and out["next_run_at"] is None and world.agents.due() == []
@@ -791,7 +801,7 @@ def test_an_agents_own_pipeline_is_not_in_the_skills_list_and_says_what_it_does(
     auto = building(world).agent_create(
         "Every Monday at 08:00, sync my LinkedIn connections", "weekly mon 08:00",
         steps=[{"read": "linkedin_connections", "into": "connections", "key": "linkedin_url"},
-               {"tell": "connections"}])
+               {"tell": "connections"}], name="Every Monday at 08:00, sync my LinkedIn connections")
     own = world.skills.get(auto["skill"])
     assert own["description"] == ("Reads linkedin_connections into connections; tells what"
                                   " changed in connections.")
