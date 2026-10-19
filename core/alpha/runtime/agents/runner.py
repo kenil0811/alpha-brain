@@ -15,13 +15,15 @@ from typing import Any, cast
 
 from alpha import config
 from alpha.runtime import pipeline, route, turn
-from alpha.runtime.agents import MENTIONS, RUNS, Work
+from alpha.runtime.agents import MENTIONS, RUNS, Work, events
 from alpha.world.journal import RUN
 from alpha.world.store import Problem
 from alpha.world.tasks import DONE, OPEN, WORKING
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents")
+# the cards that wait for a yes on something an agent drafted, rather than for an answer
+DRAFTS = ("action", "proposal", "instruction", "offer", "staged")
 
 
 def brief_of(world: World, agent: dict[str, Any]) -> str:
@@ -93,9 +95,37 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
                    answered=answered)
         if task is not None:
             _settle(world, agent, run_id, task, thread)
+        if agent["kind"] == "custom":
+            events.ran(world, agent_id, work)  # what woke it is behind it now (P7)
         return out
     finally:
         RUN.reset(bound)
+
+
+def _became(world: World, card: dict[str, Any]) -> str:
+    """One draft's fate, in a line for the agent's next run."""
+    head = f"- {card['text'][:200]}:"
+    if card["state"] == "no":
+        return f"{head} the person said no" + (f" ({card['reason']})" if card.get("reason") else "")
+    if card["state"] == "withdrawn":
+        return f"{head} withdrawn (a newer draft or a removal took its place)"
+    said = "the person said yes" + (", after changing it" if card["state"] == "edited" else "")
+    if card["kind"] == "staged" and card.get("ref"):
+        try:
+            landed = world.staged.get(str(card["ref"])).get("landed")
+        except Problem:
+            return f"{head} {said}"
+        if isinstance(landed, dict):
+            return f"{head} {said}; kept as the document {landed.get('document')}"
+        return f"{head} {said}; {len(landed or [])} row(s) added"
+    if card["kind"] == "action" and card.get("ref"):
+        try:
+            action = world.actions.get(str(card["ref"]))
+        except Problem:
+            return f"{head} {said}"
+        outcome = action.get("result") or action.get("error") or action["state"]
+        return f"{head} {said}; {action['state']}: {outcome}"
+    return f"{head} {said}"
 
 
 def _settle(world: World, agent: dict[str, Any], run_id: str, task: str, thread: str) -> None:
@@ -109,14 +139,19 @@ def _settle(world: World, agent: dict[str, Any], run_id: str, task: str, thread:
     world.tasks.run_ended(task, agent["id"], verdict)
     after = world.tasks.get(task)
     title = after["title"]
+    # what the run left waiting on the person (P3): a draft waits for a yes, a question for
+    # an answer
+    left = world.cards.waiting_of_run(run_id)
     if after["state"] == DONE:
         what = f"did the task {title}"
     elif after["state"] == OPEN:
         what = f"stopped on the task {title}"
+    elif any(c["kind"] in DRAFTS for c in left):
+        what = f"is waiting for your yes on the task {title}, so it is Blocked"
+    elif left:
+        what = f"is waiting for your answer on the task {title}, so it is Blocked"
     elif said or verdict != "succeeded":
         what = f"could not finish the task {title}"
-    elif any(a["data"].get("run") == run_id for a in world.journal.open_asks()):
-        what = f"is waiting for your answer on the task {title}, so it is Blocked"
     else:
         what = f"ended without saying the task {title} was done, so it is Blocked"
     world.journal.append(
@@ -149,27 +184,33 @@ def _run(world: World, agent: dict[str, Any], run_id: str, thread: str, *,
                       "it has no steps and no brief, so there is nothing for it to do", None, 0)
     # the task it was given, with what is around it (P2), and what an earlier run asked with
     # the person's answer (Q92): the run's whole work
+    woke = events.front(work)
     parts = ["Run now, for a task you were given." if task is not None else
+             f"Run now, woken by what happened ({agent['when']})." if woke else
              f"Run now ({agent['when']})."]
+    if woke:
+        parts.append(woke)
     if answered:
         parts.append(answered)
     if task is not None:
         parts.append(world.tasks.around_text(task))
     parts.append(front(world, agent))
-    # what the person declined of its drafts since a run was last told, with why (P3 item 3):
-    # it tunes what the agent does, never its code
-    declined = world.cards.declined_for(agent_id)
-    if declined:
-        parts.append("What the person said no to, and why:\n" + "\n".join(
-            f"- {c['text'][:200]}: {c['reason']}" for c in declined))
-        world.cards.told([c["id"] for c in declined])
+    # what became of its drafts since a run was last told (P3 item 3, Q94): a yes and what
+    # it did, a No and why; it tunes what the agent does, never its code
+    became = world.cards.decided_for(agent_id)
+    if became:
+        parts.append("What became of your drafts since your last run:\n" + "\n".join(
+            _became(world, c) for c in became))
+        world.cards.told([c["id"] for c in became])
     if task is not None or answered:
         parts.append(("Do this task, then settle it: Done, or Blocked with what stops it."
                       if task is not None else "Carry on from their answer.")
                      + " End with what you did in a line.")
     prompt = "\n\n".join(p for p in parts if p)
     journal_as = (f"Run of {agent['name']} for the task {world.tasks.get(task)['title']}."
-                  if task is not None else f"Run of {agent['name']} ({agent['when']}).")
+                  if task is not None else
+                  f"Run of {agent['name']}, woken by: {'; '.join(work.about['events'])}"[:600]
+                  if woke and work is not None else f"Run of {agent['name']} ({agent['when']}).")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner,
                            rules=config.prompt("agent_run", name=agent["name"]), actor=agent_id,

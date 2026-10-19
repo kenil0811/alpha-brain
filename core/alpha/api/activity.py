@@ -89,6 +89,6 @@ def routes(app: FastAPI, s: Served) -> None:
         elif how == "preview":
             aid = plan["action"]
             world.actions.reopen(aid, acting.PREVIEW_PENDING)
-            background(f"again-{jid}", lambda: acting.dry_run(world, aid),
+            background(f"again-{jid}", lambda: acting.show(world, aid),
                        lambda why: world.actions.fail(aid, why))
         return failures_view(world, [world.journal.read(jid)])[0]

@@ -6,8 +6,8 @@
  * way. It replaces the drawer that opened under the table. Under the details: the record's
  * History, with Undo, and the person's Notes (section 2b, `RecordHistory`).
  */
-import { useEffect, useState } from "react";
-import type { Client, Note, RecordRow, Relations, TableDesc } from "../core/client";
+import { useCallback, useEffect, useState } from "react";
+import type { Client, Note, RecordRow, Relations, TableDesc, ValueSource } from "../core/client";
 import type { Surface } from "../shell/Rail";
 import { Button, Confirm } from "../ui";
 import { ArrowLeft } from "../ui/icons";
@@ -25,6 +25,8 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [asking, setAsking] = useState(false);
   const [tick, setTick] = useState(0);
+  // a value's document opened at the place it sat (P5)
+  const placeOf = useCallback((o: ValueSource) => client.documentPlace(o.document ?? "", { page: o.page, sheet: o.sheet, cell: o.cell }), [client]);
 
   useEffect(() => {
     let live = true;
@@ -124,7 +126,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
           <span className="faint">Each value says where it came from</span>
         </div>
         <div className="card card--pad">
-          <RecordFields page row={row} fields={isTask ? fields.filter((f) => f.name !== "reminded_at" && f.name !== "suggested") : fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
+          <RecordFields page row={row} fields={isTask ? fields.filter((f) => f.name !== "reminded_at" && f.name !== "suggested") : fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} placeOf={placeOf} />
         </div>
       </div>
       {isTask ? <TaskParts client={client} row={row} version={version} onChanged={() => { setTick((n) => n + 1); onChanged(); }} onGo={onGo} /> : null}

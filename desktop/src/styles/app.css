@@ -781,6 +781,18 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* Where a value came from, beside it on a thing's page (§12). */
 .origin { font-size: var(--text-xs); opacity: 0.75; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .origin--problem { opacity: 1; color: var(--bad); white-space: normal; }
+.origin .linkbtn { font-size: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
+/* a value's document at the place it sat (P5) */
+.place { display: flex; flex-direction: column; gap: 6px; padding: 4px; max-width: min(560px, 90vw); }
+.place__head { font-size: var(--text-sm); }
+.place__grid { border-collapse: collapse; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.place__grid th, .place__grid td { border: 1px solid var(--border); padding: 2px 6px; text-align: left; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.place__grid th { color: var(--text-3); font-weight: 400; background: var(--surface-2); }
+.place__hit { background: var(--primary-soft); outline: 1px solid var(--primary); }
+.place__formula { font-family: var(--font-mono, monospace); font-size: var(--text-xs); margin: 0; }
+.place__page { max-height: 260px; overflow-y: auto; font-size: var(--text-xs); line-height: 1.5; }
+.place__page p { margin: 0; white-space: pre-wrap; }
+.place__wait { padding: 4px; margin: 0; }
 /* "Your workflow" (§12): the page in the person's words, as a card. */
 .wf__purpose { margin: 4px 0 8px; }
 .wf__section { margin-top: 10px; }
@@ -1084,3 +1096,10 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .cardfrom a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
 /* a decision's who and why, under its words (Activity's Decisions, P3) */
 .item__sub { display: block; margin-top: 2px; }
+/* what an agent brought in, held for the yes (P3): its rows, thin lines, the kit's weights */
+.staged__rows { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: 6px 0 10px; }
+.staged__rows th { text-align: left; font-weight: 500; color: var(--text-3); padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.staged__rows td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.staged__rows td input:not([type="checkbox"]) { width: 100%; }
+.staged__place { display: inline-flex; gap: 6px; align-items: center; margin-left: 10px; }
+.staged__twin { display: block; margin-top: 4px; color: var(--text-2); }

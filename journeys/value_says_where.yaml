@@ -1,0 +1,30 @@
+name: value_says_where
+title: "Values · the answer says where a number sat, and it is right"
+why: >
+  P5 of the provenance-documents-triggers proposal (19 Oct 2026, Q96). A ledger imported from a
+  P&L sheet by code keeps each amount's cell as its source; asked for September's revenue and
+  where it is from, Alpha names the document, the sheet and the cell, read from the value's own
+  source rather than remembered.
+fresh: true
+steps:
+  - file_document:
+      name: "RestoPros P&L Sept 2025.xlsx"
+      sheets:
+        "P&L":
+          - ["Account", "Amount", "Month"]
+          - ["Revenue", 48200, "Sept"]
+          - ["Cost of sales", 21400, "Sept"]
+          - ["Payroll", 12800, "Sept"]
+  - import_document:
+      into: ledger
+      title: Ledger
+      sheet: "P&L"
+      fields:
+        - {name: account, kind: text}
+        - {name: amount, kind: number}
+        - {name: month, kind: text}
+  - say: "what was September's revenue, and where exactly is that number from?"
+checks:
+  - reply: {matches: "48,?200"}
+  - reply: {matches: "B2"}
+  - judge: "Does the answer give September's revenue as 48,200 and say it comes from the P&L sheet of RestoPros P&L Sept 2025.xlsx, cell B2?"

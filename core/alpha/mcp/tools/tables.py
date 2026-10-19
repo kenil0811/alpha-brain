@@ -97,7 +97,11 @@ class Tables(Base):
         only for what could not be looked up. assumed: anything you had to assume because it was
         unknown and could not be found ("the 330 ml bottle"), so the record and the person both
         know."""
-        prov = self._provenance(source, assumed)
+        return self._add(collection, values, self._provenance(source, assumed))
+
+    def _add(self, collection: str, values: dict[str, Any],
+             prov: dict[str, Any]) -> dict[str, Any]:
+        """One record added with its provenance (its values' own sources too, P5), journaled."""
         rec = self.world.collections.add(collection, values, prov)
         desc = self.world.collections.describe(collection)
         label = rec.get(desc["title_field"]) or rec["id"]
@@ -118,10 +122,17 @@ class Tables(Base):
         new ones are added, changed ones updated, unchanged ones left alone. Use it for
         anything synced from a source. keep_person_fields: fields only written where the record
         has none yet (tags, notes, priority the person sets), so syncs never overwrite them."""
-        result = self.world.collections.upsert(
-            collection, key_field, rows, {"by": "alpha", "turn": self.turn, "synced": True},
-            fill_only=set(keep_person_fields or []),
-        )
+        return self._upsert(collection, key_field, rows,
+                            {"by": "alpha", "turn": self.turn, "synced": True},
+                            keep_person_fields)
+
+    def _upsert(self, collection: str, key_field: str, rows: list[dict[str, Any]],
+                prov: dict[str, Any], keep: list[str] | None,
+                fields: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Rows added or updated on their key with one provenance (and each row's values' own
+        sources, P5), journaled."""
+        result = self.world.collections.upsert(collection, key_field, rows, prov,
+                                               fill_only=set(keep or []), sources=fields)
         desc = self.world.collections.describe(collection)
         self._did(
             "did",
@@ -205,6 +216,12 @@ class Tables(Base):
         if someone changed it meanwhile you get an error and should read it again. source: as
         in records_add, when the new values were looked up ("label on ocado.com"), stated or
         estimated; left out, the record keeps what it had. assumed: as in records_add."""
+        return self._update(collection, id, values, revision, source, assumed, None)
+
+    def _update(self, collection: str, id: str, values: dict[str, Any], revision: int,
+                source: str | None, assumed: str | None,
+                fields: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
+        """One record changed, journaled; `fields`: the new values' own sources (P5)."""
         before = self.world.collections.get(collection, id)
         prior = before.get("_provenance") or {}
         if source is None:
@@ -215,6 +232,8 @@ class Tables(Base):
                 prov["assumed"] = assumed
         else:
             prov = self._provenance(source, assumed)
+        if fields:
+            prov["fields"] = fields
         rec = self.world.collections.update(collection, id, values, revision, prov)
         desc = self.world.collections.describe(collection)
         self._did(

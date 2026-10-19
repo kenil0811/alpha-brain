@@ -47,6 +47,9 @@ class Turns:
             conversation = self.world.modules.thread(str(body.conversation or body.thread))["id"]
         elif addressed:
             conversation = self._agents_item(addressed[0])
+        elif actor != "person":
+            conversation = conversations.alphas_item(self.world, journal_as or body.text,
+                                                     body.module)
         routing = conversation is None and actor == "person"
         key = secrets.token_hex(6)
         self._evict()

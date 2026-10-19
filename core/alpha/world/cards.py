@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 # "which is this about?", a sign-in, a proposal, a standing instruction or a table offered,
 # an outward action, a drafted plan page.
 KINDS = ("question", "permission", "pick", "reminder", "check", "routing", "signin", "proposal",
-         "instruction", "offer", "action", "workflow")
+         "instruction", "offer", "action", "workflow", "staged")
 # waiting until decided; a question is answered or skipped; a decision is yes, edited (yes after
 # the person changed it), no (with its reason), or allowed (a standing permission said yes);
 # withdrawn when what it was about went or a newer card took its place.
@@ -66,7 +66,7 @@ def kind_of(line: str, data: dict[str, Any]) -> str | None:
     if data.get("scout") or data.get("plan"):
         return None
     for key, kind in (("action", "action"), ("workflow", "workflow"),
-                      ("instruction", "instruction"), ("offer", "offer")):
+                      ("instruction", "instruction"), ("offer", "offer"), ("staged", "staged")):
         if data.get(key):
             return kind
     return "proposal"
@@ -94,7 +94,7 @@ def key_of(kind: str, actor: str, text: str, data: dict[str, Any], module: str |
         content = _words((data.get("routing") or {}).get("text") or text)
     elif kind == "pick":
         target, content = str(data.get("proposal")), ""
-    elif kind in ("action", "workflow"):
+    elif kind in ("action", "workflow", "staged"):
         target, content = str(data.get(kind)), ""
     elif kind == "instruction":
         content = _words(str(data.get("instruction") or text))
@@ -185,7 +185,8 @@ class Cards:
                 seen = {"text": str(r["text"])[:200], "url": loads(r["data"], {}).get("url")}
                 if seen not in rests:
                     rests.append(seen)
-        ref = (data.get("action") or data.get("workflow") or data.get("proposal")
+        ref = (data.get("action") or data.get("workflow") or data.get("staged")
+               or data.get("proposal")
                or data.get("reminder") or data.get("connection") or data.get("reader"))
         db.execute(
             "INSERT OR IGNORE INTO cards (id, kind, text, options, drafter, thread, module, turn,"
@@ -268,12 +269,48 @@ class Cards:
             "SELECT * FROM cards ORDER BY COALESCE(decided_at, created_at) DESC LIMIT ?",
             (limit,))]
 
-    def declined_for(self, agent: str) -> list[dict[str, Any]]:
-        """What the person said no to, with a reason, that the agent drafted and no run of it
-        has been told yet."""
+    def decided_for(self, agent: str) -> list[dict[str, Any]]:
+        """What became of the agent's drafts that no run of it has been told yet (P3 item 3,
+        Q94): a yes, a No with its reason, a draft withdrawn."""
         return [view(r) for r in self.store.all(
-            "SELECT * FROM cards WHERE drafter = ? AND state = 'no' AND reason IS NOT NULL"
-            " AND told_at IS NULL ORDER BY decided_at", (agent,))]
+            "SELECT * FROM cards WHERE drafter = ? AND kind IN ('action', 'proposal',"
+            " 'instruction', 'offer', 'staged') AND state IN ('yes', 'edited', 'no', 'allowed',"
+            " 'withdrawn') AND told_at IS NULL ORDER BY decided_at", (agent,))]
+
+    def waiting_of_run(self, run: str) -> list[dict[str, Any]]:
+        """What a run left waiting on the person."""
+        return [view(r) for r in self.store.all(
+            "SELECT * FROM cards WHERE run = ? AND state = 'waiting' ORDER BY created_at", (run,))]
+
+    def of_ref(self, ref: str, kind: str) -> dict[str, Any] | None:
+        """The card about an action, a page or a task."""
+        row = self.store.one("SELECT * FROM cards WHERE ref = ? AND kind = ?"
+                             " ORDER BY created_at DESC LIMIT 1", (ref, kind))
+        return view(row) if row else None
+
+    def drafted_by_agent(self, action: str) -> bool:
+        """Whether an action's card was drafted by one of the person's agents (or a built-in
+        one) in a run, rather than by Alpha in conversation."""
+        card = self.of_ref(action, "action")
+        return bool(card and card["drafter"] not in ("alpha", "person"))
+
+    def replace_drafts(self, cid: str) -> list[str]:
+        """A newer draft from the same agent for the same task (or, with none, the same thread)
+        takes the place of its older waiting ones (P3 item 4): those are withdrawn, grey,
+        never deleted. The actions they were about come back for the caller to decline."""
+        card = self.get(cid)
+        same = ("task = ?", card["task"]) if card.get("task") else ("thread = ?", card["thread"])
+        if same[1] is None:
+            return []
+        with self.store.tx() as db:
+            rows = db.execute(
+                f"SELECT id, ref FROM cards WHERE kind = 'action' AND state = 'waiting'"
+                f" AND drafter = ? AND id != ? AND {same[0]}", (card["drafter"], cid, same[1])
+            ).fetchall()
+            for r in rows:
+                db.execute("UPDATE cards SET state = 'withdrawn', decided_at = ?,"
+                           " decided_by = 'alpha' WHERE id = ?", (now(), r["id"]))
+        return [str(r["ref"]) for r in rows if r["ref"]]
 
     def give_reason(self, ref: str, kind: str, reason: str) -> None:
         """The reason for a No decided by its own row's move (a drafted page declined)."""
@@ -316,7 +353,9 @@ class Cards:
                 " WHERE state = 'waiting' AND ("
                 " module IN (SELECT id FROM modules WHERE removed_at IS NOT NULL)"
                 " OR (drafter LIKE 'a\\_%' ESCAPE '\\' AND drafter NOT IN (SELECT id FROM agents))"
-                " OR (thread IS NOT NULL AND thread NOT IN (SELECT id FROM threads)))",
+                " OR (thread IS NOT NULL AND thread NOT IN (SELECT id FROM threads))"
+                " OR (kind = 'action' AND ref IN (SELECT id FROM actions WHERE state IN"
+                " ('failed', 'declined'))))",
                 (now(),)).rowcount
 
     # ---- a world from before the cards ----

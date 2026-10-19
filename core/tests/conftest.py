@@ -20,6 +20,14 @@ def building(world: World, *, turn: str | None = None, module: str | None = None
     return Tools(world, turn=turn, thread=thread["id"], module=module)
 
 
+@pytest.fixture(autouse=True)
+def scratch_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test keeps Alpha's own folders (files, actions, the browser's) in a scratch home:
+    without one they went to ~/Library/Application Support/Alpha Brain (found 19 Oct 2026, a
+    test's file came back as "CIM Midwest HVAC (5).pdf")."""
+    monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "alpha-home"))
+
+
 @pytest.fixture
 def world(tmp_path: Path) -> Iterator[World]:
     w = World(tmp_path / "world.sqlite")

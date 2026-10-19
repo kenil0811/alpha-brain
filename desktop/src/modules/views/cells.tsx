@@ -50,7 +50,8 @@ export function RelationCell({ row, field, relations, onOpenRelated }: { row: Re
  *  person's world, ≠ when it differed; what it was checked against, and when, on hover. */
 export function CheckMark({ checked }: { checked: Checked }) {
   const when = dayText(new Date(checked.at));
-  const words = `Checked by Columbo against ${checked.source}, ${when}${checked.agree ? "." : ": it differs."}`;
+  // a value compared with its cell or page by code (P5), or Columbo's check
+  const words = checked.by === "code" ? `Read again from ${checked.source}, ${when}: ${checked.agree ? "it matches." : checked.value !== undefined ? `it holds ${checked.value || "nothing"}.` : "the value isn't there."}` : `Checked by Columbo against ${checked.source}, ${when}${checked.agree ? "." : ": it differs."}`;
   return (
     <span className={checked.agree ? "chk" : "chk chk--differs"} title={words} aria-label={checked.agree ? "checked" : "checked: it differs"}>
       {checked.agree ? "✓" : "≠"}
@@ -71,10 +72,13 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   const said = row.words?.[field.name];
   if (typeof said === "string" && said) return <td title={said}>{said}</td>;
   const numeric = isNumeric(field.kind);
-  const estimate = Boolean(row.provenance?.estimated) && numeric;
-  const assumed = row.provenance?.assumed;
-  const source = row.provenance?.source;
-  const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
+  // the value's own source when it has one (P5), else the row's
+  const own = row.provenance?.fields?.[field.name];
+  const ownSays = Boolean(own?.source) && !own?.problem;
+  const estimate = numeric && (ownSays && own?.kind ? own.kind === "estimated" : Boolean(row.provenance?.estimated));
+  const assumed = own?.assumed ?? row.provenance?.assumed;
+  const source = ownSays ? own?.source : row.provenance?.source;
+  const lookedUp = (ownSays || numeric) && Boolean(source) && source !== "stated" && source !== "estimated" && source !== "you" && own?.kind !== "stated";
   const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   // Columbo's check: of the value a part filled here, or of the row's worked-out numbers
   const checked = row.provenance?.fields?.[field.name]?.checked ?? (numeric && row.provenance?.by === "alpha" ? row.provenance?.checked : undefined);

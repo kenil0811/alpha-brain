@@ -22,6 +22,9 @@
  *           own session: declarative steps (click, click_text, fill, type, press, wait,
  *           expect). Fills and typing take only values of the approved payload. With
  *           `stop_before_last` it is a dry run: every step but the commit, then a screenshot.
+ *           `discard` steps (a send's) then throw away what was typed, in the same page: a
+ *           compose window keeps a draft of anything typed (Gmail, 19 Oct); they also run
+ *           after a step fails. They never type.
  *           It refuses to type into password or payment fields, whatever the step says.
  * A page that stops automated reading with a bot check or a captcha comes back as `bot_check`
  * with nothing read: Alpha says so and never tries to get past it.
@@ -437,6 +440,15 @@ async function act(job) {
     shots[name] = file;
   };
   const log = [];
+  // what throws away what this job typed, in the same page (Q95); never typing
+  const discard = async (page) => {
+    if (!job.discard || !job.discard.length) return null;
+    for (const step of job.discard) {
+      if (step.fill || step.type || step.upload) return false;
+      if (!(await performStep(page, step, {}, log))) return false;
+    }
+    return true;
+  };
   try {
     const page = context.pages()[0] || (await context.newPage());
     const startUrl = filled(job.url, job.values || {});
@@ -459,12 +471,15 @@ async function act(job) {
       if (!ok) {
         await shoot(page, "error");
         const seen = await page.evaluate(() => (document.body ? document.body.innerText : "").replace(/\s+/g, " ").trim().slice(0, 1500)).catch(() => "");
-        return { bot_check: false, blocked: false, done, failed_step: i + 1, error: log[log.length - 1].error, log, shots, page_text: seen, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
+        const error = log[log.length - 1].error;
+        const discarded = await discard(page);
+        return { bot_check: false, blocked: false, done, failed_step: i + 1, error, discarded, log, shots, page_text: seen, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
       }
       done += 1;
     }
     await page.waitForTimeout(800);
     await shoot(page, job.stop_before_last ? "preview" : "after");
+    const discarded = job.stop_before_last ? await discard(page) : null;
     let verified = null;
     if (!job.stop_before_last && job.verify && job.verify.length) {
       verified = true;
@@ -476,7 +491,7 @@ async function act(job) {
         }
       }
     }
-    return { bot_check: false, blocked: false, done, stopped_before_last: !!job.stop_before_last, verified, log, shots, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
+    return { bot_check: false, blocked: false, done, stopped_before_last: !!job.stop_before_last, discarded, verified, log, shots, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
   } finally {
     await context.close().catch(() => {});
   }

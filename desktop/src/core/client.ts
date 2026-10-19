@@ -94,10 +94,46 @@ export interface TableSummary {
 /** Columbo's mark (Q47): what a value was checked against, when, and whether it agreed. */
 export interface Checked {
   at: string;
+  /** Columbo's id, or "code" when the value was compared with its cell or page (P5). */
   by: string;
   agree: boolean;
   source: string;
   entry?: string | null;
+  /** What the cell held, when code read it again. */
+  value?: string;
+}
+
+/** Where one value came from (P5): its kind and position, and the words that name it. */
+export interface ValueSource {
+  kind?: "document" | "url" | "stated" | "formula" | "estimated" | "words";
+  source?: string;
+  fetched_at?: string;
+  problem?: string;
+  part?: string;
+  attempts?: number;
+  checked?: Checked;
+  document?: string;
+  title?: string;
+  page?: number;
+  sheet?: string;
+  cell?: string;
+  formula?: string;
+  inputs?: Record<string, unknown>;
+  url?: string;
+  assumed?: string;
+}
+
+/** A document at the place a value sat, read again from the kept file (P5). */
+export interface DocumentPlace {
+  document: string;
+  title: string;
+  path: string;
+  page?: number;
+  text?: string;
+  sheet?: string;
+  cell?: string;
+  columns?: string[];
+  rows?: { row: number; cells: { cell: string; value: string; formula: string | null }[] }[];
 }
 
 export interface Provenance {
@@ -110,9 +146,9 @@ export interface Provenance {
   reader?: string;
   /** Columbo checked the values Alpha worked out for this row. */
   checked?: Checked;
-  /** Per value, what a part wrote (§12): where it came from and when, or why it could not;
-   *  and Columbo's check of it. */
-  fields?: Record<string, { source?: string; fetched_at?: string; problem?: string; part?: string; attempts?: number; checked?: Checked }>;
+  /** Per value (§12, P5): where it came from and when, or why it could not be filled; and
+   *  the check of it. */
+  fields?: Record<string, ValueSource>;
 }
 
 /** A saved list: a named way of looking at a table, kept in the world (the person's or Alpha's). */
@@ -401,6 +437,8 @@ export interface Action {
   module: string | null;
   preview: string | null;
   preview_note: string | null;
+  /** A send waits for its dry run's screenshot; a draft's card is its own payload (Q95). */
+  needs_preview?: boolean;
   /** Columbo's line: its numbers checked before the yes (Q47); never holds the card up. */
   checked?: string | null;
   shots: Record<string, string>;
@@ -491,8 +529,27 @@ export interface DecisionCard {
 /** A No says why, in one tap (P3); the core keeps the same six. */
 export const REASONS = ["Wrong place", "Duplicate", "Not needed", "Bad timing", "Wrong recipient", "Something else"] as const;
 
+/** What an agent's run brought in, held for the person's yes (P3): rows for a table, or a file. */
+export interface Staged {
+  id: string;
+  kind: "rows" | "file";
+  target: string;
+  place: string;
+  rows: { values: Record<string, unknown>; source?: string | null }[];
+  fields?: { name: string; label: string; kind: string }[];
+  name?: string | null;
+  size?: number | null;
+  origin?: string | null;
+  module?: string | null;
+  places?: { id: string; name: string }[];
+  state: string;
+  offers_always: boolean;
+  /** A file already kept (P6): its card says so, and Yes keeps both. */
+  duplicate_of?: { id: string; title: string } | null;
+}
+
 export interface NeedItem {
-  kind: "ask" | "proposal" | "fact" | "action" | "workflow";
+  kind: "ask" | "proposal" | "fact" | "action" | "workflow" | "staged";
   id: string;
   text: string;
   why?: string | null;
@@ -509,6 +566,7 @@ export interface NeedItem {
   /** The agent that drafted it, and where it came from (P3). */
   by?: string | null;
   from?: CardFrom;
+  staged?: Staged;
 }
 
 export interface CalendarItem {
@@ -1213,6 +1271,7 @@ export class Client {
   removePage = (ref: string, name: string) => this.call<{ removed: string }>("DELETE", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}`);
   entityFiles = (eid: string) => this.call<FileItem[]>("GET", `/api/entities/${encodeURIComponent(eid)}/files`);
   documentRemoval = (did: string) => this.call<{ document: string; title: string; what: string; used_by: FileItem["used_by"] }>("GET", `/api/documents/${encodeURIComponent(did)}/removal`);
+  documentPlace = (did: string, at: { page?: number; sheet?: string; cell?: string }) => this.call<DocumentPlace>("GET", `/api/documents/${encodeURIComponent(did)}/place?${new URLSearchParams(Object.entries(at).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)])).toString()}`);
   deleteDocument = (did: string) => this.call<Record<string, unknown>>("DELETE", `/api/documents/${encodeURIComponent(did)}`);
   addFiles = async (files: File[], where: { module?: string | null; table?: string; record?: string; field?: string; about?: string }): Promise<{ documents: DocumentInfo[]; turn: Turn | null }> => {
     const form = new FormData();
@@ -1382,6 +1441,10 @@ export class Client {
   declineWorkflow = (id: string, reason?: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`, { reason: reason ?? null });
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
   decideProposal = (id: string, accept: boolean, reason?: string) => this.call<{ decided: string; turn: Turn | null; open?: string | null }>("POST", `/api/proposals/${id}/decide`, { accept, reason: reason ?? null });
+  /** The person's decision on what an agent brought in (P3): rows ticked and changed, a file's
+   *  place, Always when offered, a No's reason. */
+  decideStaged = (id: string, body: { accept: boolean; ticks?: number[]; edits?: Record<string, Record<string, unknown>>; destination?: string; reason?: string; always?: boolean }) =>
+    this.call<{ staged: Staged; landed: unknown }>("POST", `/api/staged/${id}/decide`, body);
   /** Activity's Decisions (P3): every card, newest first. */
   decisions = (limit = 100) => this.call<DecisionCard[]>("GET", `/api/decisions?limit=${limit}`);
   /** A task's cards (P3): its page's Approvals. */

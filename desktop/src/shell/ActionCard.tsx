@@ -34,6 +34,8 @@ export function ActionCard({ action, client, onDecided, compact, by, from }: { a
   const fields = Object.entries(action.payload).filter(([f, v]) => editing || !isIdentifier(f, v));
   const why = action.evidence ?? "";
   const previewName = action.state === "proposed" ? action.preview : action.shots.after ?? action.shots.preview ?? action.shots.error ?? null;
+  // a send can't be approved before its dry run's screenshot; a draft has none to wait for (Q95)
+  const waiting = action.needs_preview !== false && !action.preview;
 
   useEffect(() => {
     let url: string | null = null;
@@ -74,6 +76,7 @@ export function ActionCard({ action, client, onDecided, compact, by, from }: { a
       <p className="because">
         <b>{action.effect === "send" ? "Sends" : "Prepares"}</b> on {action.site} · {EFFECT[action.effect]} · {when(action.created_at)}
       </p>
+      <CardFromLine from={from} />
       {why ? (
         <p className="because">
           <b>Because</b> {moreWhy || why.length <= EVIDENCE_SHORT ? why : `${why.slice(0, EVIDENCE_SHORT).trimEnd()}…`}
@@ -85,7 +88,8 @@ export function ActionCard({ action, client, onDecided, compact, by, from }: { a
         </p>
       ) : null}
       <div className={`action__body${compact ? " action__body--compact" : ""}`}>
-        {!compact ? (
+        {/* a draft has no screenshot: its payload is the preview, compact or not (Q95) */}
+        {!compact || action.needs_preview === false ? (
           <div className="action__payload">
             {fields.filter(([, v]) => isShort(v)).length ? (
               <p className="action__line">
@@ -144,11 +148,12 @@ export function ActionCard({ action, client, onDecided, compact, by, from }: { a
             </>
           ) : (
             <>
-              <Button variant="primary" disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
+              <Button variant="primary" disabled={busy || waiting} title={waiting ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
                 {action.effect === "send" ? "Send it" : "Do it"}
               </Button>
-              {action.effect === "prepare" ? (
-                <Button disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+              {/* an agent's draft asks every time (Q94): no Always for it */}
+              {action.effect === "prepare" && !by ? (
+                <Button disabled={busy || waiting} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
                 </Button>
               ) : null}
@@ -160,7 +165,6 @@ export function ActionCard({ action, client, onDecided, compact, by, from }: { a
           )}
         </div>
       ) : null}
-      <CardFromLine from={from} />
       {error ? <p className="notice">{error}</p> : null}
     </Card>
   );

@@ -110,13 +110,16 @@ def since_cursor(world: World, agent: dict[str, Any], kinds: list[str] | None = 
     return [entry(r) for r in rows]
 
 
-def look_and_run(world: World, kind: str, *, runner: Any = None) -> dict[str, Any] | None:
-    """What a tick does for one built-in kind, in line: its look since its cursor, a run when
-    there is work, the cursor moved. None when the kind has no agent in this world or nothing
-    to do. The journey suite and the tests use it where the app's scheduler would."""
+def look_and_run(world: World, kind: str, *, runner: Any = None,
+                 agent_id: str | None = None) -> dict[str, Any] | None:
+    """What a tick does for one built-in kind (or one custom agent, `agent_id`), in line: its
+    look since its cursor, a run when there is work, the cursor moved. None when the kind has
+    no agent in this world or nothing to do. The journey suite and the tests use it where the
+    app's scheduler would."""
     from alpha.runtime.agents import runner as agent_runner
 
-    agent = next((a for a in world.agents.all() if a["kind"] == kind and a["on"]), None)
+    agent = next((a for a in world.agents.all() if a["kind"] == kind and a["on"]
+                  and (agent_id is None or a["id"] == agent_id)), None)
     look = LOOKS.get(kind)
     if agent is None or look is None:
         return None

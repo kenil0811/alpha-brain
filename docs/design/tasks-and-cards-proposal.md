@@ -3,7 +3,7 @@
 *Agreed by Kenil as written, 18 October 2026, with the recommendation on all five questions
 (Q91). **P1 built the same night** (`../log/2026-10-18-p1-tasks.md`), accepted by Kenil in his app on 19 Oct; **P2
 built and committed 19 Oct** with Q92–Q93 (`../log/2026-10-19-p2-runs-serve-tasks.md`); **P3a built 19 Oct**
-(`../log/2026-10-19-p3a-cards.md`: items 1–4 and 8), then P3b (item 9), P3c (items 5–6), P3d (item 7).*
+(`../log/2026-10-19-p3a-cards.md`: items 1–4 and 8); **P3b built 19 Oct** (`../log/2026-10-19-p3b-agent-drafts.md`: item 9); **P3c and P3d built 19 Oct** (`../log/2026-10-19-p3cd-staged-writes-and-defer.md`: items 5–7; item 7 on the SDK's defer, proven by a spike).*
 
 *A proposal, 18 October 2026, for Kenil's yes before any code. These are the first three platform
 changes Vikas's four projects need (`requirements/alpha-fit-four-projects.md` beside the repo),

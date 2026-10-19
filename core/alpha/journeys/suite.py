@@ -58,7 +58,17 @@ from alpha import config
 from alpha.api.server import create_app
 from alpha.context import prepack
 from alpha.mcp.tools import Tools
-from alpha.runtime import acting, conversations, engine, look, pipeline, route, running, turn
+from alpha.runtime import (
+    acting,
+    conversations,
+    engine,
+    look,
+    pipeline,
+    route,
+    running,
+    staging,
+    turn,
+)
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
@@ -198,6 +208,7 @@ class Run:
         self.last_action: dict[str, Any] | None = None
         self.last_row: tuple[str, str] | None = None
         self.last_kit: str | None = None
+        self.last_document: dict[str, Any] | None = None
         builtin.ensure(world)
         self.mark = mark(world)
 
@@ -225,6 +236,17 @@ class Run:
                     self.last_routing = routed
                     outcome = turn.ask(self.world, spec["say"], thread=routed["thread"],
                                        runner=self.runner, conversation=True)
+                    deferred = [a for a in self.world.journal.open_asks()
+                                if a["data"].get("tool_use")
+                                and a["data"].get("turn") == outcome.said]
+                    if deferred:
+                        # a conversation's removal ended its turn on the card (P3 item 7): the
+                        # suite answers yes as the app does, and the item's next turn resumes
+                        self.world.journal.append(
+                            "answered", "Yes, remove it", actor="person",
+                            data={"ask": deferred[-1]["id"]}, thread=routed["thread"])
+                        outcome = turn.ask(self.world, "Yes, remove it", thread=routed["thread"],
+                                           runner=self.runner, conversation=True)
                     conversations.settle(self.world, routed["thread"], ok=outcome.ok,
                                          stopped=outcome.result.stopped,
                                          last_line=conversations.first_line(outcome.reply))
@@ -271,6 +293,52 @@ class Run:
             record = {"start_tasks": started, "ok": bool(started),
                       "detail": f"{len(started)} task(s) started" + (
                           f": {'; '.join(started)}" if started else "")}
+        elif "file_document" in spec:
+            # a file the person dropped into a module (P6): a sheet or a PDF built from the
+            # journey's own words, kept as Alpha keeps any file; `again` brings the same bytes
+            # under another name, as a second email would
+            arg = spec["file_document"]
+            doc = self._file_document(arg)
+            self.last_document = doc
+            record = {"file_document": doc["title"], "ok": True,
+                      "detail": ("already kept" if doc.get("already") else "kept")
+                      + f" as {doc['id']}"}
+        elif "import_document" in spec:
+            # the rows of the last document put into a table by code (P6), as the window's
+            # import would; the table made first when it isn't there
+            arg = spec["import_document"]
+            if self.last_document is None:
+                raise Problem("import_document needs a file_document step before it.")
+            tools = Tools(self.world, turn=None)
+            if arg["into"] not in self.world.collections.names():
+                tools.collection_create(arg["into"], arg.get("title") or arg["into"],
+                                        arg["fields"], module=arg.get("module"))
+            imported: Any = tools.world_file("import", ref=self.last_document["id"],
+                                             into=arg["into"], sheet=arg.get("sheet"))
+            record = {"import_document": arg["into"], "ok": "error" not in imported,
+                      "detail": str(imported)[:300]}
+        elif "wake_agents" in spec:
+            # what the scheduler's tick does for the person's agents with on: lines (P7)
+            woke = []
+            for agent in self.world.agents.working():
+                if agent["kind"] == "custom" and agent["events"]:
+                    if look_and_run(self.world, "custom", runner=self.runner,
+                                    agent_id=agent["id"]) is not None:
+                        woke.append(agent["name"])
+            record = {"wake_agents": woke, "ok": True,
+                      "detail": f"woke {', '.join(woke)}" if woke else "nothing woke"}
+        elif "decide_staged" in spec:
+            # the person's yes or no on the newest batch an agent brought in (P3 item 5)
+            arg = spec["decide_staged"]
+            held = self.world.store.one("SELECT id FROM staged WHERE state = 'held' ORDER BY"
+                                        " created_at DESC LIMIT 1")
+            if held is None:
+                record = {"decide_staged": arg, "ok": False, "detail": "Nothing was held."}
+            else:
+                staging.decide(self.world, held["id"], accept=bool(arg.get("accept")),
+                               reason=arg.get("reason"))
+                record = {"decide_staged": arg, "ok": True,
+                          "detail": f"{held['id']}: {self.world.staged.get(held['id'])['state']}"}
         elif "answer_ask" in spec:
             # the person answers the newest open question matching on its card, through the
             # app's own route (Q92: one a run asked goes back to the agent that asked it)
@@ -313,7 +381,13 @@ class Run:
                 made = from_tools.agent_create(seed["title"], seed.get("schedule", "weekly mon"
                                                                    " 09:00"),
                                                brief=seed["brief"],
-                                               name=seed.get("name") or seed["title"])
+                                               name=seed.get("name") or seed["title"],
+                                               stage=[self._table(t) for t in
+                                                      seed.get("stage") or []] or None,
+                                               on=[{k: self._table(v) if k in (
+                                                   "rows_added", "rows_changed") else v
+                                                   for k, v in line.items()}
+                                                   for line in seed.get("wakes_on") or []] or None)
                 if "error" in made:
                     raise Problem(made["error"])
                 record = {"seed": f"agent {made['name']}", "ok": True}
@@ -442,6 +516,39 @@ class Run:
                         self.world.journal.append("answered", "Yes (the journey suite)",
                                                   actor="person", data={"ask": a["id"]},
                                                   thread=a["thread"], module=a["module"])
+
+    def _file_document(self, arg: dict[str, Any]) -> dict[str, Any]:
+        from alpha.connectors.files import Files
+
+        folder = Path(self.world.path).parent / "dropped"
+        folder.mkdir(parents=True, exist_ok=True)
+        name = str(arg["name"])
+        path = folder / name
+        if arg.get("again"):
+            first = folder / str(arg["again"])
+            path.write_bytes(first.read_bytes())
+        elif "sheets" in arg:
+            from openpyxl import Workbook
+
+            wb = Workbook()
+            for i, (title, rows) in enumerate(dict(arg["sheets"]).items()):
+                ws = wb.active if i == 0 else wb.create_sheet()
+                assert ws is not None
+                ws.title = str(title)
+                for row in rows:
+                    ws.append(list(row))
+            wb.save(path)
+        else:
+            path.write_bytes(text_pdf([str(p) for p in arg["pages"]]))
+        module = None
+        if arg.get("module"):
+            try:
+                module = self.world.modules.get(arg["module"])["id"]
+            except Problem:
+                module = Tools(self.world, turn=None).module_create(
+                    arg["module"], arg.get("goal") or "")["id"]
+        return Files(self.world).take(path, module=module, origin="the person",
+                                      by="person")
 
     def _table(self, name: str) -> str:
         names = self.world.collections.names()
@@ -773,6 +880,20 @@ class Run:
         return ok, (f"{task['title']}: run {run['verdict']} ({run['trigger']}), {len(steps)}"
                     f" steps, task {task['state']}: {said}")
 
+    def check_card(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The newest card the journey made (P3): its `kind`, its `state`, and with `by_agent`
+        drafted by one of the person's agents with the task its run served."""
+        rows = [c for c in self.world.cards.decided(200) if c["created_at"] >= self.mark.at
+                and (not arg.get("kind") or c["kind"] == arg["kind"])]
+        if not rows:
+            return False, f"No {arg.get('kind') or ''} card was made.".replace("  ", " ")
+        c = rows[0]
+        by = c["drafter"] not in ("alpha", "person")
+        ok = ((not arg.get("state") or c["state"] == arg["state"])
+              and (not arg.get("by_agent") or (by and bool(c.get("task")))))
+        return ok, (f"{c['kind']} card \"{c['text'][:100]}\", {c['state']}, drafted by"
+                    f" {c['drafter']}" + (f", for task {c['task']}" if c.get("task") else ""))
+
     def check_agent_made(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """The agent the journey made in words (Q92): a short name, not the sentence; on call
         (no schedule) when `on_call`; and no task of its own."""
@@ -810,8 +931,55 @@ class Run:
                     f" {(run.get('line') or run.get('why') or '')[:200]}"
                     + (f"; kept about the person: {kept}" if kept else ""))
 
+    def check_value_source(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The values of a field say where they came from (P5): every row's source is of the
+        kind asked (a document's cell), and with `row`/`cell`, that row's is that cell."""
+        table = self._table(arg["collection"])
+        rows = [r for r in self.world.collections.query(table, limit=None)
+                if r.get(arg["field"]) not in (None, "")]
+        if not rows:
+            return False, f"No row of {table} has {arg['field']}."
+        sources = [((r.get("_provenance") or {}).get("fields") or {}).get(arg["field"]) or {}
+                   for r in rows]
+        kind = arg.get("kind", "document")
+        wrong = [r for r, src in zip(rows, sources, strict=True) if src.get("kind") != kind]
+        words = "; ".join(f"{r.get(arg['field'])} from {src.get('source') or 'no source'}"
+                          for r, src in list(zip(rows, sources, strict=True))[:4])
+        if wrong:
+            return False, f"{len(wrong)} of {len(rows)} without a {kind} source: {words}."
+        if arg.get("cell"):
+            hits = [src for r, src in zip(rows, sources, strict=True)
+                    if str(r.get(arg["match_field"])) == str(arg["row"])]
+            if not hits or hits[0].get("cell") != arg["cell"]:
+                return False, f"{arg['row']}'s {arg['field']} isn't from {arg['cell']}: {words}."
+        return True, f"{len(rows)} value(s), each from its place: {words}."
+
+    def check_kept_once(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """One file, one document (P6): the same bytes taken twice are one document, and the
+        second taking said it was already kept."""
+        rows = self.world.store.all("SELECT title FROM documents WHERE removed_at IS NULL"
+                                    " AND title LIKE ?", (f"%{arg['title_contains']}%",))
+        again = bool(self.last_document and self.last_document.get("already"))
+        return len(rows) == 1 and again, (f"{len(rows)} document(s) titled like"
+                                          f" {arg['title_contains']!r}; the second taking"
+                                          f" {'said already kept' if again else 'made a copy'}.")
+
+    def check_woke(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """An agent woken by events (P7): that many runs started by them, and the first line
+        of the newest names what woke it."""
+        agent = self._agent(arg["agent"])
+        runs = [r for r in self.world.runs.of(agent["id"]) if r["trigger"] == "event"]
+        lines = [e["text"] for e in self.world.journal.recent(50)
+                 if e["thread"] == agent["thread"] and "woken by" in e["text"]]
+        said = lines[-1] if lines else ""
+        ok = len(runs) == int(arg.get("runs", 1)) and (
+            not arg.get("contains") or str(arg["contains"]).lower() in said.lower())
+        return ok, (f"{len(runs)} run(s) woken by events" + (f"; {said[:240]}" if said else "")
+                    + (f"; last: {(runs[0].get('line') or runs[0].get('why') or '')[:160]}"
+                       if runs else ""))
+
     def check_count(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        rows = self.world.collections.query(arg["collection"], limit=None)
+        rows = self.world.collections.query(self._table(arg["collection"]), limit=None)
         n = len(rows)
         if "reader" in arg:
             rows = [r for r in rows if r.get("_gone_at") is None]
@@ -957,6 +1125,39 @@ class Run:
         noun = "entry" if len(entries) == 1 else "entries"
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
+
+
+def text_pdf(pages: list[str]) -> bytes:
+    """A plain PDF with these pages of text (one line each in Helvetica), for a journey's
+    statement: written by hand, so no PDF library is needed to make one."""
+    def esc(text: str) -> str:
+        return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+    n = len(pages)
+    objects: list[bytes] = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        ("<< /Type /Pages /Kids [" + " ".join(f"{4 + 2 * i} 0 R" for i in range(n))
+         + f"] /Count {n} >>").encode(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    for i, text in enumerate(pages):
+        lines = "".join(f"({esc(line)}) Tj 0 -16 Td " for line in text.split("\n"))
+        stream = f"BT /F1 12 Tf 72 720 Td {lines}ET".encode()
+        objects.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents"
+                       f" {5 + 2 * i} 0 R /Resources << /Font << /F1 3 0 R >> >> >>".encode())
+        objects.append(b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream
+                       + b"\nendstream")
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    out += b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+    out += (f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"
+            .encode())
+    return bytes(out)
 
 
 def run_journey(world: World, journey: dict[str, Any],

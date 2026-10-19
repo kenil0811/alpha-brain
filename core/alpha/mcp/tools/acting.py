@@ -15,7 +15,8 @@ class Acting(Base):
     def procedure_save(self, name: str, url: str, description: str, effect: str,
                        steps: list[dict[str, Any]], fields: list[str],
                        verify: list[dict[str, Any]] | None = None,
-                       when_to_use: str | None = None) -> dict[str, Any]:
+                       when_to_use: str | None = None,
+                       discard: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Keep the steps that do one task on one site, in the person's own session: your
         know-how for acting, like a reader is for reading. Write it from the real page (page_read,
         page_script to see the controls), then use it through action_propose; it is proven by the
@@ -29,19 +30,31 @@ class Acting(Base):
         {"goto": url}. fill and type take only a field of the payload, never words of your own;
         a {field} inside the url, a selector, a click_text or a goto is filled from the payload
         too (a profile slug, a subject to find), so one procedure serves every recipient; the
-        last step is the commit (save, close, send): a dry run does everything before it.
-        fields: the payload fields the steps use (e.g. ["to", "subject", "body"]). verify:
-        read-only checks after the commit ({"expect_text": …}). when_to_use: one line on when
+        last step is the commit (save, close, send): a send's dry run does everything before
+        it, then its discard steps throw away what it typed (a draft a compose window keeps, by
+        its Discard button), in the same page; a send needs them, and they never type. A
+        prepare (a draft) has no dry run: its card shows exactly what will be typed. fields:
+        the payload fields the steps use (e.g. ["to", "subject", "body"]). discard (a send's):
+        e.g. [{"click": "[aria-label='Discard draft']"}]. verify: read-only checks after the
+        commit ({"expect_text": …}). when_to_use: one line on when
         this is the right skill. Write a procedure for the task, never for one recipient or
         one message: the payload carries what differs. Before writing one, look at WHAT ALPHA
         CAN DO (or skills_find by site): an existing procedure for the site and task is used,
         and generalised with fields when it was too narrow, rather than a second one written."""
+        agent = self._agent()
+        if self._in_run() and agent is not None and agent["kind"] == "custom":
+            # a site's first procedure is learnt with the person there, never in a run nobody
+            # watches (Q94); Doc's repair of one that broke is its own work (Q49)
+            raise Problem("A procedure for a site is learnt with the person there, not in a"
+                          " run. Propose it with tell_person kind \"proposal\": what you"
+                          " would send, to whom, through which site; Alpha sets it up.")
         site = site_of(url)
         saved = self.world.procedures.save(name, by=self.actor, site=site, url=url,
                                            description=description,
                                            effect=effect, steps=steps, fields=fields,
                                            verify=verify, when_to_use=when_to_use,
-                                           source=f"turn:{self.turn}" if self.turn else None)
+                                           source=f"turn:{self.turn}" if self.turn else None,
+                                           discard=discard)
         self._did("made", f"Kept the procedure {name} ({saved['effect']} on {site}, version"
                   f" {saved['version']}): {saved['description']}", {"procedure": name})
         return {k: saved[k] for k in ("name", "site", "effect", "fields", "version", "health")}
@@ -58,14 +71,10 @@ class Acting(Base):
         Barcelona"). undo: what can be undone and what cannot ("the draft can be deleted" / "a
         sent email cannot be unsent"). evidence: what it rests on, in one plain sentence the
         person would say (who it goes to and why, what was read), never ids, urns or
-        addresses: the card shows it."""
-        if self._in_run():
-            # Agents read and update Alpha's tables; they never act outward, whatever a brief
-            # or a page says, and a standing permission is the person's yes to Alpha in
-            # conversation, not to a run nobody is watching (design §4, by mechanism).
-            raise Problem("An agent never acts outward: nothing is drafted, sent, posted"
-                          " or submitted from a run nobody is watching. Note what the person"
-                          " might want sent (journal_note) and they can ask for it.")
+        addresses: the card shows it. From an agent's run it is the agent's draft (Q94): its
+        card always waits for the person's yes, which no standing permission covers, and a
+        newer draft of the agent's for the same task takes the place of the older one."""
+        in_run = self._in_run()
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
         action = self.world.actions.propose(proc, title=title, payload=payload, undo=undo,
@@ -79,8 +88,14 @@ class Acting(Base):
                         {"action": action["id"], "why": evidence, "effect": proc["effect"]},
                         module_id)
         self.world.actions.set_proposal(action["id"], jid)
+        if in_run:
+            replaced = self.world.cards.replace_drafts(jid)
+            for old in replaced:
+                self.world.actions.decline(old)
+        # a standing permission is the person's yes to Alpha in conversation, never to a run
+        # nobody is watching: an agent's draft asks every time (Q94)
         standing = self.world.permissions.for_procedure(proc["name"]) \
-            if proc["effect"] == "prepare" else None
+            if proc["effect"] == "prepare" and not in_run else None
         if standing:
             self.world.actions.approve(action["id"], f"standing permission: {standing['sentence']}")
             self.world.journal.answer_proposal(jid, True, words="Yes (standing permission)",
@@ -89,7 +104,12 @@ class Acting(Base):
             return {"action": action["id"], "state": self.world.actions.get(action["id"])["state"],
                     "ran_now": True, "under": standing["sentence"], "outcome": done.get("outcome"),
                     "error": done.get("error")}
-        preview = acting.dry_run(self.world, action["id"], turn_id=self.turn)
+        preview = acting.show(self.world, action["id"], turn_id=self.turn)
+        if preview.get("dry_run") == "none":
+            return {"action": action["id"], "state": "proposed", "dry_run": "none",
+                    "note": "A draft has no dry run: the person sees the card with exactly what"
+                            " will be typed and decides. Say so in one line; nothing is typed"
+                            " until they approve."}
         if not preview["ok"]:
             return {"action": action["id"], "state": "failed", "dry_run": "failed",
                     "why": preview["why"], "failed_step": preview.get("failed_step"),

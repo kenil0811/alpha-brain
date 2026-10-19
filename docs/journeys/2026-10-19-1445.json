@@ -1,0 +1,75 @@
+[
+ {
+  "name": "staged_from_a_run",
+  "title": "Tasks · what an agent brings in waits on one card; a No's reason reaches its next run",
+  "steps": [
+   {
+    "say": "make a table named contacts with each person's name and email",
+    "ok": true,
+    "reply": "I've made a **Contacts** table with two fields, **Name** and **Email**. It's empty for now.\n\n- **Where it is:** in a section called **People**, because a section can't have the same name as the table inside it.\n- **Duplicates:** each contact is matched by email, so the same person won't be added twice.\n\nTo add someone, just tell me their name and email, for example \"add Sara Lopez, sara@example.com\".",
+    "steps": 3,
+    "seconds": 14.9
+   },
+   {
+    "seed": "agent Intake",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Intake",
+    "ok": true,
+    "result": "I added 2 people to the contacts table, Anna Lee (anna@restopros.test) and Ben Ortiz (ben@restopros.test), with the source \"the inbox\". They aren't in the table yet: they wait for the person's yes on a card.",
+    "problem": null,
+    "seconds": 6.2
+   },
+   {
+    "decide_staged": {
+     "accept": false,
+     "reason": "Not needed"
+    },
+    "ok": true,
+    "detail": "stg_c7202adbf74d: dropped",
+    "seconds": 0.0
+   },
+   {
+    "agent": "Intake",
+    "ok": true,
+    "result": "I added nobody this run, so nothing is waiting for your yes. Last time you said no to adding Anna Lee and Ben Ortiz (\"Not needed\"), so I didn't propose them again; the contacts table is still empty.\n\nThe brief needs changing: it says these two came from \"the inbox\", but no inbox is connected, so that source would be false. To bring in the people who actually emailed you, connect your email and the brief can be rewritten to read from it.",
+    "problem": null,
+    "seconds": 10.4
+   },
+   {
+    "decide_staged": {
+     "accept": true
+    },
+    "ok": false,
+    "detail": "Nothing was held.",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "card",
+    "arg": {
+     "kind": "staged",
+     "state": "yes"
+    },
+    "ok": false,
+    "why": "staged card \"Add 2 rows to Contacts\", no, drafted by a_69de67a6baea",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "contacts",
+     "at_least": 2
+    },
+    "ok": false,
+    "why": "0 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 31.5,
+  "error": null
+ }
+]

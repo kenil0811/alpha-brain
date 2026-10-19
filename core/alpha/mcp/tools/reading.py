@@ -10,9 +10,9 @@ from typing import Any
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
-from alpha.connectors.files import Files, files_dir
+from alpha.connectors.files import Files, file_hash, files_dir
 from alpha.mcp.tools.base import ALPHA_SETS, Base, tool
-from alpha.runtime import pipeline
+from alpha.runtime import pipeline, staging, value_sources
 from alpha.world.readers import health_problem
 from alpha.world.sites import site_of
 from alpha.world.sources import STATUSES as SOURCE_STATUSES
@@ -48,10 +48,90 @@ class Reading(Base):
         return Files(self.world).documents(limit)
 
     @tool
-    def document_read(self, ref: str, start: int = 0, length: int = 20000) -> dict[str, Any]:
-        """The text of a document by id, path or file name, in pages of `length` characters;
-        `more` says whether there is more after this page."""
-        return Files(self.world).read(ref, start, length)
+    def document_read(self, ref: str, start: int = 0, length: int = 20000,
+                      page: int | None = None, sheet: str | None = None,
+                      cells: str | None = None) -> dict[str, Any]:
+        """The text of a document by id, path or file name, in pages of `length` characters
+        (`more` says whether there is more), with its positions marked; or one PDF `page`; or a
+        `sheet`'s cells in a range (`cells`, e.g. "B2:F40"), each with its reference, value and
+        formula."""
+        return Files(self.world).read(ref, start, length, page=page, sheet=sheet, cells=cells)
+
+    @tool(writes="records")
+    def document_import(self, ref: str, into: str, sheet: str | None = None,
+                        header_row: int | None = None, columns: dict[str, str] | None = None,
+                        key: str | None = None) -> dict[str, Any]:
+        """Rows of a kept spreadsheet or CSV put into a table by code, never typed by you (P6):
+        its columns mapped to the table's fields by their headers (or by `columns`: {header or
+        column letter: field}), each value with its cell as its source (P5). With key, rows
+        matched on that field are updated. In an agent's run, rows for a staged table wait on
+        the person's card. Rows that don't fit the table are set aside and counted."""
+        files = Files(self.world)
+        doc = files.read(ref, 0, 1)
+        desc = self.world.collections.describe(into)
+        table = files.sheet_table(doc, sheet, header_row)
+        fields = {f["name"]: f for f in desc["fields"]}
+
+        def norm(words: str) -> str:
+            return "_".join("".join(ch if ch.isalnum() else " " for ch in words.lower()).split())
+
+        by_label = {norm(str(f.get("label") or name)): name for name, f in fields.items()}
+        mapped: dict[str, str] = {}
+        for col, header in table["headers"].items():
+            wanted = (columns or {}).get(header) or (columns or {}).get(col)
+            if wanted is None and columns is None:
+                wanted = norm(header) if norm(header) in fields else by_label.get(norm(header))
+            if wanted:
+                if wanted not in fields:
+                    raise Problem(f"{desc['title']} has no field {wanted!r}.")
+                mapped[col] = wanted
+        if not mapped:
+            raise Problem(f"None of the columns ({', '.join(table['headers'].values())}) matched"
+                          f" a field of {desc['title']}; say which goes where (columns).")
+        rows, sources = [], []
+        for r, cells in table["rows"]:
+            values = {mapped[col]: v for col, (v, _) in cells.items()
+                      if col in mapped and v not in (None, "")}
+            if not values:
+                continue
+            rows.append(values)
+            sources.append({mapped[col]: value_sources.of_cell(doc, table["sheet"],
+                                                               f"{col}{r}", f)
+                            for col, (v, f) in cells.items()
+                            if col in mapped and v not in (None, "")})
+        where = f"{doc['title']} · {table['sheet']}"
+        result: dict[str, Any] = {"into": into, "sheet": table["sheet"],
+                                  "header_row": table["header_row"],
+                                  "mapped": {table["headers"][c]: f for c, f in mapped.items()},
+                                  "unmapped": [h for c, h in table["headers"].items()
+                                               if c not in mapped]}
+        if self._stages(into) is not None:
+            agent = self._staging()
+            assert agent is not None
+            held = self.world.staged.hold_rows(
+                table=desc["name"], rows=rows, source=where, assumed=None, key=key, keep=None,
+                drafter=agent["id"], run=self.run, module=self.module, thread=self.thread,
+                turn=self.turn, fields=sources)
+            if not staging.land_if_allowed(self.world, held["id"]):
+                return {**result, "staged": held["id"], "count": len(rows),
+                        "note": "These rows wait for the person's yes on a card."}
+            return {**result, "imported": len(rows)}
+        made, problems = 0, []
+        for values, field_sources in zip(rows, sources, strict=True):
+            prov = {**self._provenance(where, None), "document": doc["id"],
+                    "fields": field_sources}
+            try:
+                if key and values.get(key) is not None:
+                    self.world.collections.upsert(desc["name"], key, [values], prov)
+                else:
+                    self.world.collections.add(desc["name"], values, prov)
+                made += 1
+            except Problem as e:
+                problems.append(str(e))
+        self._did("did", f"Imported {made} rows from {where} into {desc['title']}"
+                  + (f"; {len(problems)} didn't fit" if problems else "") + ".",
+                  {"collection": desc["name"], "document": doc["id"]}, desc["module"])
+        return {**result, "imported": made, "invalid": len(problems), "problems": problems[:3]}
 
     @tool(writes="files")
     def page_download(self, url: str, module: str | None = None, click: str | None = None,
@@ -73,6 +153,25 @@ class Reading(Base):
                    "the address gave a page, not a file" if got["html"] else
                    f"nothing came back (status {got.get('status')})")
             return {"error": f"Couldn't fetch a file from {url}: {why}."}
+        if self._staging() is not None:
+            # a file an agent's run fetched waits for the person's yes (P3 item 5), out of
+            # the module's files until then
+            agent = self._staging()
+            assert agent is not None
+            files = Files(self.world)
+            held = self.world.staged.hold_file(
+                path=Path(got["path"]), held=files_dir().parent / ".held", origin=url,
+                module=module_id, drafter=agent["id"], run=self.run, thread=self.thread,
+                turn=self.turn, duplicate_of=files.kept(file_hash(Path(got["path"]))))
+            with contextlib.suppress(OSError):
+                scratch.rmdir()
+            if staging.land_if_allowed(self.world, held["id"]):
+                landed = self.world.staged.get(held["id"])["landed"] or {}
+                return {"document": landed.get("document"), "name": held["name"],
+                        "note": "Kept at once: the person always keeps what you bring here."}
+            return {"staged": held["id"], "name": held["name"], "size": held["size"],
+                    "note": "The file waits for the person's yes on a card; it is not a"
+                            " document until then. Say so in your last line."}
         doc = Files(self.world).take(Path(got["path"]), module=module_id, origin=url,
                                      move=True, turn=self.turn)
         with contextlib.suppress(OSError):

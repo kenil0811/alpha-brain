@@ -14,15 +14,17 @@ from alpha.api.bodies import (
     AskBody,
     DecideBody,
     DeclineBody,
+    StagedDecideBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
     items_today,
     module_card,
     needs_you,
+    staged_view,
 )
 from alpha.connectors.calendar import Calendar
-from alpha.runtime import conversations, engine
+from alpha.runtime import conversations, engine, staging
 from alpha.runtime.agents import columbo, scout, watson
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.cards import reason_of
@@ -191,9 +193,24 @@ def routes(app: FastAPI, s: Served) -> None:
         # Closed without an answer: nothing runs.
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
+    @app.post("/api/staged/{sid}/decide", dependencies=[api])
+    def decide_staged(sid: str, body: StagedDecideBody) -> dict[str, Any]:
+        """The person's yes (all, or what they ticked and changed) or no (with its reason) on
+        what an agent brought in (P3 item 5); Always when the card offered it (item 6)."""
+        edits = {int(k): v for k, v in (body.edits or {}).items()}
+        done = staging.decide(world, sid, accept=body.accept, ticks=body.ticks, edits=edits,
+                              destination=body.destination, always=body.always,
+                              reason=reason_of(body.reason) if not body.accept else None)
+        return {"staged": staged_view(world, sid), "landed": done.get("landed")}
+
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
+        if proposal["data"].get("staged"):
+            # a staged card decided as a plain proposal: all of it, or none (P3)
+            staging.decide(world, str(proposal["data"]["staged"]), accept=body.accept,
+                           reason=reason_of(body.reason) if not body.accept else None)
+            return {"decided": pid, "turn": None}
         reason = reason_of(body.reason) if not body.accept else None
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"],
                                                  **({"reason": reason} if reason else {}))
@@ -219,8 +236,18 @@ def routes(app: FastAPI, s: Served) -> None:
             # Watson's offer of a table (Q79): the go-ahead carries the sentences to put in it
             return {"decided": pid,
                     "turn": running.start(AskBody(text=watson.go_ahead_words(world, proposal)))}
+        if not body.accept:
+            return {"decided": pid, "turn": None}
+        card = world.cards.get(pid)
+        if card["drafter"] not in ("alpha", "person") and card.get("thread"):
+            # an agent's suggestion (Q94): the yes goes to its own item, where Alpha does it
+            # with the person there (a site's first procedure is learnt that way)
+            why = proposal["data"].get("why")
+            return {"decided": pid, "turn": running.start(AskBody(
+                text=f"Yes, go ahead: {proposal['text']}" + (f" ({why})" if why else ""),
+                conversation=card["thread"]))}
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
-                                        module=proposal["module"])) if body.accept else None
+                                        module=proposal["module"]))
         return {"decided": pid, "turn": started}
 
     @app.post("/api/turns/{key}/stop", dependencies=[api])

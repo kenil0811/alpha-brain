@@ -159,6 +159,11 @@ class Watson:
 
 
 @dataclass(frozen=True)
+class Staging:
+    always_after: int
+
+
+@dataclass(frozen=True)
 class Pages:
     ticket_seconds: int
 
@@ -187,6 +192,7 @@ class Settings:
     sherlock: Sherlock
     scout: Scout
     watson: Watson
+    staging: Staging
     checks: Checks
     pages: Pages
 

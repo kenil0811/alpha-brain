@@ -1,0 +1,40 @@
+name: statement_imported
+title: "Documents · a sheet's rows imported by code, each value with its cell, one file one document"
+why: >
+  P6 and P5 of the provenance-documents-triggers proposal (19 Oct 2026, Q96). The person drops
+  a two-sheet P&L and a two-page bank statement into Accounting and asks for the P&L sheet in a
+  table. The rows come from code (world_file import), not typed by the model; every amount's
+  source is its own cell; and the same P&L arriving again by another name is the document
+  already kept, not a second copy.
+fresh: true
+steps:
+  - file_document:
+      module: Accounting
+      name: "RestoPros P&L Sept 2025.xlsx"
+      sheets:
+        "P&L":
+          - ["Account", "Amount", "Month"]
+          - ["Revenue", 48200, "Sept"]
+          - ["Cost of sales", 21400, "Sept"]
+          - ["Payroll", 12800, "Sept"]
+          - ["Rent", 3500, "Sept"]
+        "Notes":
+          - ["Prepared by RestoPros"]
+          - ["Cash basis"]
+  - file_document:
+      module: Accounting
+      name: "Bank statement Sept 2025.pdf"
+      pages:
+        - "Bank statement September 2025\nOpening balance 1,200.00\nDeposits 48,200.00"
+        - "Withdrawals 46,000.00\nClosing balance 3,400.00"
+  - say: "import the P&L sheet of RestoPros P&L Sept 2025.xlsx into a new table called ledger with account, amount and month"
+    module: Accounting
+  - file_document:
+      module: Accounting
+      name: "P&L from the email.xlsx"
+      again: "RestoPros P&L Sept 2025.xlsx"
+checks:
+  - journal: {kind: did, contains: "Imported"}
+  - count: {collection: ledger, at_least: 4}
+  - value_source: {collection: ledger, field: amount, kind: document, match_field: account, row: Revenue, cell: B2}
+  - kept_once: {title_contains: "P&L"}

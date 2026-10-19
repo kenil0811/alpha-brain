@@ -63,6 +63,17 @@ def open_item(world: World, sentence: str, module: str | None) -> dict[str, Any]
     return world.modules.open_thread(title_for(sentence), "work", module_id)
 
 
+def alphas_item(world: World, words: str, module: str | None) -> str:
+    """A turn Alpha starts by itself with nowhere to live (the files the person added on a
+    module's page, read): a work item of its own, said in Home like a routed sentence's
+    (harness §7). Before 19 Oct such a turn died on its missing thread and nothing ran."""
+    item = open_item(world, words, module)
+    world.journal.append("did", f"Started a work item: {item['title']}", actor="alpha",
+                         data={"routed": item["id"], "sentence": words, "opened": True,
+                               "by": "alpha"}, thread=home(world)["id"])
+    return str(item["id"])
+
+
 UNNAMED = "New conversation"
 
 

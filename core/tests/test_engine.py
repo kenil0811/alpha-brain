@@ -21,6 +21,7 @@ from claude_agent_sdk import (
 )
 
 from alpha.runtime import engine, running
+from alpha.runtime import turn as turn_module
 from alpha.runtime.running import LIVE, STALLED, STOPPED, TurnRequest
 from alpha.world.world import World
 
@@ -445,3 +446,56 @@ def test_the_models_own_files_and_shell_are_gated_by_place(tmp_path: Path) -> No
     assert not options.sandbox["allowUnsandboxedCommands"]
     assert options.cwd == str(own) and options.add_dirs == [str(granted.resolve())]
     world.close()
+
+
+def test_a_conversations_removal_defers_on_its_card_and_resumes_from_it(tmp_path: Path) -> None:
+    """P3 item 7 (19 Oct 2026; the spike proved the SDK's defer end to end): in a conversation
+    the removal's card is put and the call deferred, so the turn ends with nothing waiting in
+    memory; the answer's turn resumes the kept session and the hook decides the deferred call
+    from the card, after a restart too."""
+    world = World(tmp_path / "w.sqlite")
+    world.collections.create("food_log", "Food log", [{"name": "item", "kind": "text"}])
+    row = world.collections.add("food_log", {"item": "eggs"}, {"by": "person"})
+    thread = world.modules.open_thread("Food", "work", None)["id"]
+    req = request(tmp_path, kind="turn", turn_id="j_9", thread_id=thread, persist=True)
+    hook: Any = engine.removal_hook(req, world)
+    call: dict[str, Any] = {"tool_name": "mcp__alpha__world_change", "session_id": "s-77",
+            "tool_input": {"table": "food_log", "id": row["id"], "revision": 1, "remove": True}}
+
+    def decision(out: Any) -> str:
+        return str(out["hookSpecificOutput"]["permissionDecision"])
+
+    assert decision(asyncio.run(hook(call, "toolu_1", None))) == "defer"
+    [card] = world.journal.open_asks()
+    assert card["text"].startswith('Remove "eggs" from Food log?')
+    assert card["data"]["tool_use"] == "toolu_1" and card["data"]["session"] == "s-77"
+    assert world.modules.thread(thread)["state"] == "needs_you"
+    assert decision(asyncio.run(hook(call, "toolu_1", None))) == "defer"  # still waiting
+    # a change that is no removal is the callback's, as before
+    assert asyncio.run(hook({"tool_input": {"values": {"item": "egg"}}}, "toolu_2", None)) == {}
+    # the answer: the next turn answers a deferral, so it resumes whatever changed
+    world.journal.append("answered", "Yes, remove it", actor="person", data={"ask": card["id"]},
+                         thread=thread)
+    assert turn_module.answers_a_deferral(world, thread)
+    assert decision(asyncio.run(hook(call, "toolu_1", None))) == "allow"
+    # a No refuses the deferred call, in the person's words
+    call_two = {**call, "tool_input": {**call["tool_input"], "id": "r_other"}}
+    asyncio.run(hook(call_two, "toolu_3", None))
+    [second] = world.journal.open_asks()
+    world.journal.append("answered", "No, keep it", actor="person", data={"ask": second["id"]},
+                         thread=thread)
+    out: Any = asyncio.run(hook(call_two, "toolu_3", None))
+    assert decision(out) == "deny"
+    assert out["hookSpecificOutput"]["permissionDecisionReason"] == engine.NO
+    world.close()
+
+
+def test_a_turn_that_ends_on_a_deferred_card_says_it_waits(tmp_path: Path,
+                                                            monkeypatch: Any) -> None:
+    from claude_agent_sdk.types import DeferredToolUse
+
+    deferred = result(result="", stop_reason="tool_deferred",
+                      deferred_tool_use=DeferredToolUse(id="toolu_1", name="world_change",
+                                                        input={}))
+    out = asyncio.run(engine.run_async(request(tmp_path), client_factory=factory([deferred])))
+    assert out.ok and out.reply == engine.DEFERRED and out.session_id == "s-1"

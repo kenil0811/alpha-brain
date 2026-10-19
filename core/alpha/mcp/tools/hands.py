@@ -25,7 +25,7 @@ from alpha.mcp.tools.modules import Modules
 from alpha.mcp.tools.reading import Reading
 from alpha.mcp.tools.tables import Tables
 from alpha.mcp.tools.workflows import WorkflowTools
-from alpha.runtime import look
+from alpha.runtime import look, staging, value_sources
 from alpha.world import queries
 from alpha.world.store import Problem
 from alpha.world.tasks import TABLE as TASKS
@@ -60,35 +60,95 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
     @hand(writes="records")
     def world_write(self, table: str, rows: list[dict[str, Any]], source: str,
                     key: str | None = None, assumed: str | None = None,
-                    keep_person_fields: list[str] | None = None) -> dict[str, Any]:
+                    keep_person_fields: list[str] | None = None,
+                    sources: dict[str, Any] | None = None) -> dict[str, Any]:
         """Put rows into a table. rows: a list of {field: value}. source (required): where the
         values came from, "stated" (the person said them), a URL or a few words naming the page
         or document, or "estimated" (only what cannot be known); assumed: what you had to assume.
+        sources: where each value came from when it isn't the row's source, per field
+        ({field: source}): "stated", "estimated", {"url": address}, {"document": id, "page": 3},
+        {"document": id, "sheet": "P&L", "cell": "B12"}, or {"formula": "revenue / months",
+        "inputs": {"revenue": 48200, "months": 3}} (the inputs as they were). A row may carry its
+        own as "_sources". Name a document's page or cell only from what document_read showed:
+        code checks the place is there and compares the value with it, and says when it differs.
         With key (a field such as url, email or profile_url) rows are matched on it: existing
         ones are updated, new ones added, and fields in keep_person_fields are never overwritten
         (the person's own notes, tags, statuses). Without key every row is added. A list read
         from a site goes through its reader (skill_run), which keeps seen and gone for you; this
-        is for rows you worked out or the person gave you."""
+        is for rows you worked out or the person gave you. In an agent's run, rows for a table
+        on its stage list wait for the person's yes on one card for the batch."""
         if not rows:
             return {"error": "rows is empty: nothing to write."}
-        if key:
-            return self.records_upsert(table, key, rows, keep_person_fields=keep_person_fields)
-        added: list[Any] = []
+        desc = self.world.collections.describe(table)
+        names = {f["name"] for f in desc["fields"]}
+        plain: list[dict[str, Any]] = []
+        fields: list[dict[str, Any]] = []
+        differs: list[str] = []
         for row in rows:
-            out = self.records_add(table, row, source, assumed=assumed)
-            if _bad(out):
-                return {**out, "added": added}
+            own = row.get("_sources")
+            values = {k: v for k, v in row.items() if k != "_sources"}
+            entries, off = value_sources.sourced(
+                self.world, values, {**(sources or {}), **(own if isinstance(own, dict) else {})},
+                names, desc["title"])
+            plain.append(values)
+            fields.append(entries)
+            differs.extend(off)
+        out = self._write_rows(table, plain, source, key, assumed, keep_person_fields, fields)
+        if differs and not _bad(out):
+            out = {**out, "differs": differs[:5],
+                   "note": "These values differ from what their source holds there: read the"
+                           " place again and correct the value or its source (world_change)."}
+        return out
+
+    def _write_rows(self, table: str, rows: list[dict[str, Any]], source: str, key: str | None,
+                    assumed: str | None, keep: list[str] | None,
+                    fields: list[dict[str, Any]]) -> dict[str, Any]:
+        if self._stages(table) is not None:
+            return self._stage_rows(table, rows, source, key, assumed, keep, fields)
+        if key:
+            prov = {**self._provenance(source, assumed), "synced": True}
+            return self._upsert(table, key, rows, prov, keep, fields if any(fields) else None)
+        added: list[Any] = []
+        for values, entries in zip(rows, fields, strict=True):
+            prov = self._provenance(source, assumed)
+            if entries:
+                prov["fields"] = entries
+            try:
+                out = self._add(table, values, prov)
+            except Problem as e:
+                return {"error": str(e), "added": added}
             added.append(out.get("id") or out)
         return {"added": added, "count": len(added)}
+
+    def _stage_rows(self, table: str, rows: list[dict[str, Any]], source: str, key: str | None,
+                    assumed: str | None, keep: list[str] | None,
+                    fields: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Rows an agent's run brought in for a staged table: held on one card for the batch,
+        or landed at once under the person's standing "Always" for that agent and table."""
+        agent = self._staging()
+        assert agent is not None
+        held = self.world.staged.hold_rows(
+            table=self.world.collections.describe(table)["name"], rows=rows, source=source,
+            assumed=assumed, key=key, keep=keep, drafter=agent["id"], run=self.run,
+            module=self.module, thread=self.thread, turn=self.turn,
+            fields=fields if fields and any(fields) else None)
+        if staging.land_if_allowed(self.world, held["id"]):
+            return {"landed": len(held["rows"]), "note": "Landed at once: the person always"
+                    " keeps what you bring into this table."}
+        return {"staged": held["id"], "count": len(held["rows"]),
+                "note": "These rows wait for the person's yes on a card (this table is on your"
+                        " stage list); say so in your last line."}
 
     @hand(writes="records")
     def world_change(self, table: str, id: str | None = None, revision: int | None = None,
                      values: dict[str, Any] | None = None, remove: bool = False,
                      source: str | None = None, assumed: str | None = None,
-                     ids: list[str] | None = None) -> dict[str, Any]:
+                     ids: list[str] | None = None,
+                     sources: dict[str, Any] | None = None) -> dict[str, Any]:
         """Change one row's fields (values: {field: value}), or remove it (remove: true) when
         the person asked for that. revision: the row's current revision from world_query, so a
-        change never lands on a row that moved. source and assumed as for world_write. A row
+        change never lands on a row that moved. source, sources and assumed as for world_write;
+        a value keeps its own source until it changes. A row
         the person entered themselves is theirs: change it only on their word. To remove
         several rows the person asked to remove, give their ids in `ids` with remove: true, in
         one call: one question to them covers all of them (a call per row is a card per row);
@@ -105,7 +165,14 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             return self.records_delete(table, id, revision)
         if not values:
             return {"error": "values is empty: say which fields change, or remove: true."}
-        return self.records_update(table, id, values, revision, source=source, assumed=assumed)
+        desc = self.world.collections.describe(table)
+        entries, differs = value_sources.sourced(
+            self.world, values, sources, {f["name"] for f in desc["fields"]}, desc["title"])
+        out = self._update(table, id, values, revision, source, assumed, entries)
+        if differs:
+            out = {**out, "differs": differs,
+                   "note": "These values differ from what their source holds there."}
+        return out
 
     @hand(writes="records")
     def world_shape(self, table: str | None = None, title: str | None = None,
@@ -234,24 +301,40 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                                 " it yourself.")
         return out
 
-    @hand(writes="files")
+    # gated per action by the operation each one calls (P6, 19 Oct 2026): reading writes
+    # nothing, fetching and watching write files, importing writes records
+    @hand
     def world_file(self, action: str, ref: str | None = None, url: str | None = None,
                    path: str | None = None, start: int = 0, length: int = 20000,
                    module: str | None = None, click_text: str | None = None,
-                   name: str | None = None) -> dict[str, Any] | list[dict[str, Any]]:
+                   name: str | None = None, page: int | None = None,
+                   sheet: str | None = None, cells: str | None = None,
+                   into: str | None = None, header_row: int | None = None,
+                   columns: dict[str, str] | None = None,
+                   key: str | None = None) -> dict[str, Any] | list[dict[str, Any]]:
         """Documents and files. action "list": the documents Alpha has read, newest first;
         "read" with ref (an id, a path or a file name): its text from start, length
-        characters a page; "fetch" with url (and click_text when a click downloads it): a file
-        fetched through the person's session into Alpha's folder for the module, kept as a
-        document (a table's `file` field keeps its id); "watch" with path: start reading a
-        folder the person named and what is in it, "sync" with path to read its changes now.
-        Alpha never runs a file."""
+        characters a page, positions marked ("[page 3]"; a sheet's "12: A=… | B=48200
+        (=SUM(B2:B11))"), or one `page`, or a `sheet`'s `cells` ("B2:F40"); "import" with ref
+        and into (a table): a spreadsheet's or CSV's rows put in by code, each value with its
+        cell (sheet, header_row, columns {header: field}, key to update by), never typed by
+        you; "fetch" with url (and click_text when a click downloads it): a file fetched
+        through the person's session into Alpha's folder for the module, kept as a document
+        (a table's `file` field keeps its id; the same file again is the one already kept);
+        "watch" with path: start reading a folder the person named and what is in it, "sync"
+        with path to read its changes now. Alpha never runs a file."""
         if action == "list":
             return self.documents_list()
         if action == "read":
             if not ref:
                 return {"error": "read needs ref: the document's id, path or file name."}
-            return self.document_read(ref, start=start, length=length)
+            return self.document_read(ref, start=start, length=length, page=page, sheet=sheet,
+                                      cells=cells)
+        if action == "import":
+            if not (ref and into):
+                return {"error": "import needs ref (the document) and into (the table)."}
+            return self.document_import(ref, into, sheet=sheet, header_row=header_row,
+                                        columns=columns, key=key)
         if action == "fetch":
             if not url:
                 return {"error": "fetch needs url."}
@@ -262,7 +345,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             return self.folder_watch(path)
         if action == "sync":
             return self.files_sync(path)
-        return {"error": "action is one of list, read, fetch, watch, sync."}
+        return {"error": "action is one of list, read, import, fetch, watch, sync."}
 
     @hand(writes="facts")
     def world_remember(self, kind: str, about: str | None = None, predicate: str | None = None,
@@ -471,15 +554,18 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    script: str | None = None, steps: list[dict[str, Any]] | None = None,
                    fields: list[str] | None = None, verify: list[dict[str, Any]] | None = None,
                    effect: str | None = None, to_end: bool = False, whole: bool | None = None,
-                   when_to_use: str | None = None) -> dict[str, Any]:
+                   when_to_use: str | None = None,
+                   discard: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Keep know-how you will use again, as a skill (a directory with a SKILL.md the person
         can read; every save a version). kind "read": a reader, script (JavaScript run in the
         page that returns clean rows, objects with the same keys) for url, tried once now and
         kept only if it returns rows; to_end when the list scrolls or shows more; whole false
         when it reads only the newest page on purpose. kind "act": the steps that do one task on
         one site in the person's session (url, steps, fields the payload fills, verify checks,
-        effect "prepare" for what stays in their account or "send" for what reaches someone);
-        acting then goes through act_outward. name: snake_case (site_listings). description:
+        effect "prepare" for what stays in their account or "send" for what reaches someone;
+        a send also needs discard: the steps that throw away what its dry run typed, in the
+        same page right after, e.g. Gmail's Discard draft button); acting then goes through
+        act_outward. name: snake_case (site_listings). description:
         what it does, in a sentence. when_to_use: one line on when this is the right one (it is
         in every turn's context, so you reuse it instead of writing another). Saving under an
         existing name replaces it. Repair a broken one the same way."""
@@ -492,7 +578,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             if not (url and steps and effect):
                 return {"error": "a procedure needs url, steps and effect."}
             return self.procedure_save(name, url, description, effect, steps, fields or [],
-                                       verify=verify, when_to_use=when_to_use)
+                                       verify=verify, when_to_use=when_to_use, discard=discard)
         return {"error": "kind is read or act (a run skill is an agent's: agent_keep)."}
 
     @hand(writes="records")
@@ -525,7 +611,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    schedule: str | None = None, brief: str | None = None,
                    steps: list[dict[str, Any]] | None = None, module: str | None = None,
                    goal: str | None = None, state: str | None = None,
-                   name: str | None = None) -> dict[str, Any]:
+                   name: str | None = None,
+                   stage: list[str] | None = None,
+                   on: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Make or change an agent of the person's. New: name (what the person calls it, two or
         three words: "Deal Analyst"), title (the sentence the person would say: "Every Monday
         at 08:00, sync my LinkedIn connections and tell me who is new"), and schedule when it
@@ -534,6 +622,12 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         date). No schedule makes an agent on call: one with a brief that works only when the
         person gives it a task and starts it, or names it with @. Giving a task to an agent
         never starts it; Start does (the task's Start, or world_remember with state "start").
+        stage: the tables whose rows it brings in from outside wait for the person's yes on a
+        card (set it for an agent that takes in emails, contacts or a feed, and say so; a file
+        it fetches always waits). on: what wakes it besides a schedule (or instead of one):
+        [{"rows_added": table}, {"rows_changed": table, "fields": [...]}, {"document_filed":
+        module}, {"card_decided": "mine"}, {"before_event": minutes, "matching": words}]; what
+        happened goes in front of its run, and its own writes never wake it (on: [] for none).
         steps ([{"read": reader, "into": table, "key": field}, …, {"tell": table}]: a pipeline
         the scheduler runs with no model, on a schedule; the tell step reports what is new,
         changed and gone in that table since the last run), or brief (plain words for an agent
@@ -543,12 +637,12 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         The agent's page shows its runs and verdicts."""
         if id:
             return self.agent_update(id, state=state, schedule=schedule, brief=brief, title=title,
-                                     name=name, steps=steps)
+                                     name=name, steps=steps, stage=stage, on=on)
         if not (title and name and name.strip()):
             return {"error": "a new agent needs a title (what it does) and a name (two or three"
                              " words the person calls it by)."}
         return self.agent_create(title, schedule or "", brief=brief or "", steps=steps,
-                                 module=module, goal=goal, name=name)
+                                 module=module, goal=goal, name=name, stage=stage, on=on)
 
     # ---- acting outward ----
 

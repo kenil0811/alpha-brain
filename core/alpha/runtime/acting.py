@@ -25,6 +25,10 @@ from alpha.world.world import World, alpha_home
 log = logging.getLogger(__name__)
 
 PREVIEW_PENDING = "The preview is being made."
+# A prepare (a draft) has no dry run (Q95, 19 Oct 2026): typing it is making it (Gmail keeps a
+# draft of anything typed into a compose window: four drafts came of one "saying hello"), so
+# its card shows exactly what will be typed, and the yes types it once.
+NO_DRY_RUN = "Nothing is typed until your yes: the card shows exactly what will be."
 
 def shots_dir(action_id: str) -> Path:
     return alpha_home() / "actions" / action_id
@@ -56,6 +60,16 @@ def page_seen(result: dict[str, Any]) -> str | None:
 
 def _shots(result: dict[str, Any]) -> list[str]:
     return [str(p) for p in (result.get("shots") or {}).values()]
+
+
+def show(world: World, action_id: str, *, browser: Browser | None = None,
+         turn_id: str | None = None) -> dict[str, Any]:
+    """The card's preview: a send's dry run (its discard steps then throw away what it typed),
+    or a draft's own payload, exactly as it will be typed, with no dry run (Q95)."""
+    if world.actions.get(action_id)["effect"] == "prepare":
+        world.actions.previewed(action_id, preview=None, note=NO_DRY_RUN, shots=[])
+        return {"ok": True, "dry_run": "none"}
+    return dry_run(world, action_id, browser=browser, turn_id=turn_id)
 
 
 def dry_run(world: World, action_id: str, *, browser: Browser | None = None,
@@ -95,7 +109,35 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
             turn_id: str | None = None) -> dict[str, Any]:
     """Run an approved action to its end, verify, and record what happened. On a failure the
     procedure is marked broken and, with `repair`, Alpha looks at the page and proposes the
-    action afresh."""
+    action afresh. An agent's draft hands its task back to the agent afterwards (Q94)."""
+    try:
+        return _perform(world, action_id, browser=browser, runner=runner, repair=repair,
+                        turn_id=turn_id)
+    finally:
+        back_to_drafter(world, action_id)
+
+
+def back_to_drafter(world: World, action_id: str) -> tuple[str, str] | None:
+    """After the yes to an agent's draft for a task it was given, and the action's run: the
+    task is Working again, so the agent runs for it with what became of its draft in front and
+    settles it (Q94). The scheduler's next tick starts it, or the caller at once."""
+    card = world.cards.of_ref(action_id, "action")
+    if card is None or not card.get("task") or not world.cards.drafted_by_agent(action_id):
+        return None
+    task, agent = str(card["task"]), str(card["drafter"])
+    try:
+        row = world.tasks.get(task)
+    except Problem:
+        return None  # the task went since
+    if row.get("owner") != agent or row.get("state") in ("Done", "Dropped"):
+        return None
+    if row.get("state") != "Working":
+        world.tasks.set_state(task, "Working", by="person")
+    return agent, task
+
+
+def _perform(world: World, action_id: str, *, browser: Browser | None, runner: turn.Runner,
+             repair: bool, turn_id: str | None) -> dict[str, Any]:
     action = world.actions.start(action_id)
     procedure = world.procedures.get(action["procedure"])
     hand = browser or Browser(world)
@@ -186,7 +228,11 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
     """The person's yes: record it (and, for a prepare-level action they want always allowed, the
     standing sentence), then perform the action."""
     current = world.actions.get(action_id)
-    if current["state"] == "proposed" and not current.get("preview"):
+    if always and world.cards.drafted_by_agent(action_id):
+        raise Problem("An agent's draft asks every time (Q94): it can't be always allowed."
+                      " Say yes to this one.")
+    if (current["state"] == "proposed" and not current.get("preview")
+            and current.get("preview_note") != NO_DRY_RUN):
         raise Problem("Its preview isn't ready yet; decide once the card shows how it looks."
                       if current.get("preview_note") == PREVIEW_PENDING else
                       "Its dry run didn't work, so it can't be approved; Alpha proposes it"
@@ -217,6 +263,7 @@ def decline(world: World, action_id: str, reason: str | None = None) -> dict[str
 
 
 def sentence_for(procedure: dict[str, Any]) -> str:
-    what = procedure["description"].rstrip(".")
-    what = what[0].lower() + what[1:] if what else procedure["name"]
-    return f"Alpha may {what} on {procedure['site']} without asking."
+    """The standing permission in words: the procedure's own sentence after a colon, so it
+    reads whatever verb form it was written in (19 Oct: "Alpha may prepares an email draft")."""
+    what = procedure["description"].strip().rstrip(".") or procedure["name"]
+    return f"Alpha may do this on {procedure['site']} without asking: {what}."

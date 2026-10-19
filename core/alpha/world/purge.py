@@ -40,6 +40,7 @@ from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
 from alpha.world.skills import Skills
+from alpha.world.staged import Staged
 from alpha.world.store import Problem, dumps, now
 from alpha.world.tasks import Tasks
 from alpha.world.views import Views
@@ -219,6 +220,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["tasks"] = Tasks.remove_at(db, f"#/m/{mid}", for_good=True)
         counts["sources"] = world.sources.remove_module(db, mid)
         Cards.withdraw_in(db, module=mid)  # what waited on the person for it (P3)
+        Staged.remove_in(db, module=mid, tables=list(tables))  # what was held for it (P3)
         counts["actions"] = world.actions.remove_module(db, mid)
         docs = db.execute("SELECT id, path, entity_id FROM documents WHERE module = ?",
                           (mid,)).fetchall()
@@ -273,7 +275,7 @@ def remove_document(world: World, did: str) -> dict[str, Any]:
         rec = world.collections.get(use["collection"], use["record"])
         prov = dict(rec.get("_provenance") or {})
         fields = dict(prov.get("fields") or {})
-        fields[use["field"]] = {"source": "you", "fetched_at": now()}
+        fields[use["field"]] = {"kind": "stated", "source": "you", "fetched_at": now()}
         prov.update({"by": "person", "fields": fields})
         world.collections.update(use["collection"], use["record"], {use["field"]: None},
                                  rec["revision"], prov)
@@ -324,6 +326,7 @@ def remove_conversation(world: World, cid: str) -> dict[str, Any]:
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE id = ?",
                        (now(), aid))
         Cards.withdraw_in(db, thread=cid, refs=plan["actions"])  # P3
+        Staged.remove_in(db, thread=cid)
         db.execute("UPDATE workflows SET conversation = NULL WHERE conversation = ?", (cid,))
         db.execute("UPDATE agents SET thread = NULL WHERE thread = ?", (cid,))
         db.execute("DELETE FROM threads WHERE id = ?", (cid,))
@@ -483,6 +486,7 @@ def remove_agent(world: World, aid: str) -> dict[str, Any]:
         db.execute("DELETE FROM runs WHERE agent = ?", (aid,))
         Tasks.release_agent(db, aid)  # what it was given comes back (P2, Q92)
         Cards.withdraw_in(db, drafter=aid)  # what it left waiting on the person (P3)
+        Staged.remove_in(db, drafter=aid)  # what it brought in and was held (P3)
         db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{aid}",))
         Decisions.remove_about(db, "agent", aid)
         if agent.get("skill"):

@@ -4,6 +4,7 @@ exported from a table."""
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import alpha.connectors.browser as browser_module
+from alpha.api.bodies import AskBody
 from alpha.api.server import create_app
+from alpha.api.turns import Turns
 from alpha.connectors.base import Connections
 from alpha.connectors.files import Files, files_dir
 from alpha.mcp.tools import Tools
@@ -175,6 +178,34 @@ def test_dropped_files_are_kept_and_alpha_reads_them(world: World, tmp_path: Pat
     assert row["_provenance"]["by"] == "person"
 
 
+def test_alphas_reading_turn_runs_in_an_item_of_its_own(world: World) -> None:
+    """The turn that reads the files the person added starts with no thread: it opens a work
+    item in the module, said in Home, and runs there (19 Oct: it died on `assert thread`
+    since slice 3, so adding a file did nothing)."""
+    advisory(world, turn=said(world, "x"))
+    seen: list[TurnRequest] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        seen.append(req)
+        return RunResult(ok=True, reply="It holds September's P&L.")
+
+    mid = world.modules.get("Advisory")["id"]
+    turns = Turns(world, runner)
+    started = turns.start(AskBody(text="The person added pl.xlsx to this module.", module=mid),
+                          actor="alpha", journal_as="Read pl.xlsx the person added.")
+    deadline = time.monotonic() + 10
+    while turns.state[started["id"]]["state"] in ("running", "routing"):
+        assert time.monotonic() < deadline, turns.state[started["id"]]
+        time.sleep(0.02)
+    assert turns.state[started["id"]]["state"] == "done", turns.state[started["id"]]
+    item = world.modules.thread(str(seen[0].thread_id))
+    assert item["kind"] == "work" and item["module"] == mid
+    assert item["title"] == "Read pl.xlsx the person added."
+    home = world.modules.home_thread()["id"]
+    assert any(e["text"] == "Started a work item: Read pl.xlsx the person added."
+               for e in world.journal.recent(10) if e["thread"] == home)
+
+
 def test_removing_the_module_removes_its_files(world: World) -> None:
     advisory(world, turn=said(world, "x"))
     src = files_dir("scratch") / "in.txt"
@@ -214,7 +245,8 @@ def test_an_upload_step_sends_only_a_file_alpha_keeps(world: World) -> None:
                                 origin="the person", by="person")
         t = Tools(world, turn=said(world, "send the deck to sania"))
         t.procedure_save("gmail_send_file", "https://mail.google.com/mail/u/0/#inbox",
-                         "Send a file by email in Gmail", "send", steps, ["attachment"])
+                         "Send a file by email in Gmail", "send", steps, ["attachment"],
+                         discard=[{"click": "[aria-label='Discard draft']"}])
         aid = t.action_propose("gmail_send_file", "Send the deck to Sania",
                                {"attachment": doc["id"]}, "a sent email cannot be unsent")["action"]
         job = driver.jobs[-1]

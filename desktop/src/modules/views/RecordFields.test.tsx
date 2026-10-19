@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RecordRow } from "../../core/client";
 import { RecordFields } from "./RecordFields";
@@ -39,5 +39,29 @@ describe("a thing's page shows where each value came from", () => {
     render(<RecordFields row={marked} fields={fields} titleField="address" onCommit={vi.fn()} />);
     expect(screen.getByLabelText("checked")).toHaveAttribute("title", "Checked by Columbo against census.gov, 16 Oct.");
     expect(screen.getByLabelText("checked: it differs")).toHaveAttribute("title", "Checked by Columbo against txdot.gov, 16 Oct: it differs.");
+  });
+  it("opens a value's document at the cell it sat in, read again (P5)", async () => {
+    const cell = { kind: "document" as const, document: "d_1", title: "P&L.xlsx", sheet: "P&L", cell: "B2", source: "P&L.xlsx · P&L!B2", fetched_at: "2026-10-19T10:00:00Z", checked: { at: "2026-10-19T10:00:00Z", by: "code", agree: true, source: "P&L.xlsx · P&L!B2", value: "48200" } };
+    const sourced: RecordRow = { ...row, values: { ...row.values, traffic_aadt: 48200 }, provenance: { by: "alpha", fields: { traffic_aadt: cell } } };
+    const placeOf = vi.fn().mockResolvedValue({
+      document: "d_1", title: "P&L.xlsx", path: "/x/P&L.xlsx", sheet: "P&L", cell: "B2", columns: ["A", "B"],
+      rows: [{ row: 1, cells: [{ cell: "A1", value: "Account", formula: null }, { cell: "B1", value: "Amount", formula: null }] }, { row: 2, cells: [{ cell: "A2", value: "Revenue", formula: null }, { cell: "B2", value: "48200", formula: null }] }],
+    });
+    render(<RecordFields row={sourced} fields={fields} titleField="address" onCommit={vi.fn()} placeOf={placeOf} />);
+    expect(screen.getByLabelText("checked")).toHaveAttribute("title", "Read again from P&L.xlsx · P&L!B2, 19 Oct: it matches.");
+    fireEvent.click(screen.getByRole("button", { name: "from P&L.xlsx · P&L!B2" }));
+    expect(await screen.findByText("Revenue")).toBeInTheDocument();
+    expect(placeOf).toHaveBeenCalledWith(cell);
+    expect(screen.getByText("48200", { selector: "td" })).toHaveClass("place__hit");
+    expect(screen.getByText("Amount", { selector: "td" })).not.toHaveClass("place__hit");
+  });
+  it("marks the line of a page the value is on", async () => {
+    const page = { kind: "document" as const, document: "d_2", title: "Statement.pdf", page: 2, source: "Statement.pdf · page 2" };
+    const sourced: RecordRow = { ...row, values: { ...row.values, traffic_aadt: 3400 }, provenance: { by: "alpha", fields: { traffic_aadt: page } } };
+    const placeOf = vi.fn().mockResolvedValue({ document: "d_2", title: "Statement.pdf", path: "/s.pdf", page: 2, text: "Opening balance 1,200.00\nClosing balance 3,400.00" });
+    render(<RecordFields row={sourced} fields={fields} titleField="address" onCommit={vi.fn()} placeOf={placeOf} />);
+    fireEvent.click(screen.getByRole("button", { name: "from Statement.pdf · page 2" }));
+    expect(await screen.findByText("Closing balance 3,400.00")).toHaveClass("place__hit");
+    expect(screen.getByText("Opening balance 1,200.00")).not.toHaveClass("place__hit");
   });
 });

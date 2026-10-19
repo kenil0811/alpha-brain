@@ -1,0 +1,27 @@
+name: agent_wakes_on_a_row
+title: "Agents · an agent wakes when a row is added, once, and never on its own writes"
+why: >
+  P7 of the provenance-documents-triggers proposal (19 Oct 2026, Q96). An agent of the person's
+  with on: rows_added deals and no schedule. The person adds a deal in words; the tick's look
+  (code, from the store) wakes the agent once with the new row in front of its run. The run
+  adds a row of its own to deals; the next tick does not wake it again.
+fresh: true
+steps:
+  - say: "make a table named deals with each deal's name, its EBITDA in millions and its stage"
+  - seed:
+      kind: agent
+      name: "Deal Analyst"
+      title: "When a deal is added, screen it"
+      schedule: ""
+      wakes_on:
+        - {rows_added: deals}
+      brief: >
+        Each run, for each new deal named in front of you, add one row to the deals table with
+        world_write named "Screened: <the deal's name>" and stage "screened", with source
+        "worked out". End with one line naming the deals you screened.
+  - say: "add a deal: Midwest HVAC, EBITDA 2.1, stage new"
+  - wake_agents: {}
+  - wake_agents: {}
+checks:
+  - woke: {agent: "Deal Analyst", runs: 1, contains: "Midwest HVAC"}
+  - count: {collection: deals, at_least: 2}

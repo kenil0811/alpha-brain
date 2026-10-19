@@ -100,6 +100,18 @@ class DeclineBody(BaseModel):
     reason: str | None = None
 
 
+class StagedDecideBody(BaseModel):
+    """The person's decision on what an agent brought in (P3): ticks are the rows kept (all
+    when none), edits the changes per row (by its place in the batch), destination a file's
+    module when changed, always the "Always" the card offered."""
+    accept: bool
+    ticks: list[int] | None = None
+    edits: dict[str, dict[str, Any]] | None = None
+    destination: str | None = None
+    reason: str | None = None
+    always: bool = False
+
+
 class AnswersBody(BaseModel):
     """Several questions asked in one turn, answered at once: ask id → the person's words."""
     answers: dict[str, str]

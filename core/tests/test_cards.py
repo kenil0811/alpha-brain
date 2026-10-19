@@ -91,8 +91,9 @@ def test_a_no_keeps_its_reason_for_the_drafting_agents_next_run(world: World) ->
 
     agent_runner.run(world, a["id"], trigger="now", runner=runner)
     agent_runner.run(world, a["id"], trigger="now", runner=runner)
-    assert "Add an EBITDA column to the deal list: Not needed" in seen[0]
-    assert "said no to" not in seen[1]  # told once
+    assert ("What became of your drafts since your last run:\n- Add an EBITDA column to the"
+            " deal list: the person said no (Not needed)") in seen[0]
+    assert "What became of your drafts" not in seen[1]  # told once
     decisions = c.get("/api/decisions").json()
     assert decisions[0]["id"] == pid and decisions[0]["from"]["by"] == "Deal Analyst"
 
@@ -188,3 +189,28 @@ def test_cards_are_made_once_for_a_world_from_before_them(tmp_path: Path) -> Non
         assert {n["id"] for n in needs_you(again)} == {asked, proposed}
     finally:
         again.close()
+
+
+def test_a_failed_dry_run_withdraws_its_card_and_try_again_brings_it_back(
+        tmp_path: Path) -> None:
+    w = World(tmp_path / "w.sqlite")
+    try:
+        proc = w.procedures.save("gmail_draft", site="google.com",
+                                 url="https://mail.google.com/mail/u/0/#inbox",
+                                 description="Make a draft email in Gmail", effect="prepare",
+                                 steps=STEPS, fields=["to"])
+        action = w.actions.propose(proc, title="Draft to the broker", payload={"to": "a@b.test"},
+                                   undo="the draft can be deleted", evidence=None, module=None,
+                                   thread=None, turn="j_1")
+        jid = w.journal.append("proposed", "Make: Draft to the broker (google.com)",
+                               data={"action": action["id"], "effect": "prepare", "turn": "j_1"})
+        w.actions.fail(action["id"], "the dry run failed")
+        assert w.cards.get(jid)["state"] == "withdrawn"
+        w.actions.reopen(action["id"], "The preview is being made.")
+        assert w.cards.get(jid)["state"] == "waiting"
+        # a world from before the fix: the start withdraws what a failed action left waiting
+        with w.store.tx() as db:
+            db.execute("UPDATE actions SET state = 'failed' WHERE id = ?", (action["id"],))
+        assert w.cards.sweep() == 1 and w.cards.get(jid)["state"] == "withdrawn"
+    finally:
+        w.close()

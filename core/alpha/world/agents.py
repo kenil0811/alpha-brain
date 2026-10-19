@@ -145,15 +145,78 @@ def when_words(row: dict[str, Any]) -> str:
     parts = []
     if row.get("schedule"):
         parts.append(describe(row["schedule"]))
-    parts.extend(str(e.get("words") or e.get("kind") or "") for e in row.get("events") or []
-                 if isinstance(e, dict))
+    parts.extend(str(e.get("words") or e.get("kind") or "")
+                 + (f" ({e['gone']}, so it never wakes it)" if e.get("gone") else "")
+                 for e in row.get("events") or [] if isinstance(e, dict))
     return "; ".join(p for p in parts if p) or "when you ask"
 
 
-def _view(row: sqlite3.Row, steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+def marks_now(db: sqlite3.Connection) -> dict[str, Any]:
+    """Where the store ends now, per kind of event an agent can wake on (P7): the rows
+    added, the rows changed (every change keeps the old values in `record_versions`), the
+    documents filed. A look reads past these."""
+    def top(table: str) -> int:
+        return int(db.execute(f"SELECT COALESCE(MAX(rowid), 0) FROM {table}").fetchone()[0])
+    return {"records": top("records"), "versions": top("record_versions"),
+            "documents": top("documents"), "fired": {}}
+
+
+def _gone(store: Store, line: dict[str, Any]) -> str | None:
+    """Why an event line names something that is no longer there (its table or module
+    removed): said on the agent's page, and the line never fires (P7)."""
+    table = line.get("rows_added") or line.get("rows_changed")
+    if table and store.one("SELECT 1 FROM collections WHERE name = ? AND (module IS NULL OR"
+                           " module NOT IN (SELECT id FROM modules WHERE removed_at IS NOT"
+                           " NULL))", (table,)) is None:
+        return "its table was removed"
+    module = line.get("document_filed")
+    if module and store.one("SELECT 1 FROM modules WHERE id = ? AND removed_at IS NULL",
+                            (module,)) is None:
+        return "its module was removed"
+    return None
+
+
+# what a line says on the agent's page, and what is worked out from the store (never kept)
+SAID = ("words", "gone")
+
+
+def line_words(store: Store, line: dict[str, Any]) -> str:
+    """An on: line in the person's words, from the table, module and fields it names now."""
+    table = line.get("rows_added") or line.get("rows_changed")
+    if table:
+        row = store.one("SELECT title, schema FROM collections WHERE name = ?", (table,))
+        title = row["title"] if row else str(table)
+        if "rows_added" in line:
+            return f"when a row is added to {title}"
+        labels = {f["name"]: f.get("label") or f["name"]
+                  for f in (loads(row["schema"], {}).get("fields") or [] if row else [])}
+        fields = [labels.get(f, f) for f in line.get("fields") or []]
+        return (f"when {', '.join(fields)} changes in {title}" if fields else
+                f"when a row changes in {title}")
+    if line.get("document_filed"):
+        row = store.one("SELECT name FROM modules WHERE id = ?", (line["document_filed"],))
+        return f"when a document is filed in {row['name'] if row else 'a module'}"
+    if line.get("card_decided"):
+        return "when you decide one of its cards"
+    if line.get("before_event"):
+        return f"{line['before_event']} minutes before an event matching “{line.get('matching')}”"
+    return ""
+
+
+def kept_lines(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Lines as they are kept: without what the page works out."""
+    return [{k: v for k, v in e.items() if k not in SAID} for e in lines if isinstance(e, dict)]
+
+
+def _view(row: sqlite3.Row, steps: list[dict[str, Any]] | None = None,
+          store: Store | None = None) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
-    out["events"] = loads(row["events"], [])
+    out["events"] = [{**e, **({"words": line_words(store, e)} if store else {}),
+                      **({"gone": why} if store and (why := _gone(store, e)) else {})}
+                     for e in kept_lines(loads(row["events"], []))]
+    out["wake_marks"] = loads(row["wake_marks"], {}) if "wake_marks" in row.keys() else {}
     out["may"] = loads(row["may"], [])
+    out["stage"] = loads(row["stage"], []) if "stage" in row.keys() else []
     out["on"] = row["state"] == "on"
     out["enabled"] = out["on"]  # the window's word until it reads `state` (slice A, group 2)
     out["when"] = when_words(out)
@@ -192,7 +255,8 @@ class Agents:
                schedule: str | None = None, module: str | None = None,
                thread: str | None = None, steps: list[dict[str, Any]] | None = None,
                goal: str | None = None, may: list[str] | None = None,
-               done: str | None = None) -> dict[str, Any]:
+               done: str | None = None, stage: list[str] | None = None,
+               events: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         description = " ".join(description.split())
         if not description:
             raise Problem("An agent needs a sentence saying what it does.")
@@ -204,12 +268,13 @@ class Agents:
         with self.store.tx() as db:
             db.execute(
                 "INSERT INTO agents (id, name, kind, description, goal, module, thread, state,"
-                " schedule, skill, may, done, next_run_at, created_at, updated_at)"
-                " VALUES (?,?,?,?,?,?,?,'on',?,?,?,?,?,?,?)",
+                " schedule, skill, may, done, next_run_at, created_at, updated_at, stage,"
+                " events, wake_marks) VALUES (?,?,?,?,?,?,?,'on',?,?,?,?,?,?,?,?,?,?)",
                 (aid, (name or "").strip() or description, kind, description,
                  (goal or "").strip() or None, module, thread, clean, skill,
                  dumps(list(may if may is not None else DEFAULT_MAY)),
-                 (done or "").strip() or None, first, stamp, stamp),
+                 (done or "").strip() or None, first, stamp, stamp, dumps(list(stage or [])),
+                 dumps(kept_lines(events or [])), dumps(marks_now(db) if events else {})),
             )
         return self.get(aid)
 
@@ -217,7 +282,7 @@ class Agents:
         row = self.store.one("SELECT * FROM agents WHERE id = ?", (aid,))
         if row is None:
             raise Problem(f"There is no agent {aid}.")
-        return _view(row, self._steps_of(row))
+        return _view(row, self._steps_of(row), self.store)
 
     def all(self, module: str | None = None) -> list[dict[str, Any]]:
         if module:
@@ -228,12 +293,14 @@ class Agents:
             rows = self.store.all(
                 "SELECT * FROM agents WHERE module IS NULL OR module NOT IN (SELECT id FROM"
                 " modules WHERE removed_at IS NOT NULL) ORDER BY created_at")
-        return [_view(r, self._steps_of(r)) for r in rows]
+        return [_view(r, self._steps_of(r), self.store) for r in rows]
 
     def update(self, aid: str, *, state: str | None = None, schedule: str | None = None,
                name: str | None = None, description: str | None = None,
                steps: list[dict[str, Any]] | None = None, goal: str | None = None,
-               may: list[str] | None = None, done: str | None = None) -> dict[str, Any]:
+               may: list[str] | None = None, done: str | None = None,
+               stage: list[str] | None = None,
+               events: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         current = self.get(aid)
         if state is not None and state not in STATES:
             raise Problem(f"An agent's state is one of {STATES}.")
@@ -247,14 +314,27 @@ class Agents:
         with self.store.tx() as db:
             db.execute(
                 "UPDATE agents SET state = ?, schedule = ?, name = ?, description = ?,"
-                " skill = ?, next_run_at = ?, updated_at = ?, goal = ?, may = ?, done = ?"
-                " WHERE id = ?",
+                " skill = ?, next_run_at = ?, updated_at = ?, goal = ?, may = ?, done = ?,"
+                " stage = ? WHERE id = ?",
                 ("on" if on else "paused", clean, (name or "").strip() or current["name"],
                  words, skill, upcoming, now(), (goal or "").strip() or current.get("goal"),
                  dumps(list(may)) if may is not None else dumps(current["may"]),
-                 (done or "").strip() or current.get("done"), aid),
+                 (done or "").strip() or current.get("done"),
+                 dumps(list(stage)) if stage is not None else dumps(current["stage"]), aid),
             )
+            if events is not None:
+                fresh = kept_lines(events)
+                same = fresh == kept_lines(current["events"])
+                # new lines look from now on: what happened before them is not their business
+                marks = current["wake_marks"] if same else marks_now(db) if fresh else {}
+                db.execute("UPDATE agents SET events = ?, wake_marks = ? WHERE id = ?",
+                           (dumps(fresh), dumps(marks), aid))
         return self.get(aid)
+
+    def set_marks(self, aid: str, marks: dict[str, Any]) -> None:
+        """How far the agent's look for its events has read (P7), once its run is over."""
+        with self.store.tx() as db:
+            db.execute("UPDATE agents SET wake_marks = ? WHERE id = ?", (dumps(marks), aid))
 
     def of_thread(self, thread: str) -> dict[str, Any] | None:
         """The agent whose own thread this is, if any."""
@@ -282,14 +362,14 @@ class Agents:
             " AND next_run_at <= ? AND (module IS NULL OR module NOT IN (SELECT id FROM modules"
             " WHERE removed_at IS NOT NULL)) ORDER BY next_run_at", (moment,),
         )
-        return [_view(r, self._steps_of(r)) for r in rows]
+        return [_view(r, self._steps_of(r), self.store) for r in rows]
 
     def working(self) -> list[dict[str, Any]]:
         """Every agent that is on and in sight: the ones whose kind looks for work on a tick."""
         rows = self.store.all(
             "SELECT * FROM agents WHERE state = 'on' AND (module IS NULL OR module NOT IN"
             " (SELECT id FROM modules WHERE removed_at IS NOT NULL)) ORDER BY created_at")
-        return [_view(r, self._steps_of(r)) for r in rows]
+        return [_view(r, self._steps_of(r), self.store) for r in rows]
 
     def advance_cursor(self, aid: str, upto: int) -> None:
         """The agent looked at the journal up to this row; a tick asks only for what came

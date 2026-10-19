@@ -19,6 +19,7 @@ from alpha.api.views import (
     action_view,
 )
 from alpha.runtime import acting
+from alpha.runtime.agents import runner as agent_runner
 from alpha.world.cards import reason_of
 from alpha.world.store import Problem
 
@@ -44,13 +45,14 @@ def routes(app: FastAPI, s: Served) -> None:
         world.actions.edit(aid, body.payload, proc["fields"])
         world.journal.append("changed", f"Changed the text of \"{a['title']}\" before deciding.",
                              actor="person", data={"action": aid})
-        # The preview showed the old text: it is made again before the card can be approved.
+        # The preview showed the old text: it is made again before the card can be approved (a
+        # draft's card shows the new payload itself, Q95).
         world.actions.previewed(aid, preview=None, note=acting.PREVIEW_PENDING, shots=[])
         if live:
-            threading.Thread(target=lambda: acting.dry_run(world, aid), daemon=True,
+            threading.Thread(target=lambda: acting.show(world, aid), daemon=True,
                              name=f"preview-{aid}").start()
         else:
-            acting.dry_run(world, aid)
+            acting.show(world, aid)
         return action_view(world, world.actions.get(aid))
 
     @app.post("/api/actions/{aid}/approve", dependencies=[api])
@@ -59,13 +61,22 @@ def routes(app: FastAPI, s: Served) -> None:
         shows what happened."""
         approval = "Approved in the app" + (", always" if body.always else "")
         if live:
-            # The yes is recorded now (and refused if the preview isn't ready); the run follows.
+            # The yes is recorded now (and refused if the preview isn't ready); the run follows,
+            # and an agent's draft hands its task back to the agent at once (Q94).
             acting.approve(world, aid, approval, always=body.always, perform_now=False)
-            threading.Thread(target=lambda: acting.perform(world, aid, runner=runner_fn),
-                             daemon=True, name=f"act-{aid}").start()
+
+            def act() -> None:
+                acting.perform(world, aid, runner=runner_fn)
+                s.scheduler.tasks()
+
+            threading.Thread(target=act, daemon=True, name=f"act-{aid}").start()
         else:
             acting.approve(world, aid, approval, always=body.always, runner=runner_fn,
                            repair=False)
+            back = acting.back_to_drafter(world, aid)
+            if back is not None:
+                agent_runner.run(world, back[0], trigger="task", task=back[1],
+                                 runner=runner_fn)
         return action_view(world, world.actions.get(aid))
 
     @app.post("/api/actions/{aid}/decline", dependencies=[api])

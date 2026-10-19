@@ -209,6 +209,25 @@ class Base:
         return self.world.store.one(
             "SELECT 1 FROM agents WHERE thread = ?", (self.thread,)) is not None
 
+    def _staging(self) -> dict[str, Any] | None:
+        """The person's agent whose run is using the tools: what it brings in from outside
+        waits for the person's yes (P3 item 5). None for Alpha and the built-in agents."""
+        agent = self._agent()
+        if agent is None or agent["kind"] != "custom" or not self._in_run():
+            return None
+        return agent
+
+    def _stages(self, table: str) -> dict[str, Any] | None:
+        """The agent, when its file stages this table (its `stage:` line)."""
+        agent = self._staging()
+        if agent is None or not agent.get("stage"):
+            return None
+        try:
+            name = self.world.collections.describe(table)["name"]
+        except Problem:
+            return None  # no such table: the write says so itself
+        return agent if name in agent["stage"] or table in agent["stage"] else None
+
     def _refused(self, writes: str, fn: Callable[..., Any], args: tuple[Any, ...],
                  kwargs: dict[str, Any]) -> dict[str, Any] | None:
         """Why an agent may not make this write, in plain words, or None. Its write list is

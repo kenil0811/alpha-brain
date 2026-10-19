@@ -1,0 +1,56 @@
+[
+ {
+  "name": "value_says_where",
+  "title": "Values · the answer says where a number sat, and it is right",
+  "steps": [
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "kept as d_386f96111668",
+    "seconds": 0.1
+   },
+   {
+    "import_document": "ledger",
+    "ok": true,
+    "detail": "{'into': 'ledger', 'sheet': 'P&L', 'header_row': 1, 'mapped': {'Account': 'account', 'Amount': 'amount', 'Month': 'month'}, 'unmapped': [], 'imported': 3, 'invalid': 0, 'problems': []}",
+    "seconds": 0.0
+   },
+   {
+    "say": "what was September's revenue, and where exactly is that number from?",
+    "ok": true,
+    "reply": "September's revenue was **48,200**. That's for **September 2025**, not last month.\n\n**Where it comes from:** the spreadsheet **RestoPros P&L Sept 2025.xlsx**, which you gave me today. It's on the **P&L** sheet in **cell B2**, in the row labelled \"Revenue\" (A2) for the month \"Sept\" (C2). The number was typed into the cell, not calculated by a formula, so the spreadsheet itself has nothing behind it. Your ledger table took the figure straight from that cell and I didn't change it.\n\nA few things to keep in mind:\n- **Which year:** the file name says September 2025. I don't have any figures for Sep",
+    "steps": 3,
+    "seconds": 14.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "48,?200"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "B2"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the answer give September's revenue as 48,200 and say it comes from the P&L sheet of RestoPros P&L Sept 2025.xlsx, cell B2?",
+    "ok": true,
+    "why": "The answer gives September's revenue as 48,200 and says it comes from cell B2 on the P&L sheet of RestoPros P&L Sept 2025.xlsx, which is what the rubric asks for.",
+    "seconds": 4.2
+   }
+  ],
+  "seconds": 18.8,
+  "error": null
+ }
+]

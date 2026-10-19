@@ -1,0 +1,71 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I set up a **Deal list** table in a new Deals module. Each deal has two fields: **Firm** and **Asking price**. It's empty for now.\n\nTo add a deal, just tell me the firm and its price, for example \"Acme Ltd, asking 2.4m\". The price is stored as a plain number with no currency. If your deals are all in one currency, tell me which and I'll label the field with it.",
+    "steps": 3,
+    "seconds": 11.5
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I added **Midwest HVAC** to your deal list with an asking price of 900,000. It's the first deal there. You didn't give a currency, so the price is just a number for now.",
+    "steps": 2,
+    "seconds": 8.5
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "I've made **Deal Analyst** in your Deals module. It doesn't run on a schedule, so it only works when you give it a task.\n\n**How it works on a task:**\n1. It finds the deal's row in your deal list using the firm's name. If it can't tell which deal you mean, it asks you.\n2. It works the task out from that row. Anything it needs that can be looked up, it looks up from a named source and doesn't guess.\n3. It saves its findings on the deal's row. Each value records where it came from: a link, a document, \"you said so\", or \"estimated\" plus what it assumed. It adds new fields to the list when a findin",
+    "steps": 2,
+    "seconds": 16.0
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task **\"Ask the broker for 3 years of P&L\"** to Midwest HVAC in your deal list. I gave it to the Deal Analyst and started it, and it will begin within about half a minute. Its progress will show on the task's page.\n\nThe deal row doesn't have a broker name or contact details, so the Analyst will probably ask you who the broker is and how to reach them. Nothing will be sent to the broker until you've seen the message and said yes.",
+    "steps": 3,
+    "seconds": 10.2
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 16.5
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC, and how should I reach them? I need their name and email address (and whether you send from Gmail or another mail service) t",
+    "ok": true,
+    "detail": "{\"answered\":\"j_549c6d9ab732\",\"turn\":null,\"agent\":\"a_b1cbd3b76a4a\"}",
+    "seconds": 19.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: I saved the broker on the Midwest HVAC row as Kenil Shah, kenilshah081198@gmail.com, from your answer, in two new Deal list fields (Broker and Broker email). The task is still Blocked because there's ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 82.6,
+  "error": null
+ }
+]

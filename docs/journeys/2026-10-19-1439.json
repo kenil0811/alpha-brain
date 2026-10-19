@@ -1,0 +1,18 @@
+[
+ {
+  "name": "staged_from_a_run",
+  "title": "Tasks · what an agent brings in waits on one card; a No's reason reaches its next run",
+  "steps": [
+   {
+    "say": "keep a list of contacts: their name and email",
+    "ok": true,
+    "reply": "Your contact list is set up. It's called **People** and sits in a new **Contacts** module. Each contact has a **name** and an **email**.\n\nEach email belongs to one person, so the same person won't be added twice. Each contact is also linked to anything else I know about them.\n\nThe list is empty for now. You can give me contacts here, like \"add Sara Lee, sara@example.com\", or paste several at once.",
+    "steps": 3,
+    "seconds": 23.2
+   }
+  ],
+  "checks": [],
+  "seconds": 23.2,
+  "error": "Problem: 0 tables match 'contacts'."
+ }
+]

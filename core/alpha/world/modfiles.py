@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from alpha.world.agents import kept_lines
 from alpha.world.knowledge import INSTRUCTIONS
 from alpha.world.skills import slug
 from alpha.world.store import Problem
@@ -40,7 +41,10 @@ log = logging.getLogger(__name__)
 
 FRONT = re.compile(r"\A---\n(.*?)\n---\n?(.*)\Z", re.S)
 # What an agent file may set; the rest (its runs, its cursor, its id) is the world's alone.
-AGENT_KEYS = ("title", "schedule", "state", "steps", "may", "goal")
+AGENT_KEYS = ("title", "schedule", "state", "steps", "may", "stage", "goal", "wakes_on")
+# a key of the file → the agent's own name for it (its on: lines are `wakes_on`, since YAML
+# reads a bare `on` as true)
+AGENT_FIELDS = {"title": "description", "wakes_on": "events"}
 
 
 def _stamp(path: Path) -> str:
@@ -162,8 +166,14 @@ class ModuleFiles:
             head["skill"] = a["skill"]  # the run skill that holds the steps
         if a.get("may"):
             head["may"] = a["may"]
+        if a.get("stage"):
+            # the tables whose rows its runs bring in wait for the person's yes (P3)
+            head["stage"] = a["stage"]
         if a.get("goal"):
             head["goal"] = a["goal"]
+        if a.get("events"):
+            # what wakes it besides its schedule (P7)
+            head["wakes_on"] = kept_lines(a["events"])
         body = (brief["body"].strip() + "\n") if brief and brief["body"].strip() else ""
         return f"---\n{_dump(head)}---\n{body}"
 
@@ -205,8 +215,12 @@ class ModuleFiles:
         head, body = split_front(text)
         changes: dict[str, Any] = {}
         for key in AGENT_KEYS:
-            if key in head and head[key] != a.get("description" if key == "title" else key):
-                changes["description" if key == "title" else key] = head[key]
+            field = AGENT_FIELDS.get(key, key)
+            have = a.get(field)
+            if field == "events":
+                have = kept_lines(have or [])
+            if key in head and head[key] != have:
+                changes[field] = head[key]
         if changes:
             try:
                 self.world.agents.update(a["id"], **changes)

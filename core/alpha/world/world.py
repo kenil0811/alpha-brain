@@ -23,6 +23,7 @@ from alpha.world.readers import Readers
 from alpha.world.runs import Runs
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
+from alpha.world.staged import Staged
 from alpha.world.store import Store
 from alpha.world.tasks import Tasks
 from alpha.world.views import Views
@@ -50,6 +51,8 @@ class World:
         # cards (P3, 19 Oct 2026): written by the journal in the line's own transaction
         self.cards = Cards(self)
         self.journal.cards = self.cards
+        # what an agent's run brought in, held until the person's yes (P3 item 5)
+        self.staged = Staged(self)
         self.entities = Entities(self.store)
         self.collections = Collections(self.store, self.entities)
         self.knowledge = Knowledge(self.store)

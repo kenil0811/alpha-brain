@@ -100,6 +100,21 @@ def close_answered_asks(world: World, sentence: str, thread: str | None) -> None
                              thread=thread, module=a["module"])
 
 
+def answers_a_deferral(world: World, thread: str | None) -> bool:
+    """Whether the thread's newest answer is to a card a deferred call waits on (P3 item 7):
+    that turn resumes its session whatever changed, or the call would be lost."""
+    if not thread:
+        return False
+    last = world.journal.recent(1, thread=thread, kinds=["answered"])
+    ask = last[-1]["data"].get("ask") if last else None
+    if not ask:
+        return False
+    try:
+        return bool(world.journal.read(str(ask))["data"].get("tool_use"))
+    except Problem:
+        return False
+
+
 def wrote_anything(world: World, turn_id: str) -> bool:
     """Whether a turn left anything in the journal beyond the sentence that started it."""
     return any(e["data"].get("turn") == turn_id and e["id"] != turn_id
@@ -165,7 +180,8 @@ def ask(
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
-    if resume and thread_row and thread_row.get("session_tools") != engine.fingerprint():
+    if (resume and thread_row and thread_row.get("session_tools") != engine.fingerprint()
+            and not answers_a_deferral(world, thread)):
         # A session made with other tools would have the model call names this run lacks
         # (18 Oct 2026); a fresh one starts, with this conversation in the pre-pack.
         resume = None

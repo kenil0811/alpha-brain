@@ -200,6 +200,16 @@ def hard_key(value: Any) -> tuple[str, str] | None:
     return None
 
 
+def carry_fields(prior: dict[str, Any], provenance: dict[str, Any],
+                 changed: set[str]) -> dict[str, Any]:
+    """A changed row's provenance: a value's own source (P5; the person's edit, a cell, a part's
+    fill) stays with it until that value changes, and the new write's own sources join them."""
+    kept = {f: e for f, e in (prior.get("fields") or {}).items() if f not in changed}
+    fields = {**kept, **(provenance.get("fields") or {})}
+    out = {k: v for k, v in provenance.items() if k != "fields"}
+    return {**out, "fields": fields} if fields else out
+
+
 def record_view(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -543,7 +553,7 @@ class Collections:
     def upsert(
         self, name: str, key: str, rows: list[dict[str, Any]], provenance: dict[str, Any],
         *, fill_only: set[str] | None = None, seen_by: str | None = None,
-        mark_gone: bool = True,
+        mark_gone: bool = True, sources: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
         values didn't change is left alone. Fields in `fill_only` are written only where the
@@ -551,8 +561,10 @@ class Collections:
         Rows that don't fit the table are set aside, counted as `invalid` with the first few
         reasons in `problems`, and the rest are saved. With `seen_by` (a reader's name), every
         row the reader returned is marked seen now, and the reader's rows it didn't return are
-        marked gone (`gone`); a row that comes back is no longer gone. Returns counts and the
-        ids touched."""
+        marked gone (`gone`); a row that comes back is no longer gone. `sources`: each row's
+        values' own sources (P5), by the row's place in `rows`. Returns counts and the ids
+        touched."""
+        base = provenance
         schema = self._schema(name)
         identity = schema.get("identity")
         hook = self.hooks.get(name)
@@ -578,7 +590,9 @@ class Collections:
                 value = loads(row["values"], {}).get(key)
                 if value is not None:
                     existing[str(value)] = row
-            for raw in rows:
+            for i, raw in enumerate(rows):
+                own = sources[i] if sources and i < len(sources) else None
+                provenance = {**base, "fields": own} if own else base
                 match = raw.get(key)
                 if match in (None, "") or str(match) in seen:
                     counts["skipped"] += 1
@@ -637,10 +651,12 @@ class Collections:
                         to_link.append((prior["id"], current))
                     continue
                 self._keep(db, name, prior["id"])
+                kept = carry_fields(loads(prior["provenance"], {}), provenance,
+                                    {k for k in merged if merged.get(k) != current.get(k)})
                 db.execute(
                     'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
                     " updated_at = ? WHERE collection = ? AND id = ?",
-                    (dumps(merged), dumps(provenance), stamp, name, prior["id"]),
+                    (dumps(merged), dumps(kept), stamp, name, prior["id"]),
                 )
                 db.execute(
                     "DELETE FROM records_fts WHERE collection = ? AND record_id = ?",
@@ -741,6 +757,8 @@ class Collections:
         hook = self.hooks.get(name)
         if hook is not None:
             merged = hook.shape(merged, before, provenance)
+        provenance = carry_fields(current.get("_provenance") or {}, provenance,
+                                  {k for k in merged if merged.get(k) != before.get(k)})
         with self.store.tx() as db:
             self._keep(db, name, rid)
             cur = db.execute(

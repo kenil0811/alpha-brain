@@ -1,0 +1,79 @@
+[
+ {
+  "name": "staged_from_a_run",
+  "title": "Tasks · what an agent brings in waits on one card, and lands on the yes",
+  "steps": [
+   {
+    "say": "make a table named contacts with each person's name and email",
+    "ok": true,
+    "reply": "I made your contacts table. It has two fields, **Name** and **Email**, and it's empty for now.\n\nIt's in a new section called **Contacts**. The app wouldn't let the table and its section share a name, so the table shows as \"People\" there, but its name is still contacts. Each row is treated as a person and matched by email address, so the same person won't be added twice.\n\nTo add people, send their names and emails here or drop in a file.",
+    "steps": 3,
+    "seconds": 11.0
+   },
+   {
+    "seed": "agent Intake",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Intake",
+    "ok": true,
+    "result": "I added 2 people, Anna Lee (anna@restopros.test) and Ben Ortiz (ben@restopros.test), with the source \"the inbox\". They aren't in contacts yet: they're on a card waiting for your yes.",
+    "problem": null,
+    "seconds": 5.9
+   },
+   {
+    "decide_staged": {
+     "accept": true
+    },
+    "ok": true,
+    "detail": "stg_b5f9ff0ed66b: landed",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "card",
+    "arg": {
+     "kind": "staged",
+     "state": "waiting"
+    },
+    "ok": true,
+    "why": "staged card \"Add 2 rows to People\", waiting, drafted by a_0bd9bfdd42e7",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "contacts",
+     "at_least": 0
+    },
+    "ok": true,
+    "why": "0 rows (wanted at least 0).",
+    "seconds": 0.0
+   },
+   {
+    "check": "card",
+    "arg": {
+     "kind": "staged",
+     "state": "yes"
+    },
+    "ok": true,
+    "why": "staged card \"Add 2 rows to People\", yes, drafted by a_0bd9bfdd42e7",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "contacts",
+     "at_least": 2
+    },
+    "ok": true,
+    "why": "2 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 17.0,
+  "error": null
+ }
+]

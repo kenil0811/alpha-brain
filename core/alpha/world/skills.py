@@ -188,6 +188,8 @@ class Skills:
         out["steps"] = list(extra.get("steps") or [])
         out["verify"] = list(extra.get("verify") or [])
         out["fields"] = list(extra.get("fields") or [])
+        # a send's way to throw away what a dry run or a failed run typed (Q95)
+        out["discard"] = list(extra.get("discard") or [])
         self._cache[folder] = (stamp, dict(out))
         return out
 
@@ -306,7 +308,8 @@ class Skills:
             (folder / "scripts").mkdir(exist_ok=True)
             (folder / "scripts" / "read.js").write_text(str(script or ""))
         else:
-            extra = {k: fields.get(k, (prior or {}).get(k)) for k in ("steps", "verify", "fields")}
+            extra = {k: fields.get(k, (prior or {}).get(k))
+                     for k in ("steps", "verify", "fields", "discard")}
             extra = {k: list(v) for k, v in extra.items() if v}
             (folder / "steps.yaml").write_text(
                 yaml.safe_dump(extra, sort_keys=False, allow_unicode=True, width=100))
@@ -417,7 +420,7 @@ class Skills:
                 extra = yaml.safe_load(_git(repo, "show", f"{commit}:{rel}/steps.yaml")) or {}
             except Problem:
                 extra = {}
-            for k in ("steps", "verify", "fields"):
+            for k in ("steps", "verify", "fields", "discard"):
                 fields[k] = list(extra.get(k) or []) or None
         for k in ("to_end", "whole", "effect"):
             if front.get(k) is not None:

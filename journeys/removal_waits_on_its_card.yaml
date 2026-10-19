@@ -1,0 +1,19 @@
+name: removal_waits_on_its_card
+title: "A removal in a conversation ends its turn on the card, and the answer resumes it"
+why: >
+  P3 item 7 of the tasks-and-cards proposal (19 Oct 2026). A removal card used to wait on a
+  future in memory, so after a restart the answer became a bare "Yes, remove it" turn. Now the
+  call is deferred on its card (the SDK's defer, proven by a spike), the turn ends, and the
+  answer's turn resumes the kept session in a new process: the deferred removal runs on the yes.
+fresh: true
+steps:
+  - say: "track what I eat"
+    home: true
+  - say: "log two eggs"
+    home: true
+  - say: "remove the eggs from the log"
+    home: true
+checks:
+  - journal: {kind: asked, contains: "Remove "}
+  - journal: {kind: answered, contains: "Yes, remove it"}
+  - reply: {matches: "removed|gone|deleted|taken"}

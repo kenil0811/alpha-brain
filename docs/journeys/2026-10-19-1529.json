@@ -1,0 +1,66 @@
+[
+ {
+  "name": "agent_wakes_on_a_row",
+  "title": "Agents · an agent wakes when a row is added, once, and never on its own writes",
+  "steps": [
+   {
+    "say": "make a table named deals with each deal's name, its EBITDA in millions and its stage",
+    "ok": true,
+    "reply": "I made a **Deals** table in a new module called **Deal pipeline**. The app wouldn't let the module and the table share the name \"Deals\", so I gave the module that name. The table is empty and has three columns:\n\n- **Name**: what each deal is called.\n- **EBITDA**: in millions. I assumed US dollars, so it shows as $M.\n- **Stage**: a dropdown with Sourcing, Screening, Due diligence, LOI, Closing, Closed and Passed. You didn't list your stages, so I used a common deal pipeline as a starting point.\n\nIf you use a different currency or other stage names, tell me and I'll change them. You can also lis",
+    "steps": 3,
+    "seconds": 13.8
+   },
+   {
+    "seed": "agent Deal Analyst",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "add a deal: Midwest HVAC, EBITDA 2.1, stage new",
+    "ok": true,
+    "reply": "I added **Midwest HVAC** to your Deals table with an EBITDA of $2.1M.\n\n\"New\" isn't one of the stage options, so I put it in **Sourcing**, the earliest stage. If you want \"New\" as a stage of its own, I can add it.",
+    "steps": 3,
+    "seconds": 14.6
+   },
+   {
+    "wake_agents": [
+     "Deal Analyst"
+    ],
+    "ok": true,
+    "detail": "woke Deal Analyst",
+    "seconds": 15.2
+   },
+   {
+    "wake_agents": [],
+    "ok": true,
+    "detail": "nothing woke",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "woke",
+    "arg": {
+     "agent": "Deal Analyst",
+     "runs": 1,
+     "contains": "Midwest HVAC"
+    },
+    "ok": true,
+    "why": "1 run(s) woken by events; Run of Deal Analyst, woken by: 1 row(s) added to Deals: Midwest HVAC; last: I screened 1 deal, Midwest HVAC, and added \"Screened: Midwest HVAC\" to the deals table with stage \"Screening\". The table has no \"screened\" option, so I used the",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "deals",
+     "at_least": 2
+    },
+    "ok": true,
+    "why": "2 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 43.6,
+  "error": null
+ }
+]

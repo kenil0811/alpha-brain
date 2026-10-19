@@ -1,0 +1,196 @@
+[
+ {
+  "name": "agent_wakes_on_a_row",
+  "title": "Agents · an agent wakes when a row is added, once, and never on its own writes",
+  "steps": [
+   {
+    "say": "make a table named deals with each deal's name, its EBITDA in millions and its stage",
+    "ok": true,
+    "reply": "I made the **Deals** table. It's in a new module called **Deal pipeline**, because Alpha won't let a module and its table have the same name.\n\nIt has three fields:\n- **Deal name**: required.\n- **EBITDA**: a number, in $ millions.\n- **Stage**: Sourcing, Screening, LOI, Due diligence, Closing, Closed or Passed. You didn't name any stages, so I used a standard deal pipeline. Tell me yours and I'll change them.\n\nThe table is empty. Tell me your deals, for example \"Acme, 12.5, LOI\", and I'll add them.",
+    "steps": 4,
+    "seconds": 18.9
+   },
+   {
+    "seed": "agent Deal Analyst",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "add a deal: Midwest HVAC, EBITDA 2.1, stage new",
+    "ok": true,
+    "reply": "I added **Midwest HVAC** with EBITDA of **$2.1M**.\n\nThere's no \"New\" stage in the table, so I put it in **Sourcing**, the first stage. If you'd like a separate \"New\" stage before Sourcing, tell me and I'll add it and move this deal there.",
+    "steps": 2,
+    "seconds": 8.9
+   },
+   {
+    "wake_agents": [],
+    "ok": true,
+    "detail": "nothing woke",
+    "seconds": 0.0
+   },
+   {
+    "wake_agents": [],
+    "ok": true,
+    "detail": "nothing woke",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "woke",
+    "arg": {
+     "agent": "Deal Analyst",
+     "runs": 1,
+     "contains": "Midwest HVAC"
+    },
+    "ok": false,
+    "why": "0 run(s) woken by events",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "deals",
+     "at_least": 2
+    },
+    "ok": false,
+    "why": "1 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 27.8,
+  "error": null
+ },
+ {
+  "name": "statement_imported",
+  "title": "Documents · a sheet's rows imported by code, each value with its cell, one file one document",
+  "steps": [
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "kept as d_438bf4c438db",
+    "seconds": 0.1
+   },
+   {
+    "file_document": "Bank statement Sept 2025.pdf",
+    "ok": true,
+    "detail": "kept as d_ba93604d901a",
+    "seconds": 0.2
+   },
+   {
+    "say": "import the P&L sheet of RestoPros P&L Sept 2025.xlsx into a new table called ledger with account, amount and month",
+    "ok": true,
+    "reply": "I made a **Ledger** table in **Accounting** and imported all 4 rows from the P&L sheet. Nothing was left out and nothing failed.\n\n| Account | Amount | Month |\n|---|---|---|\n| Revenue | 48,200 | Sept |\n| Cost of sales | 21,400 | Sept |\n| Payroll | 12,800 | Sept |\n| Rent | 3,500 | Sept |\n\n- **Currency:** the sheet doesn't say which currency it uses, so I stored the amounts as plain numbers.\n- **Month:** I kept \"Sept\" exactly as the sheet writes it, so it's text, not a date. The year (2025) appears only in the file name.\n- **Notes sheet:** this file also has a second sheet called Notes. It says \"",
+    "steps": 4,
+    "seconds": 21.8
+   },
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "already kept as d_438bf4c438db",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Imported"
+    },
+    "ok": true,
+    "why": "1 did entry: Imported 4 rows from RestoPros P&L Sept 2025.xlsx · P&L into Ledger..",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "ledger",
+     "at_least": 4
+    },
+    "ok": true,
+    "why": "4 rows (wanted at least 4).",
+    "seconds": 0.0
+   },
+   {
+    "check": "value_source",
+    "arg": {
+     "collection": "ledger",
+     "field": "amount",
+     "kind": "document",
+     "match_field": "account",
+     "row": "Revenue",
+     "cell": "B2"
+    },
+    "ok": true,
+    "why": "4 value(s), each from its place: 3500 from RestoPros P&L Sept 2025.xlsx · P&L!B5; 12800 from RestoPros P&L Sept 2025.xlsx · P&L!B4; 21400 from RestoPros P&L Sept 2025.xlsx · P&L!B3; 48200 from RestoPros P&L Sept 2025.xlsx · P&L!B2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "kept_once",
+    "arg": {
+     "title_contains": "P&L"
+    },
+    "ok": true,
+    "why": "1 document(s) titled like 'P&L'; the second taking said already kept.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 22.0,
+  "error": null
+ },
+ {
+  "name": "value_says_where",
+  "title": "Values · the answer says where a number sat, and it is right",
+  "steps": [
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "kept as d_2cc223840d55",
+    "seconds": 0.0
+   },
+   {
+    "import_document": "ledger",
+    "ok": true,
+    "detail": "{'into': 'ledger', 'sheet': 'P&L', 'header_row': 1, 'mapped': {'Account': 'account', 'Amount': 'amount', 'Month': 'month'}, 'unmapped': [], 'imported': 3, 'invalid': 0, 'problems': []}",
+    "seconds": 0.0
+   },
+   {
+    "say": "what was September's revenue, and where exactly is that number from?",
+    "ok": true,
+    "reply": "September's revenue was **48,200**. The file doesn't name a currency.\n\n**Where it comes from:** cell **B2** on the **P&L** sheet of **RestoPros P&L Sept 2025.xlsx**, the file you added to Accounting. I just reopened the sheet to check it:\n\n| Cell | Value |\n|---|---|\n| A2 | Revenue |\n| **B2** | **48200** (typed in, not calculated) |\n| C2 | Sept |\n\n**One problem to fix:** your ledger has **7 rows, not 4**. A second copy of the same file was saved outside Accounting, and a minute after the first import it was imported too. That copy added three more rows: Revenue, Cost of sales and Payroll. The f",
+    "steps": 6,
+    "seconds": 19.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "48,?200"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "B2"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the answer give September's revenue as 48,200 and say it comes from the P&L sheet of RestoPros P&L Sept 2025.xlsx, cell B2?",
+    "ok": true,
+    "why": "The answer gives September's revenue as 48,200 and says it comes from cell B2 on the P&L sheet of RestoPros P&L Sept 2025.xlsx, which is what the rubric asks for; separately, its claim to have just reopened the sheet has no backing because the journal records no step this turn.",
+    "seconds": 5.3
+   }
+  ],
+  "seconds": 25.1,
+  "error": null
+ }
+]

@@ -1,0 +1,31 @@
+name: staged_from_a_run
+title: "Tasks · what an agent brings in waits on one card, and lands on the yes"
+why: >
+  P3 item 5 of the tasks-and-cards proposal (19 Oct 2026). An agent's run brings rows in from
+  outside for a table its file stages: they wait on one card for the batch instead of landing.
+  A No stores nothing and its reason goes in front of the agent's next run; the yes lands the
+  rows with the card in their provenance. (A No's reason reaching the next run is in
+  test_staged; on 19 Oct 14:42 a run that heard "Not needed" chose not to bring the same two
+  again.)
+fresh: true
+steps:
+  - say: "make a table named contacts with each person's name and email"
+  - seed:
+      kind: agent
+      name: "Intake"
+      title: "When run, bring in the people who emailed me"
+      schedule: ""
+      stage: ["contacts"]
+      brief: >
+        Each run, add two people to the contacts table with world_write: Anna Lee
+        (anna@restopros.test) and Ben Ortiz (ben@restopros.test), with source "the inbox".
+        End with one line saying what you brought in and whether it waits for the person.
+  - agent: "Intake"
+checks:
+  - card: {kind: staged, state: waiting}
+  - count: {collection: contacts, at_least: 0}
+steps_after:
+  - decide_staged: {accept: true}
+checks_after:
+  - card: {kind: staged, state: "yes"}
+  - count: {collection: contacts, at_least: 2}

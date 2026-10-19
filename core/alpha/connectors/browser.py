@@ -497,6 +497,8 @@ class Browser:
         job: dict[str, Any] = {
             "op": "act", "url": url, "channel": chrome_channel(), "profile": str(profile_of(conn)),
             "steps": procedure["steps"], "verify": procedure.get("verify") or [],
+            # what throws away what a dry run or a failed run typed, in the same page (Q95)
+            "discard": procedure.get("discard") or [],
             "values": {**values, "__files": files or {}}, "stop_before_last": dry_run,
             "shots_dir": str(shots_dir),
             "files_root": str((alpha_home() / "files").resolve()),
@@ -510,10 +512,14 @@ class Browser:
                    "it stopped Alpha with a bot check" if page.get("bot_check") else
                    "done" + ("" if page.get("verified") in (None, True) else
                              ", but the check afterwards failed"))
+        if page.get("discarded") is False:
+            # its discard steps broke: what it typed may still be there (a draft), said plainly
+            outcome += "; what it typed could not be thrown away, so a draft may remain"
         self.world.journal.append(
             "did", f"{'Dry run of' if dry_run else 'Performed'} {what} on {site}: {outcome}.",
             actor="alpha",
             data={"url": url, "procedure": procedure["name"], "dry_run": dry_run,
+                  "discarded": page.get("discarded"),
                   "done": page.get("done"), "failed_step": page.get("failed_step"),
                   "error": page.get("error"), "verified": page.get("verified"),
                   "shots": page.get("shots") or {}, "log": page.get("log") or [], "turn": turn},

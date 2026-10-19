@@ -22,7 +22,7 @@ import threading
 import time
 import uuid
 import warnings
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -192,6 +192,7 @@ def fingerprint() -> str:
 # (its card is the gate today) and is the hook for the deferred yes later.
 GATED = ("world_change", "act_outward")
 WAITING = "Waiting for your yes"
+DEFERRED = "Waiting for your yes on the card."
 NO = "You said no: nothing changed."
 
 
@@ -252,6 +253,91 @@ def yes(text: str) -> bool:
         words in ("y", "yep", "yeah")
 
 
+def removal_card(world: World, req: TurnRequest, input_data: dict[str, Any],
+                 **more: Any) -> tuple[str, str]:
+    """The removal's card in the journal, saying what goes with the rows (their open tasks,
+    P1), and the item's line saying it waits; `more` keeps a deferred call's id and session
+    on the card (P3 item 7). Returns the card's id and words."""
+    table = str(input_data.get("table") or "the table")
+    ids = [str(i) for i in (input_data.get("ids") or [])] or (
+        [str(input_data["id"])] if input_data.get("id") else [])
+    titles = list(ids)
+    try:
+        desc = world.collections.describe(table)
+        field = desc.get("title_field") or ""
+        titles = [str(world.collections.get(table, rid).get(field) or rid) for rid in ids]
+        table = str(desc.get("title") or table)
+    except Exception:  # the operation itself says what is wrong with the rows
+        pass
+    # what lives on the rows goes with them (P1): the card says so
+    living = 0
+    for rid in ids:
+        try:
+            living += world.tasks.counted_at(world.tasks.address(
+                table=str(input_data.get("table") or ""), record=rid))
+        except Exception:  # a row the operation itself will say is not there
+            continue
+    with_tasks = (f" {living} open task{'s' if living != 1 else ''} on"
+                  f" {'them' if len(ids) > 1 else 'it'}"
+                  f" {'go' if living != 1 else 'goes'} too." if living else "")
+    if len(ids) > 1:
+        # several rows the person asked to remove: one card for all of them
+        shown = ", ".join(f"\"{t}\"" for t in titles[:3]) + (
+            f" and {len(ids) - 3} more" if len(ids) > 3 else "")
+        text = (f"Remove {len(ids)} rows from {table}? {shown}. They leave the table;"
+                f" Activity keeps that they were here.{with_tasks}")
+    else:
+        text = (f"Remove \"{titles[0] if titles else ''}\" from {table}? It leaves the"
+                f" table; Activity keeps that it was here.{with_tasks}")
+    ask = world.journal.append(
+        "asked", text,
+        data={"options": ["Yes, remove it", "No, keep it"], "kind": "one",
+              "turn": req.turn_id, "permission": "world_change", "table": table,
+              "record": ids[0] if ids else "", "records": ids, **more},
+        module=req.module_id, thread=req.thread_id)
+    LIVE.note(_keys(req), doing=WAITING)
+    # the item's card says what it waits for (18 Oct: "Working" read as stuck)
+    _line(world, req.thread_id, "needs_you", f"Waiting for your yes: {text[:150]}")
+    return ask, text
+
+
+def removal_hook(req: TurnRequest,
+                 world: World) -> Callable[..., Coroutine[Any, Any, SyncHookJSONOutput]]:
+    """A conversation's removal waits on its card without holding the turn (P3 item 7, 19 Oct
+    2026; the spike proved it end to end): the first time, the card is put and the call
+    deferred, so the turn ends and nothing waits in memory; the answer starts the item's next
+    turn, which resumes the kept session (after a restart too), and this decides the deferred
+    call from the card: yes runs it, anything else refuses it."""
+
+    def decide(decision: str, reason: str | None = None) -> SyncHookJSONOutput:
+        out: dict[str, Any] = {"hookEventName": "PreToolUse", "permissionDecision": decision}
+        if reason:
+            out["permissionDecisionReason"] = reason
+        return {"hookSpecificOutput": out}  # type: ignore[typeddict-item]
+
+    async def hook(input_data: Any, tool_use_id: str | None,
+                   context: HookContext) -> SyncHookJSONOutput:
+        call = (input_data or {}).get("tool_input") or {}
+        if not call.get("remove") or not tool_use_id:
+            return {}
+        card = world.store.one(
+            "SELECT c.state, c.answer FROM journal j JOIN cards c ON c.id = j.id WHERE"
+            " j.kind = 'asked' AND json_extract(j.data, '$.tool_use') = ?", (tool_use_id,))
+        if card is None:
+            removal_card(world, req, call, tool_use=tool_use_id,
+                         session=(input_data or {}).get("session_id"))
+            return decide("defer")
+        if card["state"] == "waiting":
+            return decide("defer")
+        if card["state"] == "yes" or (card["state"] == "answered" and yes(card["answer"] or "")):
+            _line(world, req.thread_id, "working", "Carrying on after your yes.")
+            return decide("allow")
+        _line(world, req.thread_id, "working", "Carrying on after your no.")
+        return decide("deny", NO)
+
+    return hook
+
+
 def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[Any]]:
     """The callback the SDK asks before a gated hand runs. A row removed from the person's
     tables is asked for on a card (the window answers it, or the person's Stop ends the wait);
@@ -287,49 +373,10 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
                                                 f" directory, {own}; the person's folders are"
                                                 " read, never written.")
         if name == "world_change" and input_data.get("remove"):
-            table = str(input_data.get("table") or "the table")
-            ids = [str(i) for i in (input_data.get("ids") or [])] or (
-                [str(input_data["id"])] if input_data.get("id") else [])
-            titles = list(ids)
-            try:
-                desc = world.collections.describe(table)
-                field = desc.get("title_field") or ""
-                titles = [str(world.collections.get(table, rid).get(field) or rid) for rid in ids]
-                table = str(desc.get("title") or table)
-            except Exception:  # the operation itself says what is wrong with the rows
-                pass
-            # what lives on the rows goes with them (P1): the card says so
-            living = 0
-            for rid in ids:
-                try:
-                    living += world.tasks.counted_at(world.tasks.address(
-                        table=str(input_data.get("table") or ""), record=rid))
-                except Exception:  # a row the operation itself will say is not there
-                    continue
-            with_tasks = (f" {living} open task{'s' if living != 1 else ''} on"
-                          f" {'them' if len(ids) > 1 else 'it'}"
-                          f" {'go' if living != 1 else 'goes'} too." if living else "")
-            if len(ids) > 1:
-                # several rows the person asked to remove: one card for all of them
-                shown = ", ".join(f"\"{t}\"" for t in titles[:3]) + (
-                    f" and {len(ids) - 3} more" if len(ids) > 3 else "")
-                text = (f"Remove {len(ids)} rows from {table}? {shown}. They leave the table;"
-                        f" Activity keeps that they were here.{with_tasks}")
-            else:
-                text = (f"Remove \"{titles[0] if titles else ''}\" from {table}? It leaves the"
-                        f" table; Activity keeps that it was here.{with_tasks}")
-            ask = world.journal.append(
-                "asked", text,
-                data={"options": ["Yes, remove it", "No, keep it"], "kind": "one",
-                      "turn": req.turn_id, "permission": name, "table": table,
-                      "record": ids[0] if ids else "", "records": ids},
-                module=req.module_id, thread=req.thread_id)
+            ask, _ = removal_card(world, req, input_data)
             loop = asyncio.get_running_loop()
             fut: asyncio.Future[str] = loop.create_future()
             PENDING.add(ask, loop, fut)
-            LIVE.note(_keys(req), doing=WAITING)
-            # the item's card says what it waits for (18 Oct: "Working" read as stuck)
-            _line(world, req.thread_id, "needs_you", f"Waiting for your yes: {text[:150]}")
             try:
                 answer = await fut
             except asyncio.CancelledError:
@@ -471,7 +518,13 @@ async def run_async(req: TurnRequest, *,
             can_use = permission_for(req, world)
         cwd = grants.module_dir(world, req.module_id) if world is not None else None
         add_dirs = grants.folders(world) if world is not None else []
-        options = options_for(req, server, _hooks(req), hands=hands, can_use=can_use,
+        hooks = _hooks(req)
+        if world is not None and req.persist:
+            # a conversation keeps its session, so its removal card can outlive the turn and a
+            # restart (P3 item 7); any other turn waits on the card in memory, as before
+            hooks["PreToolUse"] = [HookMatcher(matcher="mcp__alpha__world_change",
+                                               hooks=[removal_hook(req, world)])]
+        options = options_for(req, server, hooks, hands=hands, can_use=can_use,
                               cwd=cwd, add_dirs=add_dirs)
         async with client_factory(options) as c:
             client = c
@@ -518,6 +571,11 @@ async def run_async(req: TurnRequest, *,
                          raw={"failure": failure} if failure else {})
     out = tools_verdict(parse_result(result_data(final), failure or "", 0),
                         tools["called"], tools["failed"], tools["first"])
+    if final.deferred_tool_use is not None and not final.is_error:
+        # the turn ended on a card (P3 item 7): a turn that ended well, saying so; the card
+        # above is the question
+        out.ok, out.error = True, None
+        out.reply = out.reply.strip() or DEFERRED
     if first_text_at:
         out.first_text_ms = int((first_text_at - started_at) * 1000)
     return out

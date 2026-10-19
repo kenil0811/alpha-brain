@@ -1,0 +1,34 @@
+name: agent_drafts_for_yes
+title: "Tasks · an agent drafts an email for the yes; after the yes it settles its task"
+why: >
+  P3b, item 9 of the tasks-and-cards proposal (Q94, 19 Oct 2026). Kenil's Deal Analyst could not
+  draft the broker's email at all: an agent never acted outward, not even to propose. Now an
+  agent's run drafts it as a card; only the person's yes acts, and no standing permission covers
+  it. After the yes, the agent runs again with what became of its draft and settles its task.
+  Acts in Kenil's real Gmail (a draft, which reaches nobody): run only on his say.
+fresh: true
+steps:
+  - seed:
+      kind: agent
+      name: "Deal Analyst"
+      title: "When given a task about a deal, work it out and draft any email it needs"
+      schedule: ""
+      brief: >
+        You are given tasks about deals. Read the task and the deal's row. When the task needs
+        an email, draft it with act_outward using the Gmail draft procedure Alpha keeps, for the
+        person's yes, then settle the task Blocked, waiting for that yes. When your run hears
+        the draft was done, settle the task Done.
+  - say: "prepare a draft email in Gmail to saniahussain417@gmail.com saying a short hello"
+  - approve_action: latest
+  - say: "keep a list of deals: the firm's name, the asking price and the broker's email"
+  - say: "add Midwest HVAC, asking 900k, broker saniahussain417@gmail.com"
+  - say: "add a task on Midwest HVAC to email the broker asking for 3 years of P&L, give it to the Deal Analyst and start it"
+  - start_tasks: {}
+checks:
+  - card: {kind: action, state: waiting, by_agent: true}
+steps_after:
+  - approve_action: latest
+  - start_tasks: {}
+checks_after:
+  - action: {state: done, effect: prepare}
+  - task_run: {matches: "P&L", verdict: succeeded, state: Done}

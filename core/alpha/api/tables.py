@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
+from alpha import config
 from alpha.api.bodies import (
     AddFieldBody,
     AskBody,
@@ -402,6 +403,12 @@ def routes(app: FastAPI, s: Served) -> None:
         """What deleting a file would do, before it does (G4)."""
         return document_removal(world, did)
 
+    @app.get("/api/documents/{did}/place", dependencies=[api])
+    def document_place(did: str, page: int | None = None, sheet: str | None = None,
+                       cell: str | None = None) -> dict[str, Any]:
+        """Where a value sat (P5): the page, or the cell among its neighbours."""
+        return Files(world).place(did, page=page, sheet=sheet, cell=cell)
+
     @app.delete("/api/documents/{did}", dependencies=[api])
     def delete_document(did: str) -> dict[str, Any]:
         """Delete a file given to Alpha (G4); a connected folder's own file is refused."""
@@ -441,11 +448,7 @@ def routes(app: FastAPI, s: Served) -> None:
         if module_id and live and not (table and record):
             names = ", ".join(d["title"] for d in taken)
             started = running.start(AskBody(
-                text=f"The person added {names} to this module. Read what Alpha can read of"
-                     " it and put what belongs in the module's tables, saying where each value"
-                     " came from (source=the file's name); keep the document's id on a file"
-                     " field where a table has one. If the file isn't a kind Alpha reads, say"
-                     " so in one line.", module=module_id), actor="alpha",
+                text=config.prompt("files_added", names=names), module=module_id), actor="alpha",
                 journal_as=f"Read {names} the person added.")
         return {"documents": taken, "turn": started}
 
@@ -510,7 +513,7 @@ def routes(app: FastAPI, s: Served) -> None:
         prov = dict(before.get("_provenance") or {})
         fields = dict(prov.get("fields") or {})
         for key in body.values:
-            fields[key] = {"source": "you", "fetched_at": now()}
+            fields[key] = {"kind": "stated", "source": "you", "fetched_at": now()}
         prov.update({"by": "person", "fields": fields})
         rec = world.collections.update(name, rid, body.values, body.revision, prov)
         person_did("changed", f"You changed {', '.join(body.values)} in "

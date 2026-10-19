@@ -14,7 +14,7 @@ from alpha.connectors.base import Connections
 from alpha.mcp.tools import Tools
 from alpha.runtime import acting
 from alpha.runtime.running import RunResult, TurnRequest
-from alpha.world.actions import check_steps
+from alpha.world.actions import check_discard, check_steps
 from alpha.world.purge import remove_connection
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -24,6 +24,8 @@ STEPS = [{"click_text": "Compose"}, {"fill": "textarea[name=to]", "value": "{to}
          {"type": "div[aria-label='Message Body']", "value": "{body}"},
          {"click": "img[aria-label='Save & close']"}]
 FIELDS = ["to", "subject", "body"]
+# what throws away what a send's dry run typed, in the same page (Q95)
+DISCARD = [{"click": "[aria-label='Discard draft']"}]
 PAYLOAD = {"to": "sania@example.com", "subject": "Barcelona", "body": "Are you ready?"}
 
 
@@ -77,7 +79,8 @@ def keep_procedure(world: World, turn: str | None = None, effect: str = "prepare
     t = Tools(world, turn=turn)
     out = t.procedure_save("gmail_draft", "https://mail.google.com/mail/u/0/#inbox",
                            "Make a draft email in Gmail", effect, STEPS, FIELDS,
-                           verify=[{"expect_text": "Draft saved"}])
+                           verify=[{"expect_text": "Draft saved"}],
+                           discard=DISCARD if effect == "send" else None)
     assert out.get("version") == 1 and out["site"] == "google.com", out
     return t
 
@@ -97,6 +100,23 @@ def test_fills_take_only_payload_fields_and_the_last_step_commits() -> None:
         check_steps([{"click": "b"}], [], effect="maybe")
     with pytest.raises(Problem, match="exactly one of"):
         check_steps([{"run": "document.title"}, {"click": "b"}], [], effect="prepare")
+    # a send carries discard steps, which never type; a prepare may go without (Q95)
+    with pytest.raises(Problem, match="A send procedure needs discard steps"):
+        check_discard(None, "send")
+    with pytest.raises(Problem, match="a discard step never types"):
+        check_discard([{"type": "div", "value": "{body}"}], "send")
+    assert check_discard(None, "prepare") == []
+    assert check_discard([{"click": "[aria-label='Discard draft']"}], "send") == [
+        {"click": "[aria-label='Discard draft']"}]
+    # a pause written as a wait (19 Oct: `wait: 2000` read as the selector "2000")
+    with pytest.raises(Problem, match=r'not a number; for a pause, use \{"wait_ms": 2000\}'):
+        check_steps([{"click_text": "Compose"}, {"wait": 2000}, {"click": "b"}], [],
+                    effect="prepare")
+    with pytest.raises(Problem, match="Step 2: expect takes something the page shows"):
+        check_steps([{"click_text": "Compose"}, {"expect": "1500"}, {"click": "b"}], [],
+                    effect="prepare")
+    with pytest.raises(Problem, match="verify step 1: wait takes"):
+        check_steps([{"click": "b"}], [], effect="prepare", verify=[{"wait": 500}])
     steps, verify = check_steps(STEPS, FIELDS, effect="prepare",
                                 verify=[{"expect_text": "Draft saved"}])
     assert len(steps) == 5 and verify == [{"expect_text": "Draft saved"}]
@@ -117,19 +137,21 @@ def test_a_payload_must_match_the_procedures_fields(world: World) -> None:
 
 def test_propose_dry_runs_up_to_the_commit_and_waits_for_the_person(world: World,
                                                                      tmp_path: Path) -> None:
+    """A send's dry run goes up to the commit, then its discard steps throw away what it typed,
+    in the same page (Q95: Gmail keeps a draft of anything typed into a compose window)."""
     gmail_connected(world)
     driver = Driver()
     with_fake(driver)
     try:
-        t = keep_procedure(world, turn=said(world, "draft an email to sania about barcelona"))
-        out = t.action_propose("gmail_draft", "Draft to Sania about Barcelona", PAYLOAD,
-                               "the draft can be deleted from Gmail", evidence="your words")
+        t = keep_procedure(world, turn=said(world, "email sania about barcelona"), effect="send")
+        out = t.action_propose("gmail_draft", "Email Sania about Barcelona", PAYLOAD,
+                               "a sent email cannot be unsent", evidence="your words")
         assert out["dry_run"] == "ok" and out["steps_done"] == 4, out
         action = world.actions.get(out["action"])
         assert action["state"] == "proposed" and action["preview"].endswith("preview.png")
         job = driver.jobs[-1]
         assert job["stop_before_last"] is True and job["values"] == {**PAYLOAD, "__files": {}}
-        assert job["profile"].endswith("google.com")
+        assert job["profile"].endswith("google.com") and job["discard"] == DISCARD
         # Journaled as a proposal with the action, and as the dry run the hand did.
         kinds = [e["kind"] for e in world.journal.recent(5)]
         assert "proposed" in kinds and "did" in kinds
@@ -140,7 +162,7 @@ def test_propose_dry_runs_up_to_the_commit_and_waits_for_the_person(world: World
 
 def test_acting_needs_the_persons_sign_in(world: World) -> None:
     driver = Driver()
-    t = keep_procedure(world, turn=said(world, "draft to sania"))
+    t = keep_procedure(world, turn=said(world, "email sania"), effect="send")
     with_fake(driver)
     try:
         out = t.action_propose("gmail_draft", "Draft", PAYLOAD, "deletable")
@@ -177,7 +199,10 @@ def test_approval_runs_it_and_a_standing_permission_skips_the_card_next_time(
     try:
         turn1 = said(world, "draft an email to sania")
         t = keep_procedure(world, turn=turn1)
-        aid = t.action_propose("gmail_draft", "Draft to Sania", PAYLOAD, "deletable")["action"]
+        proposed = t.action_propose("gmail_draft", "Draft to Sania", PAYLOAD, "deletable")
+        # a draft has no dry run (Q95): nothing is typed until the yes
+        assert proposed["dry_run"] == "none" and driver.jobs == []
+        aid = proposed["action"]
         # In the proposing turn the yes is refused; in the next, the person's words approve it.
         assert "reply to it" in t.action_approve(aid, "draft an email")["error"]
         turn2 = said(world, "yes do it, and always allow drafts")
@@ -190,28 +215,29 @@ def test_approval_runs_it_and_a_standing_permission_skips_the_card_next_time(
         assert world.procedures.get("gmail_draft")["health"] == "ok"
         granted = world.permissions.live()
         assert [p["sentence"] for p in granted] == [
-            "Alpha may make a draft email in Gmail on google.com without asking."]
+            "Alpha may do this on google.com without asking: Make a draft email in Gmail."]
         # Next time: no card, it runs at once under the sentence.
         turn3 = said(world, "draft another one to sania")
         out = Tools(world, turn=turn3).action_propose("gmail_draft", "Second draft", PAYLOAD,
                                                       "deletable")
         assert out["ran_now"] is True and out["under"].startswith("Alpha may")
         assert world.actions.get(out["action"])["state"] == "done"
-        # Never from an automation's run, standing permission or not: a run nobody watches
-        # cannot draft, send or approve (by mechanism, not by the run's prompt).
+        # From an agent's run (Q94, 19 Oct): its draft is a card that waits for the person's
+        # yes, standing permission or not; the run can't approve (by mechanism, not by the
+        # run's prompt).
         auto = world.agents.create("Daily drafts", schedule="daily 08:00",
                                    thread=world.modules.open_thread("Daily drafts", "work",
                                                                     None)["id"])
         inside = Tools(world, turn=said(world, "run"), thread=auto["thread"])
-        refused = inside.action_propose("gmail_draft", "Third draft", PAYLOAD, "deletable")
-        assert "never acts outward" in refused["error"]
+        drafted = inside.action_propose("gmail_draft", "Third draft", PAYLOAD, "deletable")
+        assert drafted["dry_run"] == "none" and "ran_now" not in drafted
+        assert world.actions.get(drafted["action"])["state"] == "proposed"
         assert "never acts outward" in inside.action_approve(aid, "yes")["error"]
-        assert len([a for a in world.actions.all() if a["title"] == "Third draft"]) == 0
         # Revoked, the card is back.
         world.permissions.revoke(granted[0]["id"])
         out = Tools(world, turn=said(world, "once more")).action_propose(
             "gmail_draft", "Third", PAYLOAD, "deletable")
-        assert out["dry_run"] == "ok" and world.actions.get(out["action"])["state"] == "proposed"
+        assert out["dry_run"] == "none" and world.actions.get(out["action"])["state"] == "proposed"
     finally:
         restore()
 
@@ -274,12 +300,13 @@ def test_the_api_shows_the_card_and_takes_the_decision(world: World) -> None:
                                   runner=lambda req: RunResult(ok=True, reply="")))
         home = c.get("/api/home").json()
         cards = [i for i in home["needs_you"] if i["kind"] == "action"]
-        assert len(cards) == 1 and cards[0]["action"]["preview"] == "preview.png"
+        # a draft's card is its payload, with no dry run to wait for (Q95)
+        assert len(cards) == 1 and cards[0]["action"]["preview"] is None
+        assert cards[0]["action"]["needs_preview"] is False
+        assert cards[0]["action"]["preview_note"].startswith("Nothing is typed until your yes")
         assert not [i for i in home["needs_you"] if i["kind"] == "proposal"]
-        shot = c.get(f"/api/actions/{aid}/shots/preview.png")
-        assert shot.status_code == 200 and shot.headers["content-type"] == "image/png"
         edited = c.patch(f"/api/actions/{aid}", json={"payload": {"subject": "Barcelona!"}}).json()
-        assert edited["payload"]["subject"] == "Barcelona!" and edited["preview"] == "preview.png"
+        assert edited["payload"]["subject"] == "Barcelona!" and edited["preview"] is None
         done = c.post(f"/api/actions/{aid}/approve", json={"always": True}).json()
         assert done["state"] == "done" and done["shots"] == {"after": "after.png"}
         intel = c.get("/api/intelligence").json()

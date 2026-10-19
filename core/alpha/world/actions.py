@@ -37,6 +37,49 @@ STEP_KINDS = {"goto", "click", "click_text", "fill", "type", "press", "wait", "w
 COMMITS = {"click", "click_text", "press"}
 
 
+def _pause_as_selector(kind: str, value: Any) -> bool:
+    """A wait or an expect given a bare number: the model meant a pause (found 19 Oct: Alpha's
+    Gmail draft procedure had `wait: 2000`, which the browser read as a selector "2000")."""
+    return kind in ("wait", "expect") and (isinstance(value, int) or str(value).strip().isdigit())
+
+
+def _pause_words(where: str, kind: str, value: Any) -> str:
+    return (f"{where}: {kind} takes something the page shows (a selector or its text), not a"
+            f" number; for a pause, use {{\"wait_ms\": {str(value).strip()}}}.")
+
+
+# what a discard step may do: press, click, wait, go, look; never type (Q95)
+DISCARD_KINDS = {"click", "click_text", "press", "wait", "wait_ms", "goto", "expect",
+                 "expect_text"}
+
+
+def check_discard(discard: Any, effect: str) -> list[dict[str, Any]]:
+    """A send's discard steps (Q95): what throws away what its dry run or a failed run typed,
+    run in the same page right after (Gmail keeps a draft of anything typed into a compose
+    window, found 19 Oct). Required for a send; optional for a prepare; they never type."""
+    if discard is None or discard == []:
+        if effect == "send":
+            raise Problem("A send procedure needs discard steps: what throws away what its dry"
+                          " run typed, in the same page right after (for a Gmail message, its"
+                          " Discard draft button), e.g. [{\"click\": \"[aria-label='Discard"
+                          " draft']\"}].")
+        return []
+    if not isinstance(discard, list):
+        raise Problem("discard is a list of steps.")
+    clean: list[dict[str, Any]] = []
+    for i, step in enumerate(discard, 1):
+        kinds = [k for k in step if k in STEP_KINDS] if isinstance(step, dict) else []
+        if len(kinds) == 1 and kinds[0] not in DISCARD_KINDS:
+            raise Problem(f"Discard step {i}: a discard step never types; it is one of"
+                          f" {sorted(DISCARD_KINDS)}.")
+        if len(kinds) != 1 or set(step) - {kinds[0], "note"}:
+            raise Problem(f"Discard step {i} must be one step like {{\"click\": \"...\"}}.")
+        if _pause_as_selector(kinds[0], step[kinds[0]]):
+            raise Problem(_pause_words(f"Discard step {i}", kinds[0], step[kinds[0]]))
+        clean.append(dict(step))
+    return clean
+
+
 def check_steps(steps: Any, fields: list[str], *, effect: str,
                 verify: Any = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Validate a procedure's steps. Returns (steps, verify) cleaned, or raises a Problem that
@@ -71,6 +114,8 @@ def check_steps(steps: Any, fields: list[str], *, effect: str,
         elif kind == "wait_ms":
             if not isinstance(step[kind], int) or not 0 < step[kind] <= 30000:
                 raise Problem(f"Step {i}: wait_ms is a number of milliseconds up to 30000.")
+        elif _pause_as_selector(kind, step[kind]):
+            raise Problem(_pause_words(f"Step {i}", kind, step[kind]))
         elif "value" in step:
             raise Problem(f"Step {i}: only fill, type and upload take a value.")
         if not isinstance(step[kind], str | int) or (isinstance(step[kind], str)
@@ -96,6 +141,9 @@ def check_steps(steps: Any, fields: list[str], *, effect: str,
                 "expect", "expect_text", "goto", "wait", "wait_ms"):
             raise Problem(f"verify step {i} must be one of expect, expect_text, goto, wait,"
                           " wait_ms.")
+        kind, value = next(iter(step.items()))
+        if _pause_as_selector(kind, value):
+            raise Problem(_pause_words(f"verify step {i}", kind, value))
         checks.append(dict(step))
     return clean, checks
 
@@ -141,11 +189,13 @@ class Procedures:
              by: str | None = None,
              steps: list[dict[str, Any]], fields: list[str],
              verify: list[dict[str, Any]] | None = None, when_to_use: str | None = None,
-             source: str | None = None) -> dict[str, Any]:
+             source: str | None = None,
+             discard: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         check_name(name, "procedure", "gmail_draft")
         if not description.strip():
             raise Problem("A procedure needs a description: what it does, in a sentence.")
         clean, checks = check_steps(steps, fields, effect=effect, verify=verify)
+        thrown = check_discard(discard, effect)
         for ref in re.findall(r"\{([a-z][a-z0-9_]*)\}", url):
             if ref not in fields:
                 raise Problem(f"The address uses {{{ref}}}, which is not in fields.")
@@ -153,7 +203,7 @@ class Procedures:
                                 by=by,
                                 when_to_use=when_to_use, source=source, health="untried",
                                 effect=effect, steps=clean, verify=checks, fields=list(fields),
-                                last_problem=None)
+                                discard=thrown or None, last_problem=None)
 
     def get(self, name: str) -> dict[str, Any]:
         return self.skills.get(name, "act")
@@ -241,6 +291,17 @@ class Actions:
             moved = db.execute(
                 f"UPDATE actions SET state = ?, {cols} WHERE id = ? AND state IN ({marks})",
                 (to, *values.values(), aid, *when)).rowcount
+            if moved and to == "failed" and current["state"] == "proposed":
+                # a dry run that failed can't be decided: its card is withdrawn (found 19 Oct:
+                # two such cards read "waiting" in Decisions all day)
+                db.execute("UPDATE cards SET state = 'withdrawn', decided_at = ?, decided_by ="
+                           " 'alpha' WHERE ref = ? AND kind = 'action' AND state = 'waiting'",
+                           (now(), aid))
+            elif moved and to == "proposed":
+                # its preview made again (Try again): the card waits once more
+                db.execute("UPDATE cards SET state = 'waiting', decided_at = NULL, decided_by ="
+                           " NULL WHERE ref = ? AND kind = 'action' AND state = 'withdrawn'"
+                           " AND decided_by = 'alpha'", (aid,))
         if not moved:
             current = self.get(aid)
             raise Problem(f"The action \"{current['title']}\" is {current['state']}; it can't"
@@ -336,8 +397,31 @@ class Permissions:
 
     def for_procedure(self, procedure: str) -> dict[str, Any] | None:
         row = self.store.one(
-            "SELECT * FROM permissions WHERE procedure = ? AND revoked_at IS NULL", (procedure,))
+            "SELECT * FROM permissions WHERE procedure = ? AND revoked_at IS NULL"
+            " AND agent IS NULL", (procedure,))
         return {k: row[k] for k in row.keys()} if row else None
+
+    def for_staging(self, agent: str, destination: str) -> dict[str, Any] | None:
+        """The person's "Always" for what one agent brings into one place (P3 item 6)."""
+        row = self.store.one(
+            "SELECT * FROM permissions WHERE agent = ? AND destination = ? AND revoked_at IS"
+            " NULL", (agent, destination))
+        return {k: row[k] for k in row.keys()} if row else None
+
+    def grant_staging(self, *, agent: str, destination: str, sentence: str,
+                      source: str | None = None) -> dict[str, Any]:
+        """"Always keep what Intake files into Source documents": from then on, its writes
+        into that place land at once, each one still in History and Decisions as allowed."""
+        live = self.for_staging(agent, destination)
+        if live:
+            return live
+        pid = new_id("perm")
+        with self.store.tx() as db:
+            db.execute(
+                "INSERT INTO permissions (id, sentence, procedure, effect, granted_at, source,"
+                " agent, destination) VALUES (?,?,'','stage',?,?,?,?)",
+                (pid, sentence.strip(), now(), source, agent, destination))
+        return self.get(pid)
 
     def live(self) -> list[dict[str, Any]]:
         return [{k: r[k] for k in r.keys()} for r in self.store.all(

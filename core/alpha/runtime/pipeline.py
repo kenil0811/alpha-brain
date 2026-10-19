@@ -67,8 +67,10 @@ def _source(world: World, reader: dict[str, Any], module: str | None) -> dict[st
 def run_reader(world: World, name: str, collection: str, key: str, *,
                keep: list[str] | None = None, mapping: dict[str, dict[str, Any]] | None = None,
                turn_id: str | None = None, module: str | None = None,
-               browser: Browser | None = None, thread: str | None = None) -> dict[str, Any]:
-    """`thread`: a pipeline's run, so what the reader did shows on the agent's page."""
+               browser: Browser | None = None, thread: str | None = None,
+               agent: str | None = None) -> dict[str, Any]:
+    """`thread`: a pipeline's run, so what the reader did shows on the agent's page; `agent`:
+    whose run it is, kept on the rows so its own writes never wake it (P7)."""
     reader = world.readers.get(name)
     desc = world.collections.describe(collection)
     home = desc["module"] or module
@@ -108,7 +110,8 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
                          " loading (the Mac dozing, a slow network): a script that still finds"
                          " its items on the current HTML needs no rewrite, only that one rerun.")}
     result = world.collections.upsert(
-        collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name},
+        collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name,
+                                **({"agent": agent} if agent else {})},
         fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],
     )
     world.readers.ran(name, count=count, problem=None)
@@ -265,7 +268,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
         if "read" in step:
             name = step["read"]
             args = {"keep": step.get("keep"), "mapping": step.get("map"),
-                    "module": auto["module"], "browser": browser, "thread": thread}
+                    "module": auto["module"], "browser": browser, "thread": thread,
+                    "agent": auto["id"]}
             try:
                 out = run_reader(world, name, step["into"], step["key"], **args)
             except Problem as e:

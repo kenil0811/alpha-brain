@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 from alpha import config
 from alpha.config import settings
 from alpha.context.prepack import section_of
-from alpha.runtime import route, turn
+from alpha.runtime import route, turn, value_sources
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
 from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.store import Problem, now
@@ -130,8 +130,10 @@ def worked_out(world: World, turn_id: str) -> list[dict[str, Any]]:
     out = []
     for rec in records_of(world, turn_id):
         prov = rec.get("_provenance") or {}
-        if prov.get("synced") or prov.get("reader"):
-            continue
+        if prov.get("synced") or prov.get("reader") or prov.get("document"):
+            continue  # copied by code: a sync, a reader, an import from a document's cells
+        if value_sources.checked_by_code(prov, rec):
+            continue  # every value sits where its source says, read again by code (P5)
         if prov.get("by") == "alpha" and prov.get("source") != "stated":
             out.append(rec)
     return out

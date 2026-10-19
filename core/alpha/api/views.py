@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.config import settings
-from alpha.runtime import running
+from alpha.runtime import running, staging
 from alpha.runtime.agents import WORDS
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
@@ -114,11 +114,42 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                               "module": wf.get("module"),
                               "workflow": {**wf, "research": research_of(world, wf)},
                               "by": came["by"], "from": came})
+        elif c["kind"] == "staged":
+            try:
+                held = staged_view(world, str(c["ref"]))
+            except Problem:
+                continue
+            if held["state"] == "held":
+                items.append({"kind": "staged", "id": c["id"], "text": c["text"],
+                              "why": line["data"].get("why"), "at": line["at"],
+                              "module": c["module"], "staged": held, "by": came["by"],
+                              "from": came})
         else:
             items.append({"kind": "proposal", "id": c["id"], "text": c["text"],
                           "why": line["data"].get("why"), "at": line["at"],
                           "module": c["module"], "by": came["by"], "from": came})
     return items
+
+
+def staged_view(world: World, sid: str) -> dict[str, Any]:
+    """What an agent brought in, for its card (P3 item 5): the rows with the table's fields
+    (each ticked unless the person unticks it), or the file with where it would be kept and
+    the modules it could go to instead; whether the card offers "Always"."""
+    s = world.staged.get(sid)
+    out: dict[str, Any] = {k: s[k] for k in ("id", "kind", "target", "rows", "name", "size",
+                                             "origin", "state", "module")}
+    out["place"] = staging.place_words(world, s)
+    if s["kind"] == "rows":
+        desc = world.collections.describe(s["target"])
+        out["fields"] = [{"name": f["name"], "label": f.get("label") or f["name"],
+                          "kind": f["kind"]} for f in desc["fields"]]
+    else:
+        out["places"] = [{"id": m["id"], "name": m["name"]} for m in world.modules.all()]
+    out["offers_always"] = s["state"] == "held" and world.staged.offers_always(sid)
+    twin = s.get("duplicate_of")
+    row = world.store.one("SELECT title FROM documents WHERE id = ?", (twin,)) if twin else None
+    out["duplicate_of"] = {"id": twin, "title": row["title"]} if row else None
+    return out
 
 
 def research_of(world: World, wf: dict[str, Any]) -> dict[str, Any] | None:
@@ -158,6 +189,8 @@ def action_view(world: World, a: dict[str, Any]) -> dict[str, Any]:
                                  "effect", "site", "state", "module", "preview_note", "result",
                                  "error", "created_at", "updated_at")},
             "checked": a.get("checked"),
+            # a send waits for its dry run's screenshot; a draft's card is its payload (Q95)
+            "needs_preview": a["effect"] == "send",
             "preview": Path(a["preview"]).name if a.get("preview") else None, "shots": shots}
 
 

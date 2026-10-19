@@ -378,6 +378,33 @@ CREATE INDEX IF NOT EXISTS cards_task ON cards(task, state);
 CREATE INDEX IF NOT EXISTS cards_ref ON cards(ref);
 CREATE INDEX IF NOT EXISTS cards_thread ON cards(thread, state);
 CREATE INDEX IF NOT EXISTS cards_drafter ON cards(drafter, state);
+CREATE INDEX IF NOT EXISTS cards_run ON cards(run, state);
+
+-- what an agent's run brought in, held until the person's yes (P3 item 5, 19 Oct 2026): rows for
+-- a table its file stages, or a file it fetched; one card for the batch (world/staged.py)
+CREATE TABLE IF NOT EXISTS staged (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    target TEXT NOT NULL,
+    rows TEXT NOT NULL DEFAULT '[]',
+    upsert_key TEXT,
+    keep TEXT,
+    path TEXT,
+    name TEXT,
+    size INTEGER,
+    origin TEXT,
+    drafter TEXT NOT NULL,
+    run TEXT,
+    module TEXT,
+    thread TEXT,
+    turn TEXT,
+    card TEXT,
+    state TEXT NOT NULL,
+    landed TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS staged_held ON staged(drafter, target, state);
 
 -- standing permissions, as sentences the person granted and can revoke
 CREATE TABLE IF NOT EXISTS permissions (
@@ -454,6 +481,18 @@ CREATE TABLE IF NOT EXISTS preferences (
 
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
+    # a document's bytes' sha256 (one file, one document) and where things are in it (P6)
+    ("documents", "hash", "TEXT"),
+    # a file an agent brought in that is already kept: its card says so (P6)
+    ("staged", "duplicate_of", "TEXT"),
+    ("documents", "structure", "TEXT"),
+    # the tables whose rows an agent's runs bring in wait for the person's yes (P3 item 5)
+    ("agents", "stage", "TEXT"),
+    # how far a custom agent's look for its events has read, per kind of event (P7)
+    ("agents", "wake_marks", "TEXT"),
+    # a standing permission for an agent's writes into one place (P3 item 6, Q91)
+    ("permissions", "agent", "TEXT"),
+    ("permissions", "destination", "TEXT"),
     ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
     # Removed with its data kept (13 Oct, slice 2 A4): out of sight, its automations stopped,
     # restorable from Settings; `removed_with` is the module the removal was asked of, the same
@@ -627,6 +666,7 @@ class Store:
             db.execute("CREATE INDEX IF NOT EXISTS journal_run ON journal("
                        "json_extract(data, '$.run'))")
             db.execute("CREATE INDEX IF NOT EXISTS runs_task ON runs(task, started_at)")
+            db.execute("CREATE INDEX IF NOT EXISTS documents_hash ON documents(hash)")
             # A failure tried again, and a goal's history (slice 2 D5, D12).
             db.execute("CREATE INDEX IF NOT EXISTS journal_again ON journal("
                        "json_extract(data, '$.again_of'))")

@@ -102,6 +102,9 @@ quiet_days = 1                     # on a world with less than a day of the pers
 offer_after = 3                    # the same kind of thing said in passing this many times is worth a table: Watson offers one (Q79, 18 Oct)
 offer_window_days = 7              # … within a week; older mentions are not a habit
 
+[staging]
+always_after = 3                   # the same agent's writes into the same place said yes to unchanged this many times in a row: the card offers "Always" for that kind (P3 item 6, Q91)
+
 [pages]
 ticket_seconds = 60                # a page the model drew is loaded by the window's frame with a one-use ticket (a frame cannot carry the window's token); one not used within this is a window that never opened it
 
