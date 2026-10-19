@@ -25,10 +25,13 @@ def test_a_turn_journals_both_sides_and_carries_the_world(world: World) -> None:
 
     out = ask(world, "how many eggs have I eaten", runner=runner)
     assert out.ok and out.reply.startswith("You've had")
-    system = seen[0].system
-    assert "THIS CONVERSATION" in system and "log two boiled eggs" in system
-    assert "Module Food" in system and "food_log (1 row)" in system
-    assert "MATCHES FOR THIS SENTENCE" in system and "Two boiled [eggs]" in system
+    # the world rides on the sentence, never in the system prompt (B, Q99); the conversation is
+    # the session's, not a copy
+    system, start, layer = seen[0].system, seen[0].start_layer, seen[0].turn_layer
+    assert "Module Food" not in system and "MATCHES" not in system
+    assert "Module Food" in start and "food_log (1 row)" in start
+    assert "MATCHES FOR THIS SENTENCE" in layer and "Two boiled [eggs]" in layer
+    assert "THIS CONVERSATION" not in start + layer
     assert seen[0].turn_id == out.said and seen[0].world_path == world.path
     replied = world.journal.read(out.replied)
     assert replied["kind"] == "replied" and replied["data"]["duration_ms"] == 4200
@@ -45,10 +48,10 @@ def test_what_the_model_saw_is_kept_with_dates(world: World) -> None:
         return RunResult(reply="Noted.", ok=True)
 
     ask(world, "log two boiled eggs", runner=runner)
-    out = ask(world, "what did I eat yesterday", runner=runner)
+    out = ask(world, "how many boiled eggs", runner=runner)
     kept = world.journal.context(out.said)
-    assert kept is not None and "THIS CONVERSATION" in kept["context"]
-    line = next(x for x in kept["context"].splitlines() if "log two boiled eggs" in x)
+    assert kept is not None and "MATCHES FOR THIS SENTENCE" in kept["context"]
+    line = next(x for x in kept["context"].splitlines() if "log two [boiled]" in x)
     assert re.match(r"- (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d ", line)
 
 
@@ -56,7 +59,7 @@ def test_prepack_states_the_clock_and_emptiness(world: World) -> None:
     text = prepack.build(world, "anything")
     assert "Today's date is" in text and "created_at >=" in text
     assert "Nothing yet: no modules, no tables." in text
-    assert "This is the first." in text
+    assert "WORK ITEMS" in text and "- None open." in text
 
 
 def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its_budget(
@@ -77,23 +80,18 @@ def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its
     assert ("  food_log (0 rows): date date, meal choice[Breakfast|Lunch], item,"
             " calories number kcal, client relation->clients") in text
     assert f"- Module Nutrition ({module}) — eat well" in text
-    # Twelve long turns overflow the conversation's budget: the newest stay, the count is said.
+    # A long conversation is the session's: neither layer carries a copy of it (B3).
     home = world.modules.home_thread()["id"]
     for i in range(12):
         world.journal.append("said", f"turn {i} " + "words " * 80, actor="person", thread=home)
         world.journal.append("replied", f"reply {i} " + "words " * 80, thread=home)
-    text = prepack.build(world, "anything")
-    convo = text[text.index("THIS CONVERSATION"):text.index("\n\nWORK ITEMS")]
-    assert "reply 11" in convo and "turn 0 " not in convo
-    assert "earlier lines left out for room" in convo
-    assert len(convo) <= prepack.BUDGET["THIS CONVERSATION"] + 80
-    # A world with a long index still fits: the whole shrinks by section, never cut short.
+    assert "reply 11" not in prepack.build(world, "anything")
+    # A world with a long index still fits: the start layer shrinks by section, never cut short.
     for i in range(300):
         world.knowledge.write_note(f"topic:t{i}", f"Topic {i}", "Body.", summary="s" * 120)
-    text = prepack.build(world, "anything")
-    assert len(text) <= prepack.MAX_CHARS and "cut short" not in text
-    assert "MATCHES" in text or "THIS CONVERSATION" in text
-    assert "lines left out for room" in text[text.index("WHAT ALPHA KNOWS"):]
+    start = prepack.start_layer(world)
+    assert len(start) <= prepack.MAX_CHARS and "cut short" not in start
+    assert "lines left out for room" in start[start.index("WHAT ALPHA KNOWS"):]
 
 
 def test_turn_timings_are_measured_from_the_journal(world: World) -> None:

@@ -1,0 +1,44 @@
+[
+ {
+  "name": "when_did_we_last_talk",
+  "title": "People · when did we last talk, and how often lately, in plain numbers",
+  "steps": [
+   {
+    "seed": "table emails with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Call with Sara",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "when did I last talk to Sara Ramos, and how often lately?",
+    "ok": true,
+    "reply": "You last talked to Sara Ramos **on Saturday, 17 October**, two days ago. That was your reply to her \"Sept P&L\" email.\n\n**Lately it's been 4 times in the last 90 days**, and most of it was this month:\n\n| Date | What | Who started it |\n|---|---|---|\n| 17 Oct | Email: Re: Sept P&L | You |\n| 16 Oct | Email: Sept P&L | Sara |\n| 9 Oct | Call with Sara | — |\n| 9 Sep | Email: Intro | Sara |\n\nThree of the four were in the last ten days. Before her intro email in September, the only earlier contact I have is a thread you sent in April. These counts come only from your emails and meetings that I have. Ca",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 58662,
+    "tokens_cache_made": 13541,
+    "tokens_out": 726,
+    "first_text_ms": 12604,
+    "seconds": 16.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Does the answer say the last contact was two days ago (the email 'Re: Sept P&L', which the person sent) and say how often lately in numbers (three emails and one meeting in the last 90 days, or the same counts in other words), without giving a score or a made-up closeness rating, and without anything that contradicts what is true in the world?",
+     "facts": "Emails with Sara Ramos (sara@restopros.com): 'Sept P&L' received three days ago; 'Re: Sept P&L' sent two days ago; 'Intro' received 40 days ago; 'An old thread' sent 200 days ago. A meeting, 'Call with Sara', ten days ago, with Sara Ramos. Nothing else."
+    },
+    "ok": false,
+    "why": "The answer's details match the world, but Alpha could not have known them: its journal records no steps this turn, and its given context had no 'Re: Sept P&L' reply or 'Call with Sara' meeting, so the last-contact claim and the count of four are not grounded in anything it read.",
+    "seconds": 7.8
+   }
+  ],
+  "seconds": 23.9,
+  "error": null
+ }
+]

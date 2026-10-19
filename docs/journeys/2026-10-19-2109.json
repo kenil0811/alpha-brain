@@ -1,0 +1,63 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** you can add to as you go. Each entry has:\n\n- **What** you ate and **when** you ate it\n- **Meal:** breakfast, lunch, dinner, snack or drink\n- **Amount**, such as \"2 slices\" or \"1 bowl\"\n- **Calories, protein, carbs and fat**\n- **Notes**\n\nIt's empty for now. Tell me what you ate in your own words, like \"2 eggs and toast for breakfast\" or \"had a latte at 4\". I'll log it with the time.\n\nYou don't need to know the calories or protein, carbs and fat. If you leave them out, I'll look up typical figures and mark them as estimates. If you'd rather log just the food, say so and",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 61607,
+    "tokens_cache_made": 15389,
+    "tokens_out": 859,
+    "first_text_ms": 11950,
+    "seconds": 15.8
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged 2 eggs as **dinner** at 21:09: **144 kcal**, 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\nThe nutrition numbers are estimates based on typical values for a large egg. I assumed you ate them just now, and that they were cooked without oil or butter. If you fried them in butter, that's about 100 kcal more. Tell me if they were fried or if you ate them earlier, and I'll fix the entry.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 61465,
+    "tokens_cache_made": 14450,
+    "tokens_out": 803,
+    "first_text_ms": 10134,
+    "seconds": 10.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 26.4,
+  "error": null
+ }
+]

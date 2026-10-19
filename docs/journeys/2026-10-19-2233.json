@@ -1,0 +1,52 @@
+[
+ {
+  "name": "carries_over_a_tool_change",
+  "title": "Sessions · a conversation carries on when Alpha's hands change between two turns",
+  "steps": [
+   {
+    "say": "I'm reading Dune and Piranesi. Let's keep my books in a table called books with title and status; both are reading.",
+    "ok": true,
+    "reply": "I've made your **Books** table with a title and a status for each book. Dune and Piranesi are both in it, marked as reading.\n\nThe status has two more options, \"to read\" and \"finished\", so you can add books you're planning to read or mark one done when you finish it. The table sits in a new section I called **Reading**, because the section couldn't share the table's name.",
+    "steps": 5,
+    "tokens_input": 10,
+    "tokens_cache_read": 110808,
+    "tokens_cache_made": 14475,
+    "tokens_out": 778,
+    "first_text_ms": 18183,
+    "routed": "a new item",
+    "routed_by": "judge: Keeping books in a table is a standing table kept current, and no open item covers it.",
+    "seconds": 24.0
+   },
+   {
+    "tools_change": true,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "which books did I tell you about, and what did we decide to keep them in?",
+    "ok": true,
+    "reply": "You told me about two books, **Dune** and **Piranesi**, and said you're reading both.\n\nWe decided to keep them in a table called **Books**. Each book has a title and a status, which can be *to read*, *reading* or *finished*. Both of yours are marked *reading*.\n\nThe table is in your **Reading** module. There's also an empty module called **Books** with nothing in it. I can remove it if you don't need it.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 63002,
+    "tokens_cache_made": 8379,
+    "tokens_out": 379,
+    "first_text_ms": 7922,
+    "routed": "I'm reading Dune and Piranesi. Let's keep my books in a…",
+    "routed_by": "judge: The question is about the books table and its contents, which follow on from the focused item that created the Books table.",
+    "seconds": 20.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Does the answer name Dune and Piranesi and say they are kept in a table called books (or Books), without asking the person to repeat themselves?",
+    "ok": true,
+    "why": "The answer names Dune and Piranesi, says they're kept in a table called Books, and doesn't ask the person to repeat anything, so it meets the rubric (the extra module details aren't covered by the rubric).",
+    "seconds": 4.6
+   }
+  ],
+  "seconds": 49.3,
+  "error": null
+ }
+]

@@ -57,7 +57,7 @@ def test_a_fresh_session_starts_with_what_was_going_on(world: World, monkeypatch
     turn.ask(world, "what next?", thread=tid, runner=runner, conversation=True)
     fresh = [r for r in seen if r.kind == "turn"][-1]
     assert fresh.resume is None
-    assert fresh.sentence.startswith("What was going on before the tools changed:\nAs of ")
+    assert fresh.sentence.startswith("What was going on here before this fresh session:\nAs of ")
     assert "Decided: Track deals in a table named deals" in fresh.sentence
     assert "Open: Which broker sites to read first" in fresh.sentence
     assert fresh.sentence.endswith("\n\nwhat next?")
@@ -72,12 +72,18 @@ def test_a_fresh_session_starts_with_what_was_going_on(world: World, monkeypatch
 
 
 def test_a_reply_says_what_the_turn_read_in_tokens(world: World) -> None:
-    """What A8 is measured by: a turn's input (with the cache read and written) and output."""
+    """What A8 and B8 are measured by: a turn's input, read fresh, from the cache and written to
+    it, kept apart, and its output; `alpha turns` reads them back with the first words."""
     def runner(req: TurnRequest) -> RunResult:
-        return RunResult(ok=True, reply="ok", raw={"usage": {
+        return RunResult(ok=True, reply="ok", duration_ms=900, first_text_ms=400, raw={"usage": {
             "input_tokens": 12, "cache_read_input_tokens": 30000,
             "cache_creation_input_tokens": 1500, "output_tokens": 240}})
 
     out = turn.ask(world, "hello", runner=runner)
     replied = world.journal.read(out.replied)
-    assert (replied["data"]["tokens_in"], replied["data"]["tokens_out"]) == (31512, 240)
+    assert {k: replied["data"][k] for k in turn.TOKENS} == {
+        "tokens_input": 12, "tokens_cache_read": 30000, "tokens_cache_made": 1500,
+        "tokens_out": 240}
+    row = turn.timings(world)[-1]
+    assert (row["first_s"], row["tokens_cache_read"], row["tokens_cache_made"]) == (
+        0.4, 30000, 1500)

@@ -1,0 +1,33 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch, and roughly how much? Nothing is logged for today yet.\n\nIf it was one of your usual lunches, just tell me which:\n- **Paneer wrap**, 1 wrap (680 kcal)\n- **Chicken rice bowl**, 1 plate (720 kcal)\n- **Dal rice with veg**, 1 plate (650 kcal)\n\nIf it was something else, describe it and I'll estimate the calories and macros.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 63786,
+    "tokens_cache_made": 16532,
+    "tokens_out": 541,
+    "first_text_ms": 122561,
+    "seconds": 123.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": false,
+    "why": "The last turn made no card.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 123.1,
+  "error": null
+ }
+]

@@ -196,17 +196,18 @@ def test_items_and_home_keep_their_sessions_only_on_the_same_tools(
     assert t["kind"] == "work" and t["state"] == "done" and t["last_line"] == "ok"
     turn = next(r for r in requests if r.kind == "turn")
     assert turn.persist and turn.resume is None and turn.thread_id == tid
-    assert t["session_ref"] == "s2" and t["session_tools"] == "hands-v1"
+    assert t["session_ref"] == "s2" and t["session_tools"] == engine.fingerprint()
     # typed in the item's own box: that item, its session resumed
     second = settle(c, c.post("/api/ask", json={"text": "how many?", "conversation": tid}).json())
     assert second["conversation"]["id"] == tid and requests[-1].resume == "s2"
-    assert "THIS CONVERSATION (the work item" in requests[-1].system
-    assert "SINCE YOUR LAST TURN" in requests[-1].system
+    # the session holds the conversation: no copy of it, and the system prompt as before (B)
+    assert requests[-1].system == turn.system and "THIS CONVERSATION" not in requests[-1].system
+    assert "NOW" in requests[-1].turn_layer
     # the hands changed (an update): the session is not resumed, a fresh one starts, said so
     monkeypatch.setattr(engine, "tools_fingerprint", "hands-v2")
     settle(c, c.post("/api/ask", json={"text": "and now?", "conversation": tid}).json())
     assert requests[-1].resume is None and requests[-1].persist
-    assert world.modules.thread(tid)["session_tools"] == "hands-v2"
+    assert world.modules.thread(tid)["session_tools"] == "hands-v2+layers"
     assert any(e["data"].get("fresh_session") for e in world.journal.recent(5, thread=tid))
     turns = c.get(f"/api/conversation?conversation={tid}").json()
     assert [x["kind"] for x in turns["turns"]] == ["said", "replied"] * 3

@@ -132,9 +132,14 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         extra["no-session-persistence"] = None
     kw: dict[str, Any] = {
         "model": req.model or config.model_for("turn"),
-        # Claude Code's own system prompt with Alpha's rules and the pre-pack after it, as
-        # `--append-system-prompt` did.
-        "system_prompt": {"type": "preset", "preset": "claude_code", "append": req.system},
+        # Claude Code's own system prompt with Alpha's fixed rules after it, the same on every
+        # turn so the session's cache holds; what changes rides on the sentence (the hooks).
+        # `snapshot` off: by default the SDK keeps a resumed session's first prompt, so a
+        # change to turn.md never reached an open conversation (19 Oct 2026, Q99 step 2,
+        # brought forward with the restored paragraph 3); the prompt being the same on every
+        # turn, sending it fresh costs no cache.
+        "system_prompt": {"type": "preset", "preset": "claude_code", "append": req.system,
+                          "snapshot": False},
         "allowed_tools": allowed,
         "disallowed_tools": denied,
         # dontAsk: anything not allowed is refused rather than prompted for; with the callback,
@@ -182,10 +187,15 @@ NO_TOOLS = "Alpha's tools are not wired into this process, so the turn did not r
 # 2026: a conversation's session made on the 72 old names, resumed on the 17 hands, called a
 # tool the run did not have).
 tools_fingerprint: str = ""
+# How the world is given to a session, the other half of what a kept session must match
+# (section B, Q99): a session made while the world rode in its system prompt keeps that prompt
+# (the SDK records a session's first one), so after the layers came it is not resumed; a fresh
+# one starts, given the start layer and carrying the conversation's checkpoint (A12's path).
+GIVEN_AS = "layers"
 
 
 def fingerprint() -> str:
-    return tools_fingerprint
+    return f"{tools_fingerprint}+{GIVEN_AS}"
 
 
 # ---- the person's yes (harness design §8; slice 2b, step 3) ----
@@ -480,7 +490,31 @@ def _hooks(req: TurnRequest) -> dict[str, list[HookMatcher]]:
             LIVE.note(_keys(req), doing=COMPACTED)
         return {}
 
-    return {"PreCompact": [HookMatcher(matcher=None, hooks=[compacted])]}
+    async def sentence_given(input_data: Any, tool_use_id: str | None,
+                             context: HookContext) -> SyncHookJSONOutput:
+        # The layers ride on the person's message, after the cached system prompt: the start
+        # layer only when the session is new (a resumed one holds it), the turn layer always.
+        given = [req.turn_layer] if req.resume else [req.start_layer, req.turn_layer]
+        given = [g for g in given if g]
+        if not given:
+            return {}
+        req.injected.append("turn" if req.resume else "start")
+        return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
+                                       "additionalContext": "\n\n".join(given)}}
+
+    async def session_started(input_data: Any, tool_use_id: str | None,
+                              context: HookContext) -> SyncHookJSONOutput:
+        # Through the SDK this fires after a compaction only (the spike of 19 Oct: never when a
+        # session starts or resumes): the summary dropped the start layer, so it is given again.
+        if (input_data or {}).get("source") != "compact" or not req.start_layer:
+            return {}
+        req.injected.append("start after a compaction")
+        return {"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                       "additionalContext": req.start_layer}}
+
+    return {"PreCompact": [HookMatcher(matcher=None, hooks=[compacted])],
+            "UserPromptSubmit": [HookMatcher(matcher=None, hooks=[sentence_given])],
+            "SessionStart": [HookMatcher(matcher=None, hooks=[session_started])]}
 
 
 async def run_async(req: TurnRequest, *,

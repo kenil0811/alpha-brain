@@ -95,9 +95,9 @@ class _Decorator(Protocol):
 @overload
 def tool[F: Callable[..., Any]](fn: F, /) -> F: ...
 @overload
-def tool(*, writes: str | None = None, served: bool = False) -> _Decorator: ...
+def tool(*, writes: str | None = None, served: bool = False, card: bool = False) -> _Decorator: ...
 def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
-         served: bool = False) -> Any:
+         served: bool = False, card: bool = False) -> Any:
     """Turn a method into an operation of the world with a tool's manners: `writes` names what
     it changes (one of WRITES); an agent whose write list lacks it is refused in plain words;
     problems come back as plain words; a bug of ours says so and keeps the details in the log.
@@ -130,6 +130,7 @@ def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
         wrapper.is_tool = True  # type: ignore[attr-defined]
         wrapper.writes = writes  # type: ignore[attr-defined]
         wrapper.served = served  # type: ignore[attr-defined]
+        wrapper.card = card  # type: ignore[attr-defined]
         return cast(F, wrapper)
 
     return decorate(fn) if fn is not None else decorate
@@ -138,12 +139,17 @@ def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
 @overload
 def hand[F: Callable[..., Any]](fn: F, /) -> F: ...
 @overload
-def hand(*, writes: str | None = None) -> _Decorator: ...
-def hand(fn: Callable[..., Any] | None = None, *, writes: str | None = None) -> Any:
-    """A tool the model sees (the harness design §4): one of the hands."""
+def hand(*, writes: str | None = None, card: bool = False) -> _Decorator: ...
+def hand(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
+         card: bool = False) -> Any:
+    """A tool the model sees (the harness design §4): one of the hands. `card`: a hand that puts
+    a card to the person (a question, the yes before a removal or before anything leaves their
+    world, a sign-in). It is always in front of the model, never behind tool search, so what the
+    person must decide reaches a card and not the reply's prose (19 Oct 2026: "log my lunch" was
+    asked in prose; with tool search on, ask_person was a bare name the model never opened)."""
     if fn is not None:
         return tool(served=True)(fn)
-    return tool(writes=writes, served=True)
+    return tool(writes=writes, served=True, card=card)
 
 
 

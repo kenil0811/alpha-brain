@@ -1,0 +1,44 @@
+[
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "seed": "table emails with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Intro call: Penelope Health",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos runs hiring at **Penelope Health** (sara.ramos@penelopehealth.com).\n\n**Your last contact with her was on 29 September 2026**, three weeks ago. That day you replied to her email:\n\n- **28 Sep:** She wrote to you about Penelope Health's **founding engineer** role and asked to talk.\n- **29 Sep:** You said you were happy to, and that a call the following week would work.\n\nI don't have any record of that call happening or of anything after your reply, so the thread may have stalled on your side or hers. I can check your calendar for that week, or remind you to follow up with her.",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 58609,
+    "tokens_cache_made": 13697,
+    "tokens_out": 524,
+    "first_text_ms": 9769,
+    "seconds": 12.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health's founding engineer role, and the intro call) and gives the intro call, two weeks ago, as the latest contact. Fails if it says it doesn't know her, asks who she is, or says anything that contradicts what is true in the world.",
+     "facts": "Sara Ramos (sara.ramos@penelopehealth.com) emailed 21 days ago about Penelope Health's founding engineer role; the person replied 20 days ago; an intro call, 'Intro call: Penelope Health', with her 14 days ago. Nothing else."
+    },
+    "ok": false,
+    "why": "The answer gives the 29 Sep email reply as the last contact and says there's no record of a call, but the latest contact was the 'Intro call: Penelope Health' 14 days ago; that contradicts the world and misses what the rubric requires.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 17.5,
+  "error": null
+ }
+]

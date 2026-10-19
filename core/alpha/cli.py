@@ -80,7 +80,8 @@ def main(argv: list[str] | None = None) -> int:
                             " answer and against the person's world")
     p.add_argument("turn", nargs="?", help="the turn's journal id; default: the last one")
     p.add_argument("--no-repair", action="store_true", help="only judge; don't let Alpha fix")
-    p = sub.add_parser("prepack", help="print what the model would see first")
+    p = sub.add_parser("prepack", help="print what a new session is given with a sentence:"
+                                       " the start layer, then the turn layer")
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
     sub.add_parser("mcp", help="run the MCP server (stdio)")
@@ -254,13 +255,20 @@ def main(argv: list[str] | None = None) -> int:
             if not rows:
                 print("No turns with timings yet.")
                 return 0
+            def num(x: Any) -> str:
+                return "" if x is None else f"{x:,}" if isinstance(x, int) else str(x)
+
             print(_table([{"when": r["at"][5:16].replace("T", " "), "wall s": r["wall_s"],
-                           "model s": r["model_s"],
-                           "first s": r["first_s"] if r["first_s"] is not None else "",
+                           "first s": num(r["first_s"]), "model s": r["model_s"],
                            "steps": r["steps"],
                            "session": "resumed" if r["resumed"] else "fresh",
+                           "input": num(r["tokens_input"]),
+                           "cache read": num(r["tokens_cache_read"]),
+                           "cache made": num(r["tokens_cache_made"]),
+                           "output": num(r["tokens_out"]),
                            "said": r["text"]} for r in rows],
-                         ["when", "wall s", "model s", "steps", "session", "said"]))
+                         ["when", "wall s", "first s", "model s", "steps", "session", "input",
+                          "cache read", "cache made", "output", "said"]))
 
             def med(xs: list[float]) -> float:
                 return sorted(xs)[len(xs) // 2] if xs else 0.0
@@ -273,6 +281,16 @@ def main(argv: list[str] | None = None) -> int:
                   f" {med([r['wall_s'] - r['model_s'] for r in rows]):.1f} s."
                   f" Fresh {len(fresh)} (wall median {med([r['wall_s'] for r in fresh]):.0f} s),"
                   f" resumed {len(warm)} (wall median {med([r['wall_s'] for r in warm]):.0f} s).")
+            firsts = [r["first_s"] for r in rows if r["first_s"] is not None]
+            counted = [r for r in rows if r["tokens_cache_read"] is not None]
+            if firsts:
+                print(f"First words median {med(firsts):.1f} s.")
+            if counted:
+                print(f"Tokens per turn, median over {len(counted)}: input"
+                      f" {med([r['tokens_input'] for r in counted]):,.0f}, cache read"
+                      f" {med([r['tokens_cache_read'] for r in counted]):,.0f}, cache made"
+                      f" {med([r['tokens_cache_made'] for r in counted]):,.0f}, output"
+                      f" {med([r['tokens_out'] for r in counted]):,.0f}.")
             return 0
         if args.command == "context":
             kept = world.journal.context(args.turn)

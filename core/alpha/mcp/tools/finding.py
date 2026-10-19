@@ -37,7 +37,8 @@ class Finding(Base):
 
     @tool
     def journal_read(self, id: str) -> dict[str, Any]:
-        """One journal entry in full, by id (ids appear in search results and the pre-pack)."""
+        """One journal entry in full, by id (ids appear in search results and in what comes with
+        a sentence)."""
         return self.world.journal.mark_removed([self.world.journal.read(id)])[0]
 
     @tool(writes="notes")

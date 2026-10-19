@@ -266,6 +266,11 @@ class Run:
                     log.warning("watson in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
+            # what the turn read in tokens and when its first words came (B8 is measured by
+            # it: the journey's world is thrown away, its report stays)
+            replied = self.world.journal.read(outcome.replied)["data"]
+            record.update({k: replied[k] for k in (*turn.TOKENS, "first_text_ms")
+                           if replied.get(k) is not None})
             if routed:
                 record["routed"] = ("a new item" if routed["opened"] else "Home" if routed["here"]
                                     else self.world.modules.thread(routed["thread"])["title"])
@@ -887,8 +892,13 @@ class Run:
         # 19 Oct 2026: a read in SQL (world_query) leaves no step in the journal, so a true
         # detail read that way looked invented; a journey that set its world up says what is
         # true there, and the answer is judged against that
+        # 19 Oct 2026, night (section B): with the person's card no longer given with the
+        # sentence, the judge still called a true count "not grounded": an answer that agrees
+        # with what is true was read, even when the read left no step
         truth = (f"What is true in the person's world (the journey set it up; today is"
-                 f" {dt.now(UTC).date().isoformat()}):\n{arg['facts']}\n\n"
+                 f" {dt.now(UTC).date().isoformat()}):\n{arg['facts']}\nAlpha reads its tables"
+                 " in SQL, and a read leaves no step in the journal: an answer that agrees with"
+                 " what is true here was read, not invented.\n\n"
                  if isinstance(arg, dict) and arg.get("facts") else "")
         prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}{truth}'
                   f"The answer:\n{self.last_reply}\n\nThe rubric: {rubric}")
@@ -1343,6 +1353,12 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"
+            if "tokens_cache_read" in s:
+                head += (f" · tokens: input {s['tokens_input']:,}, cache read"
+                         f" {s['tokens_cache_read']:,}, cache made {s['tokens_cache_made']:,},"
+                         f" output {s['tokens_out']:,}")
+            if s.get("first_text_ms"):
+                head += f" · first words {s['first_text_ms'] / 1000:.1f} s"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")
                       or "")
             if s.get("problem"):

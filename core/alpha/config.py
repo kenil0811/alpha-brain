@@ -70,9 +70,7 @@ class Readers:
 @dataclass(frozen=True)
 class Prepack:
     max_chars: int
-    recent_turns: int
     thread_history: int
-    matches: int
     default_budget: int
     fields_line: int
     budget: dict[str, int]
@@ -126,6 +124,9 @@ class Views:
     most_rows: int
     query_rows: int
     query_steps: int
+    turn_matches: int
+    turn_elsewhere: int
+    turn_due: int
 
 
 @dataclass(frozen=True)

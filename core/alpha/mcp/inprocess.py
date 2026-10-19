@@ -20,8 +20,10 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any
 
-from claude_agent_sdk import SdkMcpTool, create_sdk_mcp_server
+from claude_agent_sdk import McpSdkServerConfig, SdkMcpTool
 from fastmcp import FastMCP
+from mcp.server.lowlevel import Server
+from mcp.types import CallToolResult, ListToolsResult, Tool
 
 from alpha.runtime import engine
 from alpha.runtime.engine import Served
@@ -59,6 +61,7 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
                       actor=req.actor, run=req.run)
     fast = FastMCP("alpha")
     served: list[SdkMcpTool[Any]] = []
+    cards: set[str] = set()
     for fn in tools.all():
         fast.tool(fn)
         fast_tool = await fast.get_tool(fn.__name__)
@@ -66,7 +69,44 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
         served.append(SdkMcpTool(name=fn.__name__, description=fast_tool.description or "",
                                  input_schema=dict(fast_tool.parameters),
                                  handler=_handler(fast_tool, executor)))
-    return Served(create_sdk_mcp_server("alpha", "1.0.0", tools=served), world, served)
+        if getattr(fn, "card", False):
+            cards.add(fn.__name__)
+    return Served(server_of("alpha", served, cards), world, served)
+
+
+# Claude Code's key in a tool's `_meta`: the tool is always in front of the model, never
+# deferred behind tool search (read in the bundled CLI, 19 Oct 2026). The SDK's own server
+# helper carries no such key, so Alpha builds the server itself, with mcp's own `Server`, as
+# the SDK documents ("bringing your own server").
+ALWAYS_LOADED = "anthropic/alwaysLoad"
+
+
+def server_of(name: str, tools: list[SdkMcpTool[Any]], cards: set[str]) -> McpSdkServerConfig:
+    """An in-process MCP server listing `tools`, the hands that put a card to the person
+    (`cards`) marked always loaded; each call goes to the tool's own handler (fastmcp checks
+    the arguments there, and a problem comes back as an error result the model reads)."""
+    listed = [Tool.model_validate({"name": t.name, "description": t.description,
+                                   "inputSchema": t.input_schema,
+                                   "_meta": {ALWAYS_LOADED: True} if t.name in cards else None})
+              for t in tools]
+    by_name = {t.name: t for t in tools}
+
+    async def on_list_tools(ctx: Any, params: Any) -> ListToolsResult:
+        return ListToolsResult(tools=listed)
+
+    async def on_call_tool(ctx: Any, params: Any) -> CallToolResult:
+        found = by_name.get(params.name)
+        if found is None:
+            return CallToolResult.model_validate({"content": [
+                {"type": "text", "text": f"There is no hand called {params.name}."}],
+                "isError": True})
+        result = await found.handler(params.arguments or {})
+        return CallToolResult.model_validate({"content": result.get("content", []),
+                                              "isError": bool(result.get("is_error", False))})
+
+    server: Any = Server(name, version="1.0.0", on_list_tools=on_list_tools,
+                         on_call_tool=on_call_tool)
+    return McpSdkServerConfig(type="sdk", name=name, instance=server)
 
 
 def install(tools_cls: type[Any]) -> None:

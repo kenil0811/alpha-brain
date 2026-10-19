@@ -1,0 +1,51 @@
+[
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "seed": "table deals with 5 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "These are the three highest asking prices in the deal tracker:\n\n1. **Greenline Landscaping** (Bristol): asking 1,200,000, revenue 900,000\n2. **Harbour Car Wash** (Leeds): asking 850,000, revenue 410,000\n3. **Bright Smile Dental Lab** (Bath): asking 640,000, revenue 380,000\n\nThe tracker doesn't record a currency, so the amounts are shown as entered.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 58464,
+    "tokens_cache_made": 12717,
+    "tokens_out": 396,
+    "first_text_ms": 7714,
+    "seconds": 10.6
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "The second one on that list is **Harbour Car Wash**, in Leeds. Here's everything the tracker has on it:\n\n- **Asking price:** 850,000\n- **Revenue:** 410,000\n- **Notes:** two wash bays; the owner is retiring\n\n**Calculated from those numbers:** the asking price is about **2.1× revenue**. That's the second-highest multiple of your five deals. Only Northside Laundromat is higher, at about 2.1× as well but slightly above. The others are Corner Print Shop at about 1.75×, Bright Smile Dental Lab at about 1.7× and Greenline Landscaping at about 1.3×. So for each unit of revenue, Harbour is one of the p",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 62814,
+    "tokens_cache_made": 10381,
+    "tokens_out": 750,
+    "first_text_ms": 11226,
+    "seconds": 16.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer is about Harbour Car Wash, the deal listed second before, and adds more on it: notes, its price-to-revenue multiple, and what the tracker is missing. It doesn't list the deals again or ask which one was meant.",
+    "seconds": 4.6
+   }
+  ],
+  "seconds": 31.8,
+  "error": null
+ }
+]

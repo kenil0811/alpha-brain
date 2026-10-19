@@ -214,6 +214,12 @@ class TurnRequest:
     persist: bool = False
     # Told of every step the model takes, in plain words, when a run's steps are journaled.
     on_step: Callable[[str], Any] | None = None
+    # What rides on the sentence, never in the system prompt (section B, Q99): the start layer
+    # when the session is made (no `resume`) and again after a compaction, the turn layer with
+    # every sentence. `injected` says what was given, for the record of what the model saw.
+    start_layer: str = ""
+    turn_layer: str = ""
+    injected: list[str] = field(default_factory=list)
 
 
 def tools_allowed(req: TurnRequest) -> list[str]:

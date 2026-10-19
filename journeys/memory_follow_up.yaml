@@ -1,7 +1,30 @@
 name: memory_follow_up
 title: Memory · a follow-up that points at the previous answer works
-why: "'The second one' refers to what Alpha just listed; a fresh turn that forgot its own list fails this."
+why: >
+  'The second one' refers to what Alpha just listed; a fresh turn that forgot its own list fails
+  this. Its deal tracker was the person's own until the world was wiped (18 Oct 2026); since
+  19 Oct the journey brings its own, on a fresh world, so it can run before and after section B
+  (B3: the conversation is no longer in the prompt, the resumed session holds it).
+fresh: true
 steps:
+  - seed:
+      kind: table
+      name: deals
+      title: Deals
+      module: Deal Tracker
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+        - {name: city, kind: text}
+        - {name: revenue, kind: number}
+        - {name: notes, kind: text}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000, city: Leeds, revenue: 410000, notes: "Two bays, owner retiring"}
+        - {business: "Northside Laundromat", asking_price: 320000, city: York, revenue: 150000, notes: "Lease renews 2027"}
+        - {business: "Greenline Landscaping", asking_price: 1200000, city: Bristol, revenue: 900000, notes: "Twelve staff, council contracts"}
+        - {business: "Bright Smile Dental Lab", asking_price: 640000, city: Bath, revenue: 380000, notes: "Two technicians stay on"}
+        - {business: "Corner Print Shop", asking_price: 210000, city: Hull, revenue: 120000, notes: "Equipment five years old"}
   - say: "list the three deals with the highest asking price in the deal tracker, numbered"
     module: Deal Tracker
   - say: "tell me more about the second one"

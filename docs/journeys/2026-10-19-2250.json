@@ -1,0 +1,33 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch today, and roughly how much? You haven't logged anything for today yet. Your usual lunches are:\n\n- **Paneer wrap**: 1 wrap, ~680 kcal, 32 g protein\n- **Chicken rice bowl**: 1 plate, ~720 kcal, 45 g protein\n- **Dal rice with veg**: 1 plate, ~650 kcal, 24 g protein\n\nPick one, or tell me what you ate and I'll work out the calories and macros.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 98813,
+    "tokens_cache_made": 16583,
+    "tokens_out": 732,
+    "first_text_ms": 11347,
+    "seconds": 11.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": true,
+    "why": "\"What did you have for lunch today?\" with ['Paneer wrap (1 wrap, ~680 kcal)', 'Chicken rice bowl (1 plate, ~720 kcal)', 'Dal rice with veg (1 plate, ~650 kcal)'] options (the model's own)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 11.8,
+  "error": null
+ }
+]

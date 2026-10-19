@@ -1,0 +1,36 @@
+[
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Sunday 18 October, at 21:15) you said:\n\n> \"remind me that i promised vikas the financial model by friday\"\n\nSo you've promised Vikas the financial model by **Friday 23 October**.\n\nYou also have a separate task to **reply to Vikas on WhatsApp**, which was due today at 17:00. I'm not sure that one came from yesterday.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 11509,
+    "tokens_cache_made": 15697,
+    "tokens_out": 346,
+    "first_text_ms": 3936,
+    "seconds": 6.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer says that yesterday (Sun 18 Oct, 21:15) the person promised Vikas the financial model by Friday, which matches the recorded entry, and its hedged mention of the WhatsApp task comes from a real record rather than being made up.",
+    "seconds": 5.7
+   }
+  ],
+  "seconds": 11.8,
+  "error": null
+ }
+]

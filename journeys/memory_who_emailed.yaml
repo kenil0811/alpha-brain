@@ -1,7 +1,38 @@
 name: memory_who_emailed
 title: Memory · a person is recognised across email and calendar
-why: "Sara Ramos emailed about Penelope Health and had an intro call on the calendar; Alpha should tell the story from both."
+why: >
+  Sara Ramos emailed about Penelope Health and had an intro call on the calendar; Alpha should
+  tell the story from both. Her emails were in the person's world until it was wiped (18 Oct
+  2026); since 19 Oct the journey brings them, on a fresh world (B3: a person the sentence names
+  is one line with the turn, and the rest is looked up).
+fresh: true
 steps:
+  - seed:
+      kind: table
+      name: emails
+      title: Emails
+      fields:
+        - {name: subject, kind: text}
+        - {name: who, kind: text}
+        - {name: sent_on, kind: date}
+        - {name: way, kind: text}
+        - {name: body, kind: text}
+      title_field: subject
+      rows_are: interaction
+      identity_field: who
+      date_field: sent_on
+      direction_field: way
+      rows:
+        - {subject: "Founding engineer at Penelope Health", who: sara.ramos@penelopehealth.com, sent_on: "days:-21", way: received, body: "Hi, I lead hiring at Penelope Health and would love to talk about our founding engineer role."}
+        - {subject: "Re: Founding engineer at Penelope Health", who: sara.ramos@penelopehealth.com, sent_on: "days:-20", way: sent, body: "Happy to talk; a call next week works."}
+  - seed:
+      kind: meeting
+      title: "Intro call: Penelope Health"
+      days: -14
+      with:
+        - {name: Sara Ramos, email: sara.ramos@penelopehealth.com}
   - say: "who is sara ramos and when did i last deal with her?"
 checks:
-  - judge: "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents."
+  - judge:
+      rubric: "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health's founding engineer role, and the intro call) and gives the intro call, two weeks ago, as the latest contact. Fails if it says it doesn't know her, asks who she is, or says anything that contradicts what is true in the world."
+      facts: "Sara Ramos (sara.ramos@penelopehealth.com) emailed 21 days ago about Penelope Health's founding engineer role; the person replied 20 days ago; an intro call, 'Intro call: Penelope Health', with her 14 days ago. Nothing else."

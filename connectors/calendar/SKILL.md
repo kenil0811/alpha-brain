@@ -6,7 +6,7 @@ description: The person's meetings and events, with attendees linked to the peop
 # Calendar
 
 - `connect(what="events", start, end)` takes ISO times (or `world_query` over the `events`
-  view); use NOW in the pre-pack for "today" and "this week". All-day events have
+  view); use NOW, given with each sentence, for "today" and "this week". All-day events have
   `all_day: true`. `connect(what="calendar")` connects the calendars or reads their changes.
 - Every attendee with an email address is a person entity; `world_search` with their email
   gives what Alpha knows about them across sources.

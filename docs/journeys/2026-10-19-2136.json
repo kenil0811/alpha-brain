@@ -1,0 +1,36 @@
+[
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday evening (Sunday, around 9:36pm) you told me you'd **promised Vikas the financial model by Friday**. That's this Friday, 23 October. You didn't say anything else about him yesterday.\n\nToday you also asked me to remind you to reply to Vikas on WhatsApp by 6pm, and that reminder went off at 6. I only have a note of the Friday promise. There's no reminder set for it, so I can add one for Thursday if you'd like a heads-up.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 63689,
+    "tokens_cache_made": 16676,
+    "tokens_out": 563,
+    "first_text_ms": 10539,
+    "seconds": 11.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer says the person promised Vikas the financial model by Friday and places it yesterday (Sunday evening), which matches the journal; the extra detail about today's WhatsApp reminder comes from the task record, though its claim that the reminder went off at 6pm isn't clearly supported.",
+    "seconds": 7.2
+   }
+  ],
+  "seconds": 18.2,
+  "error": null
+ }
+]

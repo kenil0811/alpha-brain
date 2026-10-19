@@ -1,0 +1,99 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I've set up a watch on We Work Remotely's Back-End Programming list, and it found 5 listings on the first run. They're saved in a new **Back-end jobs · We Work Remotely** table under a new **Job search** area:\n\n| Role | Company | Open to | Posted |\n|---|---|---|---|\n| Senior Backend Developer (Python) | Proxify AB | Anywhere | 19 Oct (featured) |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | Anywhere | 19 Oct (featured) |\n| Staff Software Engineer, Revenue Systems | Squarespace | Anywhere | 19 Oct |\n| Senior Java Developer | Twikey | Europe only (about 30 countries) | 19 Oct |\n",
+    "steps": 12,
+    "tokens_input": 18,
+    "tokens_cache_read": 288621,
+    "tokens_cache_made": 29529,
+    "tokens_out": 4880,
+    "first_text_ms": 1629,
+    "routed": "a new item",
+    "routed_by": "judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.",
+    "seconds": 85.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs. I don't have an egg table, and nothing about eggs comes up in anything you've told me, this week or earlier.\n\nIf you'd like to start, just tell me as you go (for example, \"had 3 eggs at breakfast\"). I can also set up a small egg log so I can give you weekly totals.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 61470,
+    "tokens_cache_made": 13956,
+    "tokens_out": 301,
+    "first_text_ms": 6389,
+    "routed": "Home",
+    "routed_by": "judge: Counting logged eggs this week is a quick lookup unrelated to the WWR job watch, answerable in one turn.",
+    "seconds": 15.1
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: Counting logged eggs this week is a quick lookup unrelated to the WWR job watch, answerable in one turn.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "Done. The watch now checks once a day at 7:00 in the morning instead of every 6 hours, starting tomorrow, Tuesday 20 October. If your Mac is asleep at 7, it checks as soon as the Mac wakes.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 82659,
+    "tokens_cache_made": 1174,
+    "tokens_out": 228,
+    "first_text_ms": 4297,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: \"That watch\" refers to the WWR back-end watch just set up, and changing its schedule follows on from that item.",
+    "seconds": 17.4
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: \"That watch\" refers to the WWR back-end watch just set up, and changing its schedule follows on from that item.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 item(s): Watch We Work Remotely for back-end roles (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply says the existing watch was changed from every 6 hours to once a day at 7:00, which matches the journal entry showing the WWR Back-end Watch agent was changed rather than a new one created.",
+    "seconds": 3.4
+   }
+  ],
+  "seconds": 121.5,
+  "error": null
+ }
+]

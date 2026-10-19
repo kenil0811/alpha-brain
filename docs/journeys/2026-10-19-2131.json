@@ -1,0 +1,99 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "We Work Remotely's back-end listings are now in a new **Job search** module, and they'll update on their own every morning at 08:00. Each update tells you which roles are new and which have come down.\n\nThe board has **5 back-end roles** right now:\n\n| Role | Company | Posted | Skills |\n|---|---|---|---|\n| Senior Backend Developer (Python) | Proxify AB | 19 Oct | Django, Python |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | 19 Oct | Node.js, Nest.js |\n| Staff Software Engineer, Revenue Systems | Squarespace | 18 Oct | – |\n| AI Experience Engineer (Conversational AI) | Upgrade | ",
+    "steps": 14,
+    "tokens_input": 22,
+    "tokens_cache_read": 416401,
+    "tokens_cache_made": 37680,
+    "tokens_out": 4323,
+    "first_text_ms": 34698,
+    "routed": "a new item",
+    "routed_by": "judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.",
+    "seconds": 94.3
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs this week. There's nothing about eggs anywhere I keep: no table, no journal entry, no note. Your question just now is the only time they've come up. The only table you have so far tracks your job search.\n\nIf you'd like to start tracking them, tell me something like \"2 eggs at breakfast\" and I'll set up a small food log. Then I can answer this kind of question whenever you ask.",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 63426,
+    "tokens_cache_made": 8990,
+    "tokens_out": 429,
+    "first_text_ms": 8037,
+    "routed": "Home",
+    "routed_by": "judge: A quick lookup of the person's logged egg count this week is unrelated to the job-watch item and can be answered in this turn.",
+    "seconds": 20.5
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: A quick lookup of the person's logged egg count this week is unrelated to the job-watch item and can be answered in this turn.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The watch now checks every day at 07:00, starting tomorrow (Tuesday) morning. If your Mac is asleep at 07:00, it checks when the Mac next wakes.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 99356,
+    "tokens_cache_made": 1569,
+    "tokens_out": 211,
+    "first_text_ms": 8158,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: \"That watch\" refers to the open WWR back-end watch, which updates at 08:00, and the person wants its schedule changed to 7.",
+    "seconds": 18.8
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: \"That watch\" refers to the open WWR back-end watch, which updates at 08:00, and the person wants its schedule changed to 7.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 item(s): Watch We Work Remotely for back-end roles (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing Remote Jobs Watch was changed to check every day at 07:00, which matches the journal's 'changed' step, and it doesn't claim to have started anything new.",
+    "seconds": 3.5
+   }
+  ],
+  "seconds": 137.2,
+  "error": null
+ }
+]

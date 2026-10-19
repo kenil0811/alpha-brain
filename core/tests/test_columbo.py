@@ -71,10 +71,10 @@ def shake(world: World, kcal: int = 160) -> tuple[str, dict[str, Any]]:
 # ---- provenance ----
 
 
-def test_the_rules_say_known_assumed_or_asked() -> None:
+def test_the_rules_say_known_looked_up_estimated_or_asked() -> None:
     rules = config.prompt("turn")
-    assert "never guessed" in rules and "Never pick silently" in rules
-    assert "what you assumed" in rules and "looked up from a source you name" in rules
+    assert "looked up from a source you name" in rules and "estimated and said so" in rules
+    assert "What can be looked up is looked up." in rules
 
 
 def test_values_carry_where_they_came_from() -> None:

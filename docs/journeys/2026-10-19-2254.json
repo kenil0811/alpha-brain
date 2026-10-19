@@ -1,0 +1,33 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "There's no lunch logged for today yet. What did you have?\n\nYour usual lunches, in the order you've been eating them:\n- **Paneer wrap**, 1 wrap (680 kcal)\n- **Chicken rice bowl**, 1 plate (720 kcal)\n- **Dal rice with veg**, 1 plate (650 kcal)\n\nIf it's one of these, say which one. If it was something else, tell me what it was and roughly how much, and I'll estimate the calories and macros.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 97978,
+    "tokens_cache_made": 15669,
+    "tokens_out": 624,
+    "first_text_ms": 12405,
+    "seconds": 13.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": true,
+    "why": "\"What did you have for lunch today (Mon 19 Oct)?\" with ['Paneer wrap (1 wrap)', 'Chicken rice bowl (1 plate)', 'Dal rice with veg (1 plate)', 'Something else'] options (the model's own)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 13.0,
+  "error": null
+ }
+]

@@ -1,0 +1,44 @@
+[
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "seed": "table emails with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Intro call: Penelope Health",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos leads hiring at Penelope Health (sara.ramos@penelopehealth.com).\n\n**The last time you dealt with her was Monday 5 October**, two weeks ago. It was a meeting on your calendar called \"Intro call: Penelope Health.\"\n\nHow it got there:\n- **28 September:** She emailed you about their founding engineer role.\n- **29 September:** You replied that you were happy to talk and that a call the following week would work.\n- **5 October:** You had the intro call.\n\nI don't have anything from either of you since the call, and I have no notes on how it went.",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 58668,
+    "tokens_cache_made": 13529,
+    "tokens_out": 600,
+    "first_text_ms": 8961,
+    "seconds": 13.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health's founding engineer role, and the intro call) and gives the intro call, two weeks ago, as the latest contact. Fails if it says it doesn't know her, asks who she is, or says anything that contradicts what is true in the world.",
+     "facts": "Sara Ramos (sara.ramos@penelopehealth.com) emailed 21 days ago about Penelope Health's founding engineer role; the person replied 20 days ago; an intro call, 'Intro call: Penelope Health', with her 14 days ago. Nothing else."
+    },
+    "ok": true,
+    "why": "The answer identifies Sara Ramos from her 28 September email about Penelope Health's founding engineer role, the 29 September reply and the 5 October intro call, and correctly gives that call two weeks ago as the latest contact; calling her the person who 'leads hiring' is an unverified extra detail but nothing in the world contradicts it.",
+    "seconds": 9.9
+   }
+  ],
+  "seconds": 23.0,
+  "error": null
+ }
+]

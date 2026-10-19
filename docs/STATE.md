@@ -4,18 +4,27 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 19 October 2026, evening.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
-- **Engine reach (A1–A12; Q98), S1 built** ([`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md); uncommitted).
-  - Kenil's spec of 19 Oct night, which parked P4/P10, was agreed with "A7 - let it talk to network, others are good". The proposal is [`design/engine-reach-proposal.md`](design/engine-reach-proposal.md), with his spec word for word.
-  - **A12:** a session survives everything but a change of hand names. A fresh session after one starts with the conversation's checkpoint (Watson's, now kept as a note).
-  - **A5:** `world_query` names its total, pages by offset, and returns 1,000 rows by default.
-  - **A8:** tool search is on. The spike showed input tokens per turn 6% and 32% lower, the hands still found and called.
-  - Every reply now records its tokens.
-  - Kenil restarted his app on S1 and looked: "ok its fine". Committed on his word ("commit S1 first").
-- **The prompt and the context (B1–B8; Q99), agreed** ([`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md), his spec word for word; all nine questions as recommended).
-  - A spike on the pinned SDK found that a resumed session keeps its first turn's system prompt (the preset's `snapshot`, on since the SDK engine of 17 Oct). So every turn after a conversation's first has had the first turn's pre-pack.
-  - It also found that UserPromptSubmit's context reaches the model every turn, that SessionStart fires through the SDK only after a compaction, and that PreCompact's text becomes the summary's instructions.
-  - **Next:** S1 committed (his word), then step 0 (B8's split and the "before" run), then B1 + B3. His three "feels dumb" sentences come separately.
+**As of 19 October 2026, night.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
+- **The prompt and the context (B1–B8; Q99): steps 0 and 1 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md), his spec word for word, all nine questions as recommended).
+  - **Found first:** a resumed SDK session keeps its first turn's system prompt (the preset's `snapshot`). So since 17 Oct, every turn after a conversation's first had that first turn's pre-pack.
+  - **Step 0:** every reply records input, cache read, cache made and output apart; `just turns` prints them with time to first words. The "before" journeys ran on S1 with step 0, frozen.
+  - **Step 1:**
+    - turn.md is six short paragraphs (147 words, from 841), and the system prompt is fixed;
+    - the world rides on the sentence through the SDK's hooks: the start layer when a session is new and after a compaction, the turn layer (a few lines) every sentence;
+    - the conversation's copy, the day's turns and the entity cards' bodies are gone from what is given.
+  - **Journeys:**
+    - before: all seven passed;
+    - step 1: all twelve now pass. Three needed a sentence each in a hand's docstring (Q100: `ask_person`, `world_change`, `world_query`'s `people`), and one a fix to the suite's judge.
+    - From the second turn on, less is written to the cache (14k → 9k); first words aren't sooner yet.
+  - **His first look (22:40):**
+    - "log my lunchy" came as prose: with tool search on, `ask_person` was a bare name the model never opened. Fixed (Q101): the four hands that put a card to the person are always loaded. Proven on a real turn, and `question_card` passed three times.
+    - The calendar had marked all 28 events removed after one empty read; the next sync put them back. Fixed (Q101): a removal needs a second, fresh read to agree. Proven by tests only; the app's next sync is the real check.
+  - **His second look (22:58):** "log my lunch" was guessed and logged (a paneer wrap, "estimated"): B1's paragraph 3 had dropped his "or asked". Restored on his word ("What only the person can know is asked."), with `snapshot` off brought forward from step 2 so open sessions get it. On copies of his world: 8 of 8 runs guessed nothing, 7 of 8 asked on a card. The guessed row is still in his food log, for him to change or remove.
+  - **Next:**
+    - his third look (23:11 BST): "The four tries look right in my app"; committed on his word;
+    - then step 2 (B2's content, B4, B5).
+    - His three "feels dumb" sentences come separately.
+- **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
   - **A table's rows are people** by any of their keys.
@@ -80,19 +89,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 19 Oct evening, P8–P9 built)
+## Numbers (`just stats`, 19 Oct night, section B step 1 built)
 
-| | |
-|---|---|
-| Core tests | 420, in about 46 s; ruff and mypy strict clean |
-| Desktop tests | 238 passed, 1 skipped, in 55 files; typecheck clean; 1 host test (`cargo test --lib`) |
-| Tools the model sees | 22 (18 hands, `page_keep` since slice 7, and the four workflow tools; 70 operations behind them (`document_import` with P6, `contacts_import` with P9); `just stats` counts the operations) |
-| Journeys | 46 defined (`people_from_two_sources`, `when_did_we_last_talk` 19 Oct evening, P8–P9: see the log; `contacts_from_the_mac` on his say) (`agent_wakes_on_a_row`, `value_says_where`, `statement_imported` 19 Oct, P7, P5, P6: passed alone on fresh worlds, `docs/journeys/2026-10-19-1529.md`, `-1530.md`, `-1532.md`) (`removal_waits_on_its_card` and `staged_from_a_run` 19 Oct, P3d and P3c: passed, `docs/journeys/2026-10-19-1437.md`, `-1446.md`) (`agent_drafts_for_yes` 19 Oct, P3b: written, acts in Kenil's Gmail, run only on his say) (`answer_back_to_the_agent` 19 Oct, Q92: passed alone on a fresh world, `docs/journeys/2026-10-19-1034.md`, and after Q93, `-1057.md`; one invocation shares its fresh world, so it broke on its setup when run after `agent_takes_a_task`, `-1030.md`) (`agent_takes_a_task` 19 Oct, P2: passed on a fresh world, `docs/journeys/2026-10-19-0933.md`, and after Q92, `-1037.md`; `agent_verdict` needs a seed of its own since the 18 Oct reset) (`task_where_it_belongs` 18 Oct night, P1: passed on a fresh world, `docs/journeys/2026-10-18-2053.md`) (`page_clean` 18 Oct, slice 7b) (`page_drawn` 18 Oct, passed twice on a fresh world: `docs/journeys/2026-10-18-1642.md`, `-1644.md`) (`files_in_a_turn`, `kit_roundtrip`, `reminder_fires`, `gmail_last_week` 18 Oct) (`two_things_at_once` 18 Oct, passed on a fresh world: `docs/journeys/2026-10-17-2332.md`; `remove_asks` passed again after the bulk-removal change: `docs/journeys/2026-10-18-0027.md`); `--fresh` runs on an empty world (17 Oct). On the fresh world: track_then_log and watch_from_words passed (`docs/journeys/2026-10-17-2031.md`, `-2033.md`); sync_from_words waits for Kenil's say; vague_tracker not yet run on its new rule. On the SDK engine on a copy: question_card and vague_tracker passed, branded_food broke on its precondition (`-1956.md`, `-1957.md`). Before: All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
-| Desktop check | `docs/checks/2026-10-19-1027.md` (Q92: 25 of 25 pages clean at every size, on a copy of Kenil's world); before, `docs/checks/2026-10-18-1440.md` (Home, Settings, Assistant, Intelligence: 16 of 19 clean, the three fixed) and `-1442.md` (the 15 Intelligence pages: all clean), on a copy of Kenil's world, both sizes, light and dark; the full 91-page sweep's hang of 17 Oct still to look at |
-| Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
-| Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 295 total; 295 since 1 Oct 2026 (P1 `535f6f9`; P2 with Q92 and Q93 `dfb12fc`; Kenil's models change `fadcf46`; P3a `fe5fceb`; P3b–P3d and P6/P5/P7 `1f682a1`, its docs after it; P8–P9 `e340f78`, its docs after it) |
-| Lines | core 28,823 Python; tests 10,932; desktop 21,476 TS/TSX |
+- 431 core tests, 238 desktop tests; lint and types clean.
+- 70 tools; 47 journeys defined.
+- Core 29,050 lines, tests 11,230, desktop 21,476.
+- 296 commits before this one.
 
 ## What is built, against the design's order of work
 
@@ -135,6 +137,8 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 - The earlier near miss on a label (fat 14 g against 13.4 g) was a rounding apart, which the judge's rules now say is not a difference.
 
 ## Pending, in order
+
+- **Now:** section B ([`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)): step 1 to his look and commit, then step 2 (B2's content, B4, B5, `snapshot` off), step 3 (B6, B7), step 4 (the "after" run). Then engine reach S2–S5 ([`design/engine-reach-proposal.md`](design/engine-reach-proposal.md)). P4/P10 of Vikas's projects stay parked.
 
 0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built and accepted 17 Oct**; (2a) the end of the gate: **built and accepted 17 Oct night**; left: `sync_from_words` as a journey on his say, `vague_tracker` on its new rule; (2b) agreed 17 Oct ([`design/harness-slice-2b-proposal.md`](design/harness-slice-2b-proposal.md)): step 1 skills as directories **built**; step 2 the hands **built**; step 3 the permission callback **built**; step 4 the CLI route and the skills tables removed **built and 2b accepted**; left in 2b's words: the SDK's own shell and files in a turn (with the granted folders, slice 6) and `defer` across restarts; (2) the fifteen tools and the end of the gate; (3) conversations and work items: **built 18 Oct** ([`design/harness-slice-3-proposal.md`](design/harness-slice-3-proposal.md), Q75, Q76), Kenil's acceptance in the app open; left in 3: agents' runs as resumed sessions, the Mac notification, several items folding into one Home line, a move button in the window; (4) triggers and the quieter agents; (5) modules as directories and kits: **built 18 Oct** (the window's part with 6); (6) the window's simplification: **built 18 Oct** (the core and the window; the full desktop sweep's hang still to look at); (7) pages the model draws (Q82): **built 18 Oct**; (7b) clean pages (Q83: the kit, the overview rule, the look before done): **built 18 Oct**, Kenil's run open; held: the React catalogue tier, a dark look, Versions for pages and agents' files. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
 

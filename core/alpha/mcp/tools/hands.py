@@ -55,7 +55,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         `threads`, `decisions`, `sources`, `record_versions`; the person's tasks are
         `tasks` (title, state, due, owner, anchor: where each lives). Use it to answer
         from the data (count, sum, group, join; today's date is in NOW), to find a row's id and
-        revision before changing it, and to look back (journal). The result names its total;
+        revision before changing it, and to look back (journal). Who someone is and when you
+        last dealt with them: one query on `people` (its `last_contact` and `in_90_days` count
+        mail and meetings; `interactions` lists each). The result names its total;
         ask again with offset for the rest. It cannot write: use world_write, world_change,
         world_shape."""
         return queries.query(self.world.path, sql, limit=limit, offset=offset)
@@ -143,7 +145,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                 "note": "These rows wait for the person's yes on a card (this table is on your"
                         " stage list); say so in your last line."}
 
-    @hand(writes="records")
+    @hand(writes="records", card=True)
     def world_change(self, table: str, id: str | None = None, revision: int | None = None,
                      values: dict[str, Any] | None = None, remove: bool = False,
                      source: str | None = None, assumed: str | None = None,
@@ -156,7 +158,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         the person entered themselves is theirs: change it only on their word. To remove
         several rows the person asked to remove, give their ids in `ids` with remove: true, in
         one call: one question to them covers all of them (a call per row is a card per row);
-        no revision then, each goes at its current one."""
+        no revision then, each goes at its current one. Removing a row the person entered asks
+        them on a card when you call this, and it goes only on their yes: call it, rather than
+        asking first in words."""
         if ids:
             if not remove:
                 return {"error": "ids is for removing several rows at once; change rows one at"
@@ -662,7 +666,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
 
     # ---- acting outward ----
 
-    @hand(writes="proposals")
+    @hand(writes="proposals", card=True)
     def act_outward(self, skill: str | None = None, title: str | None = None,
                     payload: dict[str, Any] | None = None, undo: str | None = None,
                     evidence: str | None = None, module: str | None = None,
@@ -708,7 +712,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         A script that returns good rows for a list you will keep becomes a reader (skill_keep)."""
         return self.page_script(url, script, to_end=to_end)
 
-    @hand(writes="connections")
+    @hand(writes="connections", card=True)
     def connect(self, what: str = "list", target: str | None = None,
                 start: str | None = None, end: str | None = None, again: bool = False) -> Any:
         """What Alpha can reach, and reaching more. what "list": the watched folders, the sites

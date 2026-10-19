@@ -195,7 +195,7 @@ def test_a_commitment_and_a_decision_are_filed_by_type_and_the_rest_stays_in_the
     assert len(world.tasks.of("person")) == 1
 
 
-def test_tasks_due_within_a_week_reach_the_prepack(world: World) -> None:
+def test_tasks_due_today_ride_with_the_sentence(world: World) -> None:
     from datetime import date, timedelta
 
     from alpha.context import prepack
@@ -205,12 +205,17 @@ def test_tasks_due_within_a_week_reach_the_prepack(world: World) -> None:
     world.tasks.record("person", "send the deck", due=soon, source="turn:x")
     world.tasks.record("person", "renew the lease", due=later, source="turn:x")
     world.tasks.record("person", "call mum", source="turn:x")  # no date: not "due"
-    pack = prepack.build(world, "what's on this week?")
-    assert "TASKS DUE" in pack and "send the deck" in pack
-    assert "renew the lease" not in pack and "call mum" not in pack
-    assert [c["title"] for c in world.tasks.due_within(7)] == ["send the deck"]
-    done = world.tasks.set_state(world.tasks.of("person")[0]["id"], "done")
-    assert done["state"] == "Done" and world.tasks.due_within(7) == []
+    today = date.today().isoformat()
+    world.tasks.record("person", "pay the invoice", due=today, source="turn:x")
+    # due today or overdue rides with the sentence (B3); the week is a query away
+    pack = prepack.turn_layer(world, "what's on this week?")
+    assert "DUE TODAY" in pack and "pay the invoice" in pack
+    assert "send the deck" not in pack and "renew the lease" not in pack and "call mum" not in pack
+    assert [c["title"] for c in world.tasks.due_within(7)] == ["pay the invoice", "send the deck"]
+    for t in world.tasks.of("person"):
+        if t["title"] in ("send the deck", "pay the invoice"):
+            assert world.tasks.set_state(t["id"], "done")["state"] == "Done"
+    assert world.tasks.due_within(7) == []
 
 
 def test_a_conversations_checkpoint_keeps_what_it_decided_and_what_is_open(world: World) -> None:

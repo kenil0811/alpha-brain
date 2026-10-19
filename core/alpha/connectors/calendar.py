@@ -87,13 +87,17 @@ class EventKitSource:
     def events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
         from Foundation import NSDate
 
-        predicate = self.store.predicateForEventsWithStartDate_endDate_calendars_(
+        # A fresh store for every read: one held for an hour by the core read no events at all
+        # while macOS still said access was granted, and all 28 were taken as deleted (19 Oct
+        # 2026, 20:21 BST); the next core's first read found every one.
+        store = self.ek.EKEventStore.alloc().init()
+        predicate = store.predicateForEventsWithStartDate_endDate_calendars_(
             NSDate.dateWithTimeIntervalSince1970_(start.timestamp()),
             NSDate.dateWithTimeIntervalSince1970_(end.timestamp()),
             None,
         )
         out = []
-        for e in self.store.eventsMatchingPredicate_(predicate) or []:
+        for e in store.eventsMatchingPredicate_(predicate) or []:
             def person(p: Any) -> Attendee | None:
                 if p is None:
                     return None
@@ -175,6 +179,13 @@ class Calendar:
             "SELECT id, uid, title FROM events WHERE connection = ? AND removed_at IS NULL"
             " AND starts_at >= ? AND starts_at <= ?", (conn["id"], _iso(start), _iso(end)),
         )
+        if any(row["uid"] not in seen for row in stale):
+            # An event missing from a read is gone only when a second read, on a fresh store,
+            # misses it too: a read that failed quietly is never taken as deletions (19 Oct).
+            for ev in self.source.events(start, end):
+                if ev.uid not in seen:
+                    seen.add(ev.uid)
+                    counts[self._save(conn["id"], ev, counts)] += 1
         for row in stale:
             if row["uid"] not in seen:
                 with self.world.store.tx() as db:
@@ -223,9 +234,11 @@ class Calendar:
                     (*row, prior["id"]),
                 )
         local = ev.starts_at.astimezone().strftime("%a %d %b %H:%M")
+        said = ("Back on your calendar" if prior and prior["removed_at"] else
+                "Calendar changed" if prior else "On your calendar")
         self.world.journal.append(
             "saw",
-            f"{'Calendar changed' if prior else 'On your calendar'}: {ev.title}, {local}"
+            f"{said}: {ev.title}, {local}"
             + (f" with {', '.join(p['name'] or p['email'] for p in people[:4])}" if people else "")
             + ".",
             data={"uid": ev.uid}, entity_ids=[event_entity["id"], *person_ids],

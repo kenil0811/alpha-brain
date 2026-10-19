@@ -83,11 +83,13 @@ class Modules(Base):
         self._did("changed", f"Updated the brief of {thread['title']}.", {"thread": tid})
         return thread
 
-    @hand(writes="asks")
+    @hand(writes="asks", card=True)
     def ask_person(self, question: str, options: list[str] | None = None,
                    kind: str = "one", hint: str | None = None) -> dict[str, Any]:
         """Record a question for the person that must be answered before something can be
-        done well (it shows on Home until answered). Ask in the reply too. Only ask what you
+        done well (it shows on Home until answered). Ask in the reply too. A question left in
+        the reply is one the person cannot answer on a card: when they must choose, or say
+        something you cannot find out, ask it here. Only ask what you
         cannot find out and what changes the result. `kind` is "one" (they pick one option) or
         "several" (they may tick more than one); `hint` says what a free answer should be when
         there are no options ("a number of days", "a date", "the person's name")."""

@@ -23,27 +23,18 @@ held = 0.75                        # fewer than three quarters of the rows it fo
 missing = 0.2                      # more than a fifth of the rows without a required field: broken
 
 [prepack]
-max_chars = 14000                  # the pre-pack's whole (a blind tail cut; measured 3 Oct on 13 tables against one saved model step)
-recent_turns = 12                  # the conversation's recent turns shown
-thread_history = 15                # a thread's own history shown
-matches = 5                        # matches for the sentence shown per kind
+max_chars = 14000                  # the start layer's whole (a blind tail cut; measured 3 Oct on 13 tables against one saved model step); goes with B5
+thread_history = 15                # an agent's thread's own history, given at a run's start
 default_budget = 900               # a section's characters before it says what it left out, unless named below
 fields_line = 320                  # a table's fields in one line, at most
 
-[prepack.budget]                   # per section, matched by the title's start
+[prepack.budget]                   # per start-layer section, matched by the title's start; goes with B5
 "WHAT ALPHA HOLDS" = 3600
 "WHAT ALPHA CAN DO" = 2000
 "WHAT ALPHA KNOWS" = 1600
 "THIS MODULE'S PAGE" = 1700
-"THIS CONVERSATION" = 2400
-"SINCE YOUR LAST TURN" = 800
-"WHAT WAS SAID" = 1600
-"MATCHES FOR THIS SENTENCE" = 2200
 "THIS THREAD" = 2400
 "OPEN" = 900
-"WHO THE SENTENCE NAMES" = 1200
-"TODAY'S CALENDAR" = 700
-"COMMITMENTS DUE" = 600
 
 [conversations]
 confident = 0.6                    # the judge routes a sentence under this confidence by asking, never by guessing
@@ -80,6 +71,9 @@ changes_most = 500                 # the window's one poll carries at most this 
 most_rows = 5000                   # a workflow table's rows shown in a module's view, at most
 query_rows = 1000                  # world_query's rows when the model names no limit; the result always names its total and the model asks again with offset for the rest (A5, Q98: a cut it could not see was a wall on reach)
 query_steps = 2000                 # a world_query is stopped after this many 10,000-step slices of SQLite work (about seconds): a read that long is a wrong query, not a slow one
+turn_matches = 3                   # matches for a sentence given with it, the strongest of records, documents and the journal in turn, each with its id: a hint that one query follows up, not the answer (B3, Q99)
+turn_elsewhere = 10                # lines of what changed elsewhere since the last turn in a conversation, the newest
+turn_due = 5                       # tasks due today or overdue, and today's meetings, given with a sentence; the rest are a query away
 
 
 [accounts]

@@ -197,9 +197,9 @@ def test_the_prepack_carries_the_index_and_a_card_for_whoever_is_named(world: Wo
     text = prepack.build(world, "what's going on with vikas these days?")
     assert "WHAT ALPHA KNOWS" in text and "[topic:cooking] Cooking: How Kenil cooks" in text
     assert "WHO THE SENTENCE NAMES" in text
-    card = text[text.index("WHO THE SENTENCE NAMES"):]
-    assert "Vikas Badami (person" in card and "email=vikas@example.com" in card
-    assert "works_at: Avilo (accepted" in card and "last seen:" in card
+    # one line each with its id; the card itself is one query away (B3, B4)
+    named = prepack.section_of(text, "WHO THE SENTENCE NAMES")
+    assert named == f"- Vikas Badami (person, {vikas['id']})"
     assert "WHO THE SENTENCE NAMES" not in prepack.build(world, "what did I eat today?")
     # A first name alone finds a person; a three-letter word does not match by accident.
     assert prepack.entities_named(world, "coffee with vikas")[0]["id"] == vikas["id"]
@@ -239,8 +239,9 @@ def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
     yesterday = (datetime.now(UTC) - timedelta(days=1)).replace(microsecond=0).isoformat()
     with world.store.tx() as db:
         db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (yesterday, said, replied))
-    text = prepack.build(world, "what did i say about vikas yesterday?")
-    assert "WHAT WAS SAID YESTERDAY" in text
-    assert "person: remind me that i promised vikas the financial model" in text
+    # the window reaches the journal's matches: yesterday's line, dated, with its id
+    text = prepack.turn_layer(world, "what did i say about vikas yesterday?")
+    matches = prepack.section_of(text, "MATCHES FOR THIS SENTENCE")
+    assert f"said ({said}): remind me that i promised [vikas]" in matches
     assert world.journal.between(yesterday[:10], "2999")[0]["id"] == said
     assert world.journal.search("vikas", since="2999") == []

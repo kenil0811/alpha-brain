@@ -48,8 +48,9 @@ Runner = Callable[[TurnRequest], RunResult]
 
 def timings(world: World, limit: int = 40, *, actor: str = "person") -> list[dict[str, Any]]:
     """How long the last turns took, from the journal: the wall time from the sentence to the
-    reply, the model's own time and steps (the CLI's result), and whether the run resumed a
-    conversation's session. The numbers STATE quotes are measured here (`alpha turns`)."""
+    reply, the time to its first words, the model's own time and steps (the CLI's result), its
+    tokens (none before 19 Oct night) and whether the run resumed a conversation's session. The
+    numbers STATE quotes are measured here (`alpha turns`)."""
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
     for row in world.store.all(
@@ -73,6 +74,7 @@ def timings(world: World, limit: int = 40, *, actor: str = "person") -> list[dic
                     "steps": data.get("num_turns") or 0, "resumed": resumed,
                     "first_s": (round(data["first_text_ms"] / 1000, 1)
                                 if data.get("first_text_ms") else None),
+                    **{k: data.get(k) for k in TOKENS},
                     "ok": row["kind"] == "replied"})
     return out[-limit:]
 
@@ -143,13 +145,17 @@ def threads_opened_by(world: World, turn_id: str) -> list[str]:
     return [str(r["t"]) for r in rows]
 
 
+# A turn's tokens as the model's result gives them, the three kinds of input kept apart (B8):
+# what was read fresh, what came from the cache and what was written to it.
+TOKENS = {"tokens_input": "input_tokens", "tokens_cache_read": "cache_read_input_tokens",
+          "tokens_cache_made": "cache_creation_input_tokens", "tokens_out": "output_tokens"}
+
+
 def tokens_of(result: RunResult) -> dict[str, int]:
     usage = (result.raw or {}).get("usage") or {}
     if not isinstance(usage, dict) or not usage:
         return {}
-    read = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_read_input_tokens",
-                                                 "cache_creation_input_tokens"))
-    return {"tokens_in": read, "tokens_out": int(usage.get("output_tokens") or 0)}
+    return {kept: int(usage.get(given) or 0) for kept, given in TOKENS.items()}
 
 
 # What was going on in a conversation, for a fresh session (A12): Watson's checkpoint, which
@@ -204,29 +210,37 @@ def ask(
     )
     if on_said is not None:
         on_said(said)
-    context = prepack.build(world, sentence, module=module_id, thread=thread)
     rules = rules if rules is not None else config.prompt("turn")
+    # The system prompt is fixed, so the session's cache holds; the world rides on the sentence
+    # in two layers (section B, Q99): the start layer when the session is made, the turn layer
+    # with every sentence.
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
-    world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
+    rules_hash = hashlib.sha256(fixed.encode()).hexdigest()[:12]
+    start = prepack.start_layer(world, module=module_id, thread=thread)
+    layer = prepack.turn_layer(world, sentence, module=module_id, thread=thread, said=said)
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
     asked = sentence
     if (resume and thread_row and thread_row.get("session_tools") != engine.fingerprint()
             and not answers_a_deferral(world, thread)):
         # A session made with other tool names would have the model call names this run lacks
-        # (18 Oct 2026): a fresh one starts, with this conversation in the pre-pack and, in
-        # front of the sentence, what was going on (A12: the conversation's checkpoint)
+        # (18 Oct 2026), and one made before the layers keeps the world in its old system
+        # prompt (section B): a fresh one starts, given the start layer and, in front of the
+        # sentence, what was going on (A12: the conversation's checkpoint)
         resume = None
         carried = carry_over(world, thread, runner)
         if carried:
-            asked = f"What was going on before the tools changed:\n{carried}\n\n{sentence}"
-        world.journal.append("did", "Starting a fresh session here: Alpha's tools changed"
-                             " since the last turn" + (", carrying what was going on." if carried
-                                                       else "."), actor="alpha", thread=thread,
-                             module=module_id, data={"turn": said, "fresh_session": True})
+            asked = f"What was going on here before this fresh session:\n{carried}\n\n{sentence}"
+        world.journal.append("did", "Starting a fresh session here: Alpha changed since the last"
+                             " turn" + (", carrying what was going on." if carried else "."),
+                             actor="alpha", thread=thread, module=module_id,
+                             data={"turn": said, "fresh_session": True})
+    # what the model is given with this sentence, kept as it saw it (`turn_contexts`)
+    given = layer if resume else f"{start}\n\n{layer}"
+    world.journal.keep_context(said, given, rules_hash)
     replier = agent or "alpha"
     request = TurnRequest(
         sentence=asked,
-        system=f"{fixed}\n\n{context}",
+        system=fixed,
         world_path=world.path,
         turn_id=said,
         thread_id=thread,
@@ -236,6 +250,8 @@ def ask(
         resume=resume,
         persist=conversation,
         run=RUN.get(),
+        start_layer=start,
+        turn_layer=layer,
     )
     result = runner(request)
     if (not result.ok and not result.stopped and result.error in (NO_ANSWER, STALLED)
@@ -245,6 +261,9 @@ def ask(
         # something, which would do it twice (the conversation, slice 1; Q35's leftover).
         running.LIVE.note([said], doing="Trying again")
         result = runner(request)
+    if "start after a compaction" in request.injected:
+        world.journal.keep_context(said, f"{given}\n\nGIVEN AGAIN AFTER A COMPACTION\n\n{start}",
+                                   rules_hash)
     if conversation and thread and result.ok and result.session_id:
         world.modules.set_session(thread, result.session_id, tools=engine.fingerprint())
     data = {
@@ -254,8 +273,7 @@ def ask(
         "duration_ms": result.duration_ms,
         "cost_estimate": result.cost_estimate,
         "first_text_ms": getattr(result, "first_text_ms", None),
-        # what the turn read and wrote, in tokens (A8 is measured by it): its input with the
-        # cache read and written, and its output
+        # what the turn read and wrote, in tokens (A8 and B8 are measured by it)
         **tokens_of(result),
     }
     if result.ok:

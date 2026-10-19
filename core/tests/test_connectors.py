@@ -236,6 +236,37 @@ def test_calendar_connect_sync_and_people(world: World) -> None:
     assert result["changed"] == 1 and result["removed"] == 1
 
 
+class FlakyCalendar(FakeCalendar):
+    """A calendar whose next reads come back as planned (an empty one), then as it stands."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reads: list[list[CalendarEvent]] = []
+
+    def events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
+        return self.reads.pop(0) if self.reads else list(self.items)
+
+
+def test_a_read_that_comes_back_empty_removes_nothing(world: World) -> None:
+    """19 Oct 2026: one read with no events while access was granted took all 28 as deleted.
+    A missing event is gone only when a second read, on a fresh store, misses it too."""
+    source = FlakyCalendar()
+    cal = Calendar(world, source)
+    cal.connect()
+    source.reads = [[]]  # one empty read, then the calendar as it stands
+    assert cal.sync()["removed"] == 0
+    assert [e["title"] for e in cal.between("2000-01-01", "2999-01-01")] == [
+        "Lumen intro call", "Dentist"]
+    # deleted for real: both reads miss it, so it goes
+    source.items = source.items[:1]
+    assert cal.sync()["removed"] == 1
+    # back on the calendar: the next read finds it, and the journal says it is back
+    source.items = FakeCalendar().items
+    assert cal.sync()["changed"] == 1
+    back = world.journal.recent(1, kinds=["saw"])[0]["text"]
+    assert back.startswith("Back on your calendar: Dentist")
+
+
 def test_calendar_without_access_needs_ok(world: World) -> None:
     cal = Calendar(world, FakeCalendar(granted=False))
     assert cal.connect()["status"] == "needs_ok"

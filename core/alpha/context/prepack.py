@@ -1,17 +1,24 @@
-"""The pre-pack: what the model sees before it looks anything up.
+"""What the model is given besides its fixed system prompt, in two layers (section B, Q99).
 
-Deterministic and free: no model call, at most MAX_CHARS (12,000 characters, roughly three
-thousand tokens). Every line names where it came from. It carries who the person is and how they
-want things done, what they are working towards, what Alpha holds (every table with its fields,
-so a question about the data is one query, not a describe and then a query), the recent stream,
-the records and moments that match the sentence, and what is open. Everything else the model
-fetches itself through the tools.
+The system prompt is fixed (turn.md and the connectors' SKILL.md), so a session's cache holds
+from its second turn on. What changes rides on the person's message, never in the system prompt
+(19 Oct 2026: the SDK keeps a resumed session's first system prompt, so a pack there went stale
+after a conversation's first turn):
 
-Each section has a budget; one over it keeps whole lines from its start (or its end, where the
-newest matter most: the conversation, a thread's history, a day's turns) and says how many it
-left out. The whole stays under MAX_CHARS by shrinking the largest section, never by a blind cut
-of the tail (found 3 Oct: the tail held the matches for the sentence, the one part that was
-about the sentence; cut whenever the index and a module's page were long).
+- the start layer, once when a session is made and again after each compaction: who the person
+  is and how they want things done, their goals, what Alpha holds (every table with its fields,
+  so a question about the data is one query, not a describe and then a query), what it can reach
+  and do, the wiki's index, the module's page, an agent's own thread, and what is open;
+- the turn layer, with every sentence, a few lines: the clock, what changed elsewhere since the
+  last turn here, what is due today, the cards open here, the strongest matches for the sentence
+  with their ids, who it names, and in Home the roster of work items. Everything else the model
+  fetches itself through the tools; the conversation is in the session it resumes.
+
+Deterministic and free: no model call; every line names where it came from. The start layer's
+sections keep their budgets until B2 rewrites them (step 2): one over keeps whole lines from its
+start (or its end, where the newest matter most) and says how many it left out, and the whole
+stays under MAX_CHARS by shrinking the largest section, never by a blind cut of the tail (found
+3 Oct). The turn layer is a few lines by its counts (`limits.toml [views]`).
 """
 
 from __future__ import annotations
@@ -24,27 +31,28 @@ from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import grants, people
+from alpha.world import grants
 from alpha.world.store import local_midnight_utc
 from alpha.world.world import World
 
 # Raised from 12,000 on 3 Oct when every table's fields joined the pack: about 500 more tokens a
 # turn, measured on Kenil's world (13 tables), against one model step saved per data question.
 MAX_CHARS = settings.prepack.max_chars
-RECENT_TURNS = settings.prepack.recent_turns
 THREAD_HISTORY = settings.prepack.thread_history
-MATCHES = settings.prepack.matches
 # Characters a section may take before it says what it left out; matched by the title's start.
 BUDGET = settings.prepack.budget
 DEFAULT_BUDGET = settings.prepack.default_budget
 # Sections where the newest lines matter most: they are cut from the front.
-KEEP_NEWEST = ("THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "SINCE YOUR LAST TURN")
+KEEP_NEWEST = ("THIS THREAD",)
 # When the whole still runs over, sections give up room in this order: the index and the skills
-# first (both are reachable by a tool), what the sentence is about last.
-SHRINK_ORDER = ("WHAT ALPHA KNOWS", "WHAT ALPHA CAN DO", "THIS MODULE'S PAGE",
-                "THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "WHAT ALPHA HOLDS", "OPEN",
-                "WHO THE SENTENCE NAMES", "MATCHES FOR THIS SENTENCE")
+# first (both are reachable by a tool), what is open last.
+SHRINK_ORDER = ("WHAT ALPHA KNOWS", "WHAT ALPHA CAN DO", "THIS MODULE'S PAGE", "THIS THREAD",
+                "WHAT ALPHA HOLDS", "OPEN")
 FIELDS_LINE = settings.prepack.fields_line
+# The turn layer's lines, counted, never measured in characters (B3).
+TURN_MATCHES = settings.views.turn_matches
+TURN_ELSEWHERE = settings.views.turn_elsewhere
+TURN_DUE = settings.views.turn_due
 
 
 def _budget(title: str) -> int:
@@ -101,7 +109,7 @@ def _assemble(sections: list[tuple[str, list[str]]]) -> str:
         caps[i] = int(sizes[i] * 0.66)
         fitted[i] = (sections[i][0], _fit(sections[i][0], sections[i][1], caps[i]))
         text = join(fitted)
-    return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
+    return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(cut short)"
 
 
 def _module_name(world: World, module: str | None) -> str:
@@ -143,12 +151,11 @@ def _clip(text: str, n: int) -> str:
 
 
 def section_of(context: str, title: str) -> str:
-    """One section of a kept pre-pack (`turn_contexts`), by the start of its title (a title
-    may carry a suffix: "THIS CONVERSATION (Deals) (oldest first)"): its lines, without the
-    title, or "" when the pack has no such section. The journey suite's judge and Columbo
-    read what the model was given this way."""
-    m = re.search(rf"(?m)^{re.escape(title)}[^\n]*\n(.*?)(?=\n\n[A-Z][A-Z' ()]+\n|\Z)", context,
-                  re.S)
+    """One section of what a turn was given (`turn_contexts`), by the start of its title (a
+    title may carry a suffix: "THIS THREAD (its brief ...)"): its lines, without the title, or
+    "" when there is no such section. The journey suite's judge and Columbo read what the model
+    was given this way."""
+    m = re.search(rf"(?m)^{re.escape(title)}[^\n]*\n(.*?)(?=\n\n[A-Z]{{2}}|\Z)", context, re.S)
     return m.group(1).strip() if m else ""
 
 
@@ -227,12 +234,11 @@ def entities_named(world: World, sentence: str) -> list[dict[str, Any]]:
     return out
 
 
-def build(world: World, sentence: str, *, module: str | None = None,
-          thread: str | None = None) -> str:
+def start_layer(world: World, *, module: str | None = None, thread: str | None = None) -> str:
+    """What a session is given once, when it is made and again after a compaction: the world as
+    it stands for this conversation, not for any one sentence."""
     sections: list[tuple[str, list[str]]] = []
     k = world.knowledge
-
-    sections.append(("NOW", clock()))
 
     who = [f"- {f['predicate']}: {f['value']} (fact {f['id']}, {f['state']}, from {f['source']})"
            for f in k.facts("person")]
@@ -252,14 +258,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
              for g in k.goals("active")]
     sections.append(("ACTIVE GOALS", goals or ["- None yet."]))
 
-    due = world.tasks.due_within(7)
-    if due:
-        sections.append(("TASKS DUE (within a week; all of them in world_query's tasks)", [
-            f"- {t['title']} (due {t['due']}; {world.tasks.who_words(t.get('owner')) or 'You'}"
-            + (f"; on {place}" if (place := world.tasks.place_words(t.get('anchor'))) else "")
-            + f"; task {t['id']})" for t in due[:10]]))
-
-    # the person's tables; the world's own (the tasks) are named in TASKS DUE and world_query
+    # the person's tables; the world's own (the tasks) are named in world_query
     tables = [t for t in world.collections.overview() if not t.get("world")]
     modules = world.modules.all()
     by_module: dict[str | None, list[dict[str, Any]]] = {}
@@ -328,20 +327,6 @@ def build(world: World, sentence: str, *, module: str | None = None,
                          " with words or a site to search; use one before writing another)",
                          can_do))
 
-    local = datetime.now().astimezone()
-    day_start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo).astimezone(UTC)
-    day_end = (day_start + timedelta(days=1)).isoformat()
-    today = Calendar(world).between(day_start.isoformat(), day_end)
-    if today:
-        sections.append(("TODAY'S CALENDAR", [
-            f"- {datetime.fromisoformat(e['starts_at']).astimezone().strftime('%H:%M')}"
-            f"–{datetime.fromisoformat(e['ends_at']).astimezone().strftime('%H:%M')}"
-            f" {e['title']}"
-            + (f" with {', '.join(a['name'] or a['email'] for a in e['attendees'][:4])}"
-               if e["attendees"] else "")
-            for e in today[:15]
-        ]))
-
     # The wiki's index: every page in one line, always; bodies on demand (note_read).
     index = [f"- [{p['scope']}] {p['title']}: {_clip(p['summary'], 140)}"
              for p in k.index() if not str(p["scope"]).startswith("conversation:")
@@ -357,70 +342,110 @@ def build(world: World, sentence: str, *, module: str | None = None,
             sections.append((f"THIS MODULE'S PAGE ({page['title']})",
                              [f"  {line}" for line in body.splitlines()[:40]]))
 
-    # Entity cards: anyone or anything the sentence names, with what Alpha knows of them.
-    cards = []
-    for e in entities_named(world, sentence)[:3]:
-        facts_ = world.knowledge.facts(f"entity:{e['id']}")
-        page = next((n for n in k.notes(f"entity:{e['id']}")), None)
-        last = world.store.one(
-            "SELECT j.at, j.text FROM journal j, json_each(j.entity_ids) x WHERE x.value = ?"
-            " AND j.deleted_at IS NULL ORDER BY j.at DESC LIMIT 1", (e["id"],))
-        cards.append(f"- {e['name']} ({e['kind']}, {e['id']}; keys: "
-                     + ", ".join(f"{kk}={', '.join(v)}" for kk, v in (e.get('keys') or {}).items())
-                     + ")")
-        if page:
-            cards.append(f"  page: {_clip(page.get('summary') or page['body'], 200)}")
-        for f in facts_[:8]:
-            cards.append(f"  {f['predicate']}: {f['value']} ({f['state']}, from {f['source']})")
-        if last:
-            cards.append(f"  last seen: {when(last['at'])} {_clip(last['text'], 160)}")
-        if e["kind"] == "person":
-            # where they belong and how lately, counted by code from the interactions (P8)
-            orgs = [o["name"] for o in world.entities.links(e["id"])]
-            if orgs:
-                cards.append(f"  organisation: {', '.join(orgs)}")
-            c = people.contact(world, e["id"])
-            if c["last"] or c["total"]:
-                lately = ", ".join(f"{x['count']} {x['channel']}" for x in c["channels"])
-                cards.append(f"  contact: last {c['last'] or 'not in the record'}; in the last"
-                             f" {c['days']} days {lately or 'none'}"
-                             + (f"; you started {c['you']}, they started {c['them']}"
-                                if c["you"] or c["them"] else "")
-                             + " (the `interactions` view has each one)")
-    if cards:
-        sections.append(("WHO THE SENTENCE NAMES", cards))
-
-    # Home or a work item is a conversation (its own turns); an agent's own item is a thread
-    # with a brief and a history (below). With no thread, Home's turns are the conversation.
+    # An agent's own item is a thread with a brief and a history; its runs are sessions of their
+    # own (Q21), so they are given both at the start (B7 makes this the run's own start layer).
     row = world.modules.thread(thread) if thread else None
-    owned = bool(row and world.agents.of_thread(row["id"]))
-    chat = row if row and not owned else (None if row else world.modules.home_thread())
-    is_home = bool(chat and chat["kind"] == "home")
-    recent = []
-    if chat:
-        turns_ = world.journal.recent(RECENT_TURNS, thread=chat["id"],
-                                      kinds=["said", "replied", "did"])
-        turns_ = [e for e in turns_ if e["kind"] != "did"
-                  or (e["data"].get("routed") and e["data"]["routed"] != chat["id"])]
-    else:
-        turns_ = []
-    for e in turns_:
-        if e["kind"] == "did":
-            recent.append(f"- {when(e['at'])} person: {_clip(e['data']['sentence'], 300)}"
-                          f" → {_clip(e['text'], 120)}")
+    if row and world.agents.of_thread(row["id"]):
+        lines = [f"- {row['title']} ({row['id']}, {row['kind']})",
+                 f"- Brief: {row['brief']}" if row.get("brief") else
+                 "- Brief: none yet. Keep one with agent_keep (its brief) when you learn how"
+                 " this work should go."]
+        history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
+        lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
+        sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
+
+    open_items = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
+                  for a in world.journal.open_asks()]
+    if open_items:
+        sections.append(("OPEN", open_items))
+
+    return _assemble(sections)
+
+
+def turn_layer(world: World, sentence: str, *, module: str | None = None,
+               thread: str | None = None, said: str | None = None) -> str:
+    """What rides with each sentence, a few lines: the clock, what changed elsewhere since the
+    last turn here, what is due today, the cards open here, the strongest matches for the
+    sentence with their ids (one query reaches each), who it names, and in Home the work items.
+    `said` is the sentence's own journal line, never a match for itself."""
+    sections: list[tuple[str, list[str]]] = [("NOW", clock())]
+
+    row = world.modules.thread(thread) if thread else None
+    home = world.modules.home_thread()
+    chat = row or home
+    if chat.get("session_ref"):
+        # The model's session carries this conversation; the world may have moved meanwhile.
+        last_row = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
+                                   " AND kind = 'replied'", (chat["id"],))
+        last_at = str(last_row["at"]) if last_row and last_row["at"] else None
+        delta = []
+        if last_at:
+            for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
+                                                     "noticed"]):
+                if e["at"] > last_at and e["thread"] != chat["id"]:
+                    delta.append(f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 200)}")
+        if delta:
+            sections.append(("SINCE YOUR LAST TURN HERE (elsewhere, meanwhile)",
+                             delta[-TURN_ELSEWHERE:]))
+
+    due = world.tasks.due_within(0)
+    if due:
+        sections.append(("DUE TODAY (or overdue; every task in world_query's tasks)", [
+            f"- {t['title']} (due {t['due']}; {world.tasks.who_words(t.get('owner')) or 'You'}"
+            + (f"; on {place}" if (place := world.tasks.place_words(t.get('anchor'))) else "")
+            + f"; task {t['id']})" for t in due[:TURN_DUE]]))
+    local = datetime.now().astimezone()
+    day_start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo).astimezone(UTC)
+    day_end = (day_start + timedelta(days=1)).isoformat()
+    today = Calendar(world).between(day_start.isoformat(), day_end)
+    if today:
+        sections.append(("TODAY'S CALENDAR", [
+            f"- {datetime.fromisoformat(e['starts_at']).astimezone().strftime('%H:%M')}"
+            f"–{datetime.fromisoformat(e['ends_at']).astimezone().strftime('%H:%M')}"
+            f" {e['title']}"
+            + (f" with {', '.join(a['name'] or a['email'] for a in e['attendees'][:4])}"
+               if e["attendees"] else "")
+            for e in today[:TURN_DUE]
+        ]))
+
+    here = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
+            for a in world.journal.open_asks() if (a["thread"] or home["id"]) == chat["id"]]
+    if here:
+        sections.append(("OPEN HERE", here))
+
+    # The strongest hits of each kind, taken in turn: a record, a document, a journal line.
+    # A sentence that names a day looks in that day's journal first.
+    records = [f"- record {hit['id']} in {hit['collection']}: {_clip(hit['snippet'], 160)}"
+               for hit in world.collections.search(sentence, TURN_MATCHES)]
+    documents = [f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}"
+                 for doc in Files(world).search(sentence, TURN_MATCHES)]
+    window = day_named(sentence)
+    lines = []
+    for hit in world.journal.mark_removed(world.journal.search(
+            sentence, TURN_MATCHES + 1,
+            since=window[0] if window else None, until=window[1] if window else None)):
+        if hit["id"] == said:
             continue
-        who_said = "person" if e["kind"] == "said" else "alpha"
-        recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
-    if chat:
-        title = ("THIS CONVERSATION (Home: the one conversation; work lives in its items,"
-                 " below) (oldest first)" if is_home else
-                 f"THIS CONVERSATION (the work item {chat['title']}) (oldest first)")
-        sections.append((title, recent or ["- This is the first."]))
-    if is_home or thread is None:
+        gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
+        lines.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
+                     f" {_clip(hit['snippet'], 160)}{gone}")
+    kinds = [records, documents, lines]
+    matches: list[str] = []
+    while len(matches) < TURN_MATCHES and any(kinds):
+        for kind in kinds:
+            if kind and len(matches) < TURN_MATCHES:
+                matches.append(kind.pop(0))
+    if matches:
+        sections.append(("MATCHES FOR THIS SENTENCE", matches))
+    named = [f"- {e['name']} ({e['kind']}, {e['id']})" for e in entities_named(world, sentence)]
+    if named:
+        sections.append(("WHO THE SENTENCE NAMES (the `people` and `organisations` views have"
+                         " each)", named))
+
+    if chat["kind"] == "home":
         # The roster: what is in progress, one line each, never their transcripts (§7).
-        items = world.modules.items(limit=12)
         lines = []
-        for t in items:
+        for t in world.modules.items(limit=12):
             if t["state"] in ("done", "stopped") and t["updated_at"] < (
                     datetime.now(UTC) - timedelta(hours=24)).isoformat():
                 continue
@@ -434,66 +459,12 @@ def build(world: World, sentence: str, *, module: str | None = None,
                          " sentence that opens or continues one is routed there before you see"
                          " it; here, answer what can be answered now)",
                          lines or ["- None open."]))
-    if chat and chat.get("session_ref"):
-        # The model's session carries this conversation; the world may have moved meanwhile.
-        last_row = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
-                                   " AND kind = 'replied'", (thread,))
-        last_at = str(last_row["at"]) if last_row and last_row["at"] else None
-        delta = []
-        if last_at:
-            for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
-                                                     "noticed"]):
-                if e["at"] > last_at and e["thread"] != thread:
-                    delta.append(f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 200)}")
-        sections.append(("SINCE YOUR LAST TURN HERE (elsewhere in the world; these override"
-                         " anything you remember)", delta[-10:] or ["- Nothing changed."]))
 
-    matches = []
-    for hit in world.collections.search(sentence, MATCHES):
-        matches.append(f"- record {hit['id']} in {hit['collection']}: {_clip(hit['snippet'], 160)}")
-    for doc in Files(world).search(sentence, 3):
-        matches.append(f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}")
-    recent_ids = {e["id"] for e in turns_}
-    # A sentence that names a day looks there first: matches within it, and that day's turns.
-    window = day_named(sentence)
-    if window:
-        since, until, label = window
-        that_day = [f"- {when(e['at'])} {'person' if e['kind'] == 'said' else 'alpha'}:"
-                    f" {_clip(e['text'], 220)}"
-                    for e in world.journal.between(since, until, kinds=["said", "replied"],
-                                                   limit=14)]
-        sections.append((f"WHAT WAS SAID {label.upper()}", that_day or ["- Nothing was said."]))
-    hits = world.journal.mark_removed(world.journal.search(
-        sentence, MATCHES + len(recent_ids),
-        since=window[0] if window else None, until=window[1] if window else None))
-    # The journal's hits have a cap of their own: records and documents never crowd them out
-    # (found 3 Oct: a day-named question's own sentence sat beyond the shared cap).
-    found = 0
-    for hit in hits:
-        if hit["id"] in recent_ids:
-            continue
-        gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
-        matches.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
-                       f" {_clip(hit['snippet'], 160)}{gone}")
-        found += 1
-        if found >= MATCHES * 2:
-            break
-    if matches:
-        sections.append(("MATCHES FOR THIS SENTENCE", matches))
+    return "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in sections)
 
-    if thread and owned:
-        t = world.modules.thread(thread)
-        lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
-                 f"- Brief: {t['brief']}" if t.get("brief") else
-                 "- Brief: none yet. Keep one with agent_keep (its brief) when you learn how"
-                 " this work should go."]
-        history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
-        lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
-        sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
 
-    open_items = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
-                   for a in world.journal.open_asks()]
-    if open_items:
-        sections.append(("OPEN", open_items))
-
-    return _assemble(sections)
+def build(world: World, sentence: str, *, module: str | None = None,
+          thread: str | None = None) -> str:
+    """Both layers, as a new session is given them with its first sentence."""
+    return (start_layer(world, module=module, thread=thread) + "\n\n"
+            + turn_layer(world, sentence, module=module, thread=thread))
