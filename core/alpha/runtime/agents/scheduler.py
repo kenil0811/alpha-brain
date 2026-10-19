@@ -35,6 +35,7 @@ from alpha.runtime.agents import LOOKS, Work
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.route import run as model_run
 from alpha.runtime.turn import Runner
+from alpha.world import people
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -188,6 +189,10 @@ class Scheduler:
             return
         self.acts()
         self.tasks()
+        try:
+            people.settle_if_changed(self.world)  # who may be the same, proposed (P8)
+        except Exception:
+            log.exception("looking for people who may be the same")
         for agent in self.world.agents.due():
             if self.stop_event.is_set():
                 return

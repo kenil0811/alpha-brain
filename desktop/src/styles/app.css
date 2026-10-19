@@ -793,6 +793,13 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .place__page { max-height: 260px; overflow-y: auto; font-size: var(--text-xs); line-height: 1.5; }
 .place__page p { margin: 0; white-space: pre-wrap; }
 .place__wait { padding: 4px; margin: 0; }
+/* two that may be the same (P8) */
+.pairs__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pairs__pair { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pairs__why { font-size: var(--text-xs); }
+.pairs__sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pairs__side { min-width: 0; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.pairs__keys { font-size: var(--text-xs); }
 /* "Your workflow" (§12): the page in the person's words, as a card. */
 .wf__purpose { margin: 4px 0 8px; }
 .wf__section { margin-top: 10px; }

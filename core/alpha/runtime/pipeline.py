@@ -28,6 +28,7 @@ from alpha.config import settings
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
 from alpha.runtime import route, turn
 from alpha.runtime.agents import doc
+from alpha.world import people
 from alpha.world.readers import health_problem
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
@@ -115,6 +116,8 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
         fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],
     )
     world.readers.ran(name, count=count, problem=None)
+    if desc.get("identity"):
+        people.settle_if_changed(world)  # who may be the same, proposed (P8)
     world.sources.ran(name, status="working", rows=count,
                       detail=None if reader["whole"] else NEWEST_ONLY)
     world.journal.append(

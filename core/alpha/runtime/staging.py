@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.files import Files
+from alpha.world import people
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -54,6 +55,8 @@ def decide(world: World, sid: str, *, accept: bool, ticks: list[int] | None = No
         edited = True
     landed = (world.staged.land_rows(sid, ticks=ticks, edits=edits) if s["kind"] == "rows"
               else land_file(world, sid, destination))
+    if s["kind"] == "rows":
+        people.settle_if_changed(world)  # rows of people landed: who may be the same (P8)
     if edited:
         world.journal.answer_proposal(s["card"], True, staged=sid, edited=True)
     else:
@@ -77,6 +80,7 @@ def land_if_allowed(world: World, sid: str) -> bool:
         return False
     if s["kind"] == "rows":
         world.staged.land_rows(sid)
+        people.settle_if_changed(world)
     else:
         land_file(world, sid)
     world.journal.answer_proposal(s["card"], True, words=STANDING_YES, allowed=True, staged=sid)

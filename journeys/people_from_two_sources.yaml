@@ -1,0 +1,52 @@
+name: people_from_two_sources
+title: "People · two sources, one person each; possible same people proposed, never merged"
+why: >
+  P8 and P9 of the people-and-contacts proposal (19 Oct 2026, Q97). A phone's export (.vcf) is
+  read into people by code, and a table of connections says its rows are people by email or
+  profile address. The same person by email in both is one person; the same phone written two
+  ways is one person; two "Sara Ramos" with no shared key wait on a card and are not merged;
+  colleagues at one email domain are one organisation.
+fresh: true
+steps:
+  - file_document:
+      name: "phone.vcf"
+      text: |
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Anna Lee
+        ORG:RestoPros
+        EMAIL:anna@restopros.com
+        TEL:+44 7700 900123
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Dan Fox
+        EMAIL:dan@restopros.com
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Ben Ortiz
+        TEL:+44 7700 900456
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Ben O.
+        TEL:07700 900456
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Sara Ramos
+        EMAIL:sara@restopros.com
+        END:VCARD
+        BEGIN:VCARD
+        VERSION:3.0
+        FN:Cleo Park
+        EMAIL:cleo@gmail.com
+        END:VCARD
+  - say: "read the contacts in phone.vcf into my people"
+  - say: "make a table called connections with each person's name, email, profile url and company; each row is a person, known by their email or profile url, and the company is their organisation. Add Anna Lee, anna@restopros.com, https://www.linkedin.com/in/annalee, RestoPros; and Sara Ramos, sara.ramos@gmail.com, https://www.linkedin.com/in/sararamos, Acme Corp"
+checks:
+  - one_person: {email: anna@restopros.com, same: [{url: "https://www.linkedin.com/in/annalee"}], sources: [vcf], in_table: connections}
+  - one_person: {phone: "+447700900456", same: [{phone: "07700 900456"}]}
+  - pairs: {named: "Sara Ramos", at_least: 1}
+  - organisation: {domain: restopros.com, people_at_least: 3}

@@ -47,7 +47,10 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         created_at, updated_at, reader, seen_at, gone_at (rows a reader stopped finding) and
         provenance (JSON: where each value came from). The world's own: `tables` (name, module,
         title), `journal` (at, kind, actor, text, module, thread, data), `facts` (subject,
-        predicate, value, valid_from, valid_to), `people` (id, kind, name, keys), `goals`,
+        predicate, value, valid_from, valid_to), `people` (id, name, emails, phones, profiles,
+        organisations, sources, last_contact, in_90_days: everyone, merged across sources),
+        `organisations` (id, name, domains, people), `interactions` (person, at, channel,
+        title, started_by: every meeting and message with someone), `goals`,
         `notes`, `agents`, `runs`, `actions`, `documents`, `events` (the calendar), `modules`,
         `threads`, `decisions`, `sources`, `record_versions`; the person's tasks are
         `tasks` (title, state, due, owner, anchor: where each lives). Use it to answer
@@ -94,6 +97,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             fields.append(entries)
             differs.extend(off)
         out = self._write_rows(table, plain, source, key, assumed, keep_person_fields, fields)
+        self._people_moved(table)
         if differs and not _bad(out):
             out = {**out, "differs": differs[:5],
                    "note": "These values differ from what their source holds there: read the"
@@ -169,6 +173,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         entries, differs = value_sources.sourced(
             self.world, values, sources, {f["name"] for f in desc["fields"]}, desc["title"])
         out = self._update(table, id, values, revision, source, assumed, entries)
+        self._people_moved(table)
         if differs:
             out = {**out, "differs": differs,
                    "note": "These values differ from what their source holds there."}
@@ -179,7 +184,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                     fields: list[dict[str, Any]] | None = None, module: str | None = None,
                     goal: str | None = None, parent: str | None = None,
                     title_field: str | None = None, rows_are: str | None = None,
-                    identity_field: str | None = None,
+                    identity_field: str | list[str] | None = None,
+                    organisation_field: str | None = None,
+                    date_field: str | None = None, direction_field: str | None = None,
                     saved_list: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make or change the shape of what the person keeps, and say so to them in a line.
         A table: table (snake_case, e.g. food_log), title, fields ([{name, kind, label?,
@@ -187,9 +194,15 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         choice, multichoice, status, url, file, relation; an email address is text), module
         (its id or name; made when it does not
         exist), title_field. An existing table: fields are added (optional for rows already
-        there). rows_are ("person" or "organisation") with identity_field (email, profile_url)
-        says each row is someone, so rows link to people across the world. A module alone
-        (module with goal, no table): a named place for a topic the person keeps coming back to;
+        there). rows_are ("person" or "organisation") with identity_field (the field or fields
+        that identify each row for sure: email, phone, profile_url; any of them) says each row
+        is someone, so rows link to people across the world; organisation_field names a
+        person's company (people at the same email domain or company are one organisation).
+        rows_are "interaction" says each row is a message, call or meeting with the person its
+        identity_field names, on date_field (direction_field: a field saying who started it,
+        "sent"/"received"), so last contact and how often are counted for each person.
+        A module alone (module with goal, no table): a named place for a topic the person keeps
+        coming back to;
         parent puts it inside another. saved_list: {title, filters?, search?, hide_done?,
         columns?, default?, view?, group_by?, date_by?, measure?} keeps a named way of looking
         at the table the person asked for; view is table, list, board (group_by: a choice or
@@ -226,18 +239,18 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                         return made
             made_table = self.collection_create(
                 table, title or table.replace("_", " ").capitalize(), fields, module=module,
-                title_field=title_field, rows_are=rows_are, identity_field=identity_field)
+                title_field=title_field)
             if _bad(made_table):
                 return made_table
-            out["table"] = made_table
-            rows_are = None  # identified at creation
+            out["table"] = made_table  # what its rows are is said just below, as for any table
         elif fields:
             added = self.collection_add_fields(table, fields)
             if _bad(added):
                 return added
             out["fields_added"] = added
         if rows_are and identity_field:
-            ident = self.collection_identify(table, rows_are, identity_field)
+            ident = self.collection_identify(table, rows_are, identity_field, organisation_field,
+                                             date_field, direction_field)
             if _bad(ident):
                 return ident
             out["identified"] = ident
@@ -318,7 +331,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         (=SUM(B2:B11))"), or one `page`, or a `sheet`'s `cells` ("B2:F40"); "import" with ref
         and into (a table): a spreadsheet's or CSV's rows put in by code, each value with its
         cell (sheet, header_row, columns {header: field}, key to update by), never typed by
-        you; "fetch" with url (and click_text when a click downloads it): a file fetched
+        you; "import" of a `.vcf` (no into): its contacts become people, by code; "fetch"
+        with url (and click_text when a click downloads it): a file fetched
         through the person's session into Alpha's folder for the module, kept as a document
         (a table's `file` field keeps its id; the same file again is the one already kept);
         "watch" with path: start reading a folder the person named and what is in it, "sync"
@@ -331,6 +345,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             return self.document_read(ref, start=start, length=length, page=page, sheet=sheet,
                                       cells=cells)
         if action == "import":
+            if ref and (str(ref).lower().endswith(".vcf") or self._is_vcf(ref)):
+                return self.contacts_import(ref)
             if not (ref and into):
                 return {"error": "import needs ref (the document) and into (the table)."}
             return self.document_import(ref, into, sheet=sheet, header_row=header_row,

@@ -1,0 +1,39 @@
+name: when_did_we_last_talk
+title: "People · when did we last talk, and how often lately, in plain numbers"
+why: >
+  P8b of the people-and-contacts proposal (19 Oct 2026, Q97). A messages table (as a Gmail reader
+  would write it) says its rows are interactions; a meeting is on the calendar. Asked when they
+  last talked to Sara and how often lately, Alpha answers from the interactions it counts by
+  code: the date, the numbers per channel, and where they come from; never a score.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: emails
+      title: Emails
+      fields:
+        - {name: subject, kind: text}
+        - {name: who, kind: text}
+        - {name: sent_on, kind: date}
+        - {name: way, kind: text}
+      title_field: subject
+      rows_are: interaction
+      identity_field: who
+      date_field: sent_on
+      direction_field: way
+      rows:
+        - {subject: "Sept P&L", who: sara@restopros.com, sent_on: "days:-3", way: received}
+        - {subject: "Re: Sept P&L", who: sara@restopros.com, sent_on: "days:-2", way: sent}
+        - {subject: "Intro", who: sara@restopros.com, sent_on: "days:-40", way: received}
+        - {subject: "An old thread", who: sara@restopros.com, sent_on: "days:-200", way: sent}
+  - seed:
+      kind: meeting
+      title: "Call with Sara"
+      days: -10
+      with:
+        - {name: Sara Ramos, email: sara@restopros.com}
+  - say: "when did I last talk to Sara Ramos, and how often lately?"
+checks:
+  - judge:
+      rubric: "Does the answer say the last contact was two days ago (the email 'Re: Sept P&L', which the person sent) and say how often lately in numbers (three emails and one meeting in the last 90 days, or the same counts in other words), without giving a score or a made-up closeness rating, and without anything that contradicts what is true in the world?"
+      facts: "Emails with Sara Ramos (sara@restopros.com): 'Sept P&L' received three days ago; 'Re: Sept P&L' sent two days ago; 'Intro' received 40 days ago; 'An old thread' sent 200 days ago. A meeting, 'Call with Sara', ten days ago, with Sara Ramos. Nothing else."

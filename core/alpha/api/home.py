@@ -14,6 +14,7 @@ from alpha.api.bodies import (
     AskBody,
     DecideBody,
     DeclineBody,
+    PairDecideBody,
     StagedDecideBody,
 )
 from alpha.api.served import Served
@@ -27,6 +28,7 @@ from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations, engine, staging
 from alpha.runtime.agents import columbo, scout, watson
 from alpha.runtime.agents import runner as agent_runner
+from alpha.world import people
 from alpha.world.cards import reason_of
 from alpha.world.store import Problem, local_midnight_utc
 
@@ -203,9 +205,31 @@ def routes(app: FastAPI, s: Served) -> None:
                               reason=reason_of(body.reason) if not body.accept else None)
         return {"staged": staged_view(world, sid), "landed": done.get("landed")}
 
+    @app.post("/api/pairs/{pid}/decide", dependencies=[api])
+    def decide_pair(pid: str, body: PairDecideBody) -> dict[str, Any]:
+        """Merge or Keep apart on one pair that may be the same (P8); the card closes when
+        every pair on it is decided."""
+        return people.decide(world, pid, merge=body.merge)
+
+    @app.post("/api/pairs/batch/{batch}/merge-same-place", dependencies=[api])
+    def merge_same_place(batch: str) -> dict[str, Any]:
+        """"Merge all with the same name and organisation" on one card (P8)."""
+        return people.merge_same_place(world, batch)
+
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
+        if proposal["data"].get("pairs"):
+            # a pairs card decided whole (P8): a No keeps every open pair apart; a yes is
+            # never a merge of all of them, which only each pair's Merge is
+            if body.accept:
+                raise Problem("Decide each pair with Merge or Keep apart: two people are never"
+                              " merged without your word on them.")
+            batch = str(proposal["data"]["pairs"])
+            for p in people.batch_view(world, batch)["pairs"]:
+                if p["state"] == "proposed":
+                    people.decide(world, p["id"], merge=False)
+            return {"decided": pid, "turn": None}
         if proposal["data"].get("staged"):
             # a staged card decided as a plain proposal: all of it, or none (P3)
             staging.decide(world, str(proposal["data"]["staged"]), accept=body.accept,

@@ -159,7 +159,9 @@ def _search_text(values: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
-ROWS_ARE = {"person", "organisation"}
+# what a table's rows can be: people, organisations, or interactions with people (a message,
+# a call; P8): an interaction's row links to the person it was with
+ROWS_ARE = {"person", "organisation", "interaction"}
 
 
 class TableHook(Protocol):
@@ -178,25 +180,60 @@ class TableHook(Protocol):
 RemovalListener = Callable[[sqlite3.Connection, str, str], None]
 
 
-def _check_identity(identity: dict[str, str], names: list[str]) -> dict[str, str]:
-    rows_are, field = identity.get("rows_are"), identity.get("field")
+def _field_list(raw: Any) -> list[str]:
+    """Fields named as a list or as "email, phone"."""
+    items = raw if isinstance(raw, list) else str(raw or "").split(",")
+    return [str(f).strip() for f in items if str(f).strip()]
+
+
+def _check_identity(identity: dict[str, Any], names: list[str]) -> dict[str, Any]:
+    """What identifies a table's rows (P8, Q97): the fields any of whose values names the
+    person or organisation for sure (an email, a phone, a profile address), and for people the
+    field naming their organisation, when there is one."""
+    rows_are = identity.get("rows_are")
     if rows_are not in ROWS_ARE:
         raise Problem(f"Rows can be {sorted(ROWS_ARE)}; got '{rows_are}'.")
-    if field not in names:
-        raise Problem(f"The identity field '{field}' is not one of the fields {names}.")
-    return {"rows_are": str(rows_are), "field": str(field)}
+    fields = _field_list(identity.get("fields") or identity.get("field"))
+    if not fields:
+        raise Problem("Say which field identifies each row for sure (an email address, a phone"
+                      " or a profile address).")
+    for field in fields:
+        if field not in names:
+            raise Problem(f"The identity field '{field}' is not one of the fields {names}.")
+    out: dict[str, Any] = {"rows_are": str(rows_are), "field": fields[0], "fields": fields}
+    if rows_are == "interaction":
+        # when it happened, and (if the table says) who started it
+        for part, words in (("date", "date"), ("direction", "direction")):
+            value = identity.get(part)
+            if value and value not in names:
+                raise Problem(f"The {words} field '{value}' is not one of the fields {names}.")
+            if value:
+                out[part] = str(value)
+        if "date" not in out:
+            raise Problem("An interaction needs the field that says when it happened (a date).")
+    organisation = identity.get("organisation")
+    if organisation:
+        if organisation not in names:
+            raise Problem(f"The organisation field '{organisation}' is not one of the fields"
+                          f" {names}.")
+        out["organisation"] = str(organisation)
+    return out
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 URL = re.compile(r"^https?://\S+$", re.I)
+PHONE = re.compile(r"^\+?[\d\s().\-/]{7,}$")
 
 
 def hard_key(value: Any) -> tuple[str, str] | None:
-    """The identifying key a value is, if it is one: an email address or a web address. A name
-    alone never is (two people share names; a wrong merge poisons what links to it)."""
+    """The identifying key a value is, if it is one: an email address, a web address, or (in a
+    field said to identify the row) a phone number. A name alone never is (two people share
+    names; a wrong merge poisons what links to it)."""
     text = str(value or "").strip()
     if EMAIL.match(text):
         return "email", text
     if URL.match(text):
         return "url", text
+    if PHONE.match(text) and sum(ch.isdigit() for ch in text) >= 7:
+        return "phone", text
     return None
 
 
@@ -260,7 +297,7 @@ class Collections:
         *,
         module: str | None = None,
         title_field: str | None = None,
-        identity: dict[str, str] | None = None,
+        identity: dict[str, Any] | None = None,
         world_own: bool = False,
     ) -> dict[str, Any]:
         """A table. `world_own` marks one the world keeps itself (the tasks, P1): never a
@@ -356,12 +393,17 @@ class Collections:
                        (dumps(current), now(), name))
         return self.describe(name)
 
-    def identify(self, name: str, rows_are: str, field: str) -> dict[str, Any]:
-        """Say that each row of a table is a person or an organisation, identified by `field`;
-        rows already there are linked now."""
+    def identify(self, name: str, rows_are: str, field: str | list[str],
+                 organisation: str | None = None, *, date: str | None = None,
+                 direction: str | None = None) -> dict[str, Any]:
+        """Say that each row of a table is a person or an organisation, identified by any of
+        `field` (one or several), or an interaction with the person those fields name, on
+        `date`; rows already there are linked now."""
         current = self._schema(name)
-        current["identity"] = _check_identity({"rows_are": rows_are, "field": field},
-                                              [f["name"] for f in current["fields"]])
+        current["identity"] = _check_identity(
+            {"rows_are": rows_are, "fields": field, "organisation": organisation,
+             "date": date, "direction": direction},
+            [f["name"] for f in current["fields"]])
         with self.store.tx() as db:
             db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
                        (dumps(current), now(), name))
@@ -374,24 +416,42 @@ class Collections:
                 linked += 1
         return {**self.describe(name), "linked": linked}
 
-    def _identity(self, name: str) -> dict[str, str] | None:
-        identity: dict[str, str] | None = self._schema(name).get("identity")
+    def _identity(self, name: str) -> dict[str, Any] | None:
+        identity: dict[str, Any] | None = self._schema(name).get("identity")
         return identity
 
     def _link(self, name: str, rid: str, values: dict[str, Any],
-              identity: dict[str, str] | None = None) -> str | None:
-        """Link one row to the entity its identity field names; None when it names none."""
+              identity: dict[str, Any] | None = None) -> str | None:
+        """Link one row to the entity its identity fields name (any of their values: two
+        emails, an email and a phone); None when they name none. Two people the row's keys
+        already were apart are never merged by it: the pair is noted for the person (P8)."""
         identity = identity or self._identity(name)
         if not identity or self.entities is None:
             return None
-        key = hard_key(values.get(identity["field"]))
-        if key is None:
+        keys: dict[str, list[str]] = {}
+        for field in _field_list(identity.get("fields") or identity.get("field")):
+            raw = values.get(field)
+            for value in raw if isinstance(raw, list) else [raw]:
+                key = hard_key(value)
+                if key is not None:
+                    keys.setdefault(key[0], []).append(key[1])
+        if not keys:
             return None
         title_field = self.store.one("SELECT title_field FROM collections WHERE name = ?",
                                      (name,))
         label = values.get(title_field["title_field"]) if title_field else None
-        entity = self.entities.resolve(identity["rows_are"], str(label or key[1]),
-                                       {key[0]: key[1]}, source=f"record:{name}/{rid}")["entity"]
+        company = values.get(identity["organisation"]) if identity.get("organisation") else None
+        interaction = identity["rows_are"] == "interaction"
+        if interaction:
+            label = None  # the row is a message or a call; its person is named by their key
+        resolved = self.entities.resolve(
+            "person" if interaction else identity["rows_are"],
+            str(label or next(iter(keys.values()))[0]), keys,
+            source=f"record:{name}/{rid}",
+            organisation=str(company) if isinstance(company, str) and company.strip() else None)
+        for a, b in resolved["pairs"]:
+            self.entities.note_pair(a, b, "one row names both")
+        entity = resolved["entity"]
         with self.store.tx() as db:
             db.execute("UPDATE records SET entity_id = ? WHERE collection = ? AND id = ?",
                        (entity["id"], name, rid))

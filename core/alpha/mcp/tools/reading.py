@@ -7,6 +7,7 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
+from alpha.connectors import contacts
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -128,10 +129,26 @@ class Reading(Base):
                 made += 1
             except Problem as e:
                 problems.append(str(e))
+        self._people_moved(desc["name"])
         self._did("did", f"Imported {made} rows from {where} into {desc['title']}"
                   + (f"; {len(problems)} didn't fit" if problems else "") + ".",
                   {"collection": desc["name"], "document": doc["id"]}, desc["module"])
         return {**result, "imported": made, "invalid": len(problems), "problems": problems[:3]}
+
+    def _is_vcf(self, ref: str) -> bool:
+        row = self.world.store.one("SELECT path FROM documents WHERE (id = ? OR path = ? OR"
+                                   " title = ?) AND removed_at IS NULL", (ref, ref, ref))
+        return bool(row and str(row["path"]).lower().endswith(".vcf"))
+
+    @tool(writes="facts")
+    def contacts_import(self, ref: str) -> dict[str, Any]:
+        """A kept `.vcf` (an iPhone, Google or Outlook export) read by code into people (P9):
+        each contact a person by their emails and phones, with their organisation; what may be
+        the same as someone known is proposed to the person, never merged."""
+        doc = Files(self.world).read(ref, 0, 1)
+        if not str(doc["path"]).lower().endswith(".vcf"):
+            raise Problem(f"{doc['title']} isn't a .vcf of contacts.")
+        return contacts.import_vcf(self.world, Path(doc["path"]), label=doc["title"])
 
     @tool(writes="files")
     def page_download(self, url: str, module: str | None = None, click: str | None = None,

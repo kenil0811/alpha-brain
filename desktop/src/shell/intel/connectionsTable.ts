@@ -9,13 +9,14 @@
 import type { Connection, RecordRow, TableDesc } from "../../core/client";
 import type { Colours } from "../../modules/views/engine";
 
-export const CONNECTION_KIND: Record<string, string> = { files: "Folder", browser: "Site", calendar: "Calendar" };
+export const CONNECTION_KIND: Record<string, string> = { files: "Folder", browser: "Site", calendar: "Calendar", contacts: "Contacts" };
 
 /** What a connection is and what it can reach, in the words the cards said them. */
 export const CONNECTOR: Record<string, { label: (c: Connection) => string; reach: string }> = {
   files: { label: (c) => c.target.split("/").slice(-2).join("/"), reach: "Reads the documents in this folder as they change; never changes your files" },
   browser: { label: (c) => `${c.target}, signed in as you`, reach: "Reads pages the way you would; never posts, messages or clicks" },
   calendar: { label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
+  contacts: { label: () => "Your contacts", reach: "Reads who you know into people, on this Mac; changes nothing in Contacts" },
 };
 
 export const CONNECTION_STATUS: Record<Connection["status"], string> = { connected: "Connected", needs_ok: "Needs your OK", broken: "Not working", off: "Off" };

@@ -6,6 +6,8 @@
   <string>Alpha reads your calendars so it knows what's coming up and who you're meeting. Nothing leaves your Mac.</string>
   <key>NSCalendarsUsageDescription</key>
   <string>Alpha reads your calendars so it knows what's coming up and who you're meeting. Nothing leaves your Mac.</string>
+  <key>NSContactsUsageDescription</key>
+  <string>Alpha reads your contacts so everyone you know is one person in Alpha, wherever they come from. Nothing leaves your Mac.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>Alpha listens when you press the microphone, so you can speak instead of typing.</string>
   <key>NSSpeechRecognitionUsageDescription</key>

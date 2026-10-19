@@ -8,7 +8,7 @@ import { AskCard, AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
 import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem, Thread } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
-import { CardFromLine, NoWithReason, StagedCard } from "./CardBits";
+import { CardFromLine, NoWithReason, PairsCard, StagedCard } from "./CardBits";
 import type { Surface } from "./Rail";
 import { Badge, Button, Confirm, IconButton } from "../ui";
 import { ArrowRight, X } from "../ui/icons";
@@ -133,6 +133,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   }
   if (item.kind === "staged" && item.staged) {
     return <StagedCard item={item} client={client} onDone={onDone} />;
+  }
+  if (item.kind === "pairs" && item.pairs) {
+    return <PairsCard item={item} client={client} onDone={onDone} />;
   }
   if (item.kind === "ask") {
     // The one question card (the conversation's slice 2), here as on the Assistant page.

@@ -52,6 +52,7 @@ from alpha.api.turns import Turns
 from alpha.config import settings as limits
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
+from alpha.connectors.contacts import MacContacts
 from alpha.connectors.files import Files
 from alpha.runtime import conversations, route
 from alpha.runtime import turn as turns
@@ -62,6 +63,7 @@ from alpha.world.world import World
 
 log = logging.getLogger("alpha.api")
 CALENDAR_EVERY_S = limits.calendar.sync_every_s
+CONTACTS_EVERY_S = limits.contacts.sync_every_s
 # Every answer that isn't a success carries `error`, a sentence for a person (slice 2 G7): a
 # refusal's own words, or one of these; what went wrong inside goes to the log, never the window.
 NOT_THERE = "Alpha doesn't have that; it may have been removed."
@@ -102,6 +104,20 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
             threading.Thread(target=poll, daemon=True, name="calendar-poll").start()
             stops.append(stop_calendar.set)
+
+            def read_contacts() -> None:
+                # the Mac's contacts on open, then once a day (P9)
+                while True:
+                    conn = Connections(world.store).find("contacts", "macos")
+                    if conn and conn["status"] == "connected":
+                        try:
+                            MacContacts(world).sync()
+                        except Exception:
+                            log.exception("contacts read failed")
+                    if stop_calendar.wait(CONTACTS_EVERY_S):
+                        return
+
+            threading.Thread(target=read_contacts, daemon=True, name="contacts-read").start()
             scheduler.start()
             stops.append(scheduler.stop)
         yield

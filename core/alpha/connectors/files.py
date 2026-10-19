@@ -28,7 +28,7 @@ from alpha.world.world import World, alpha_home
 log = logging.getLogger("alpha.files")
 
 TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".csv", ".tsv", ".json", ".yaml", ".yml", ".html",
-                 ".htm", ".rtf", ".log"}
+                 ".htm", ".rtf", ".log", ".vcf"}
 OFFICE_SUFFIXES = {".pdf", ".docx", ".xlsx", ".xls", ".pptx"}
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".Trash", "Library", ".cache"}
 MAX_FILE_BYTES = settings.files.max_file_bytes

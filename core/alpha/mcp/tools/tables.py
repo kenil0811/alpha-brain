@@ -7,6 +7,7 @@ from typing import Any
 
 from alpha.connectors.browser import Browser
 from alpha.mcp.tools.base import Base, counts_and_ids, provenance_words, tool
+from alpha.world import people
 from alpha.world.store import Problem
 
 
@@ -31,7 +32,8 @@ class Tables(Base):
         module: str | None = None,
         title_field: str | None = None,
         rows_are: str | None = None,
-        identity_field: str | None = None,
+        identity_field: str | list[str] | None = None,
+        organisation_field: str | None = None,
     ) -> dict[str, Any]:
         """Create a table for a kind of thing the person keeps. name: snake_case, e.g.
         food_log. fields: [{"name", "kind", "label"?, "unit"?, "required"?, "choices"?,
@@ -41,11 +43,13 @@ class Tables(Base):
         will want to see and filter by, units on numbers, a date field when things happen on a
         day. module: the module's id or name it belongs to (create the module first).
         rows_are: "person" or "organisation" when each row is one (a contact, a company), with
-        identity_field the field holding what identifies it for sure (an email address or a
-        profile URL): every row is then linked to that person or organisation across Alpha."""
+        identity_field the field or fields holding what identifies it for sure (an email
+        address, a phone, a profile URL; any of them), and organisation_field the field naming
+        a person's company, if any: every row is then linked to that person or organisation
+        across Alpha."""
         module_id = self.world.modules.get(module)["id"] if module else None
-        identity = ({"rows_are": rows_are, "field": identity_field or ""}
-                    if rows_are else None)
+        identity = ({"rows_are": rows_are, "fields": identity_field or "",
+                     "organisation": organisation_field} if rows_are else None)
         described = self.world.collections.create(
             name, title, fields, module=module_id, title_field=title_field, identity=identity
         )
@@ -59,13 +63,22 @@ class Tables(Base):
         return described
 
     @tool(writes="records")
-    def collection_identify(self, name: str, rows_are: str, identity_field: str) -> dict[str, Any]:
+    def collection_identify(self, name: str, rows_are: str, identity_field: str | list[str],
+                            organisation_field: str | None = None,
+                            date_field: str | None = None,
+                            direction_field: str | None = None) -> dict[str, Any]:
         """Say that each row of an existing table is a person or an organisation, identified by
-        identity_field (an email address or a profile URL). Rows are linked to the people and
-        organisations Alpha knows, now and on every write."""
-        described = self.world.collections.identify(name, rows_are, identity_field)
-        self._did("changed", f"Linked {described['title']} to {rows_are}s by {identity_field}"
+        identity_field (one or several fields: an email address, a phone, a profile URL), with
+        organisation_field naming a person's company. Rows are linked to the people and
+        organisations Alpha knows, now and on every write; rows that may be the same as
+        someone already known are proposed to the person, never merged."""
+        described = self.world.collections.identify(name, rows_are, identity_field,
+                                                     organisation_field, date=date_field,
+                                                     direction=direction_field)
+        by = ", ".join(described["identity"]["fields"])
+        self._did("changed", f"Linked {described['title']} to {rows_are}s by {by}"
                   f" ({described['linked']} rows).", {"collection": name}, described["module"])
+        people.settle(self.world)
         return described
 
     @tool

@@ -1,0 +1,84 @@
+[
+ {
+  "name": "people_from_two_sources",
+  "title": "People · two sources, one person each; possible same people proposed, never merged",
+  "steps": [
+   {
+    "file_document": "phone.vcf",
+    "ok": true,
+    "detail": "kept as d_e7b2ab931fd9",
+    "seconds": 0.0
+   },
+   {
+    "say": "read the contacts in phone.vcf into my people",
+    "ok": true,
+    "reply": "I read all 6 contacts in phone.vcf. They're now **5 people**, because one card matched someone already in the file and was merged into that person instead of being added twice.\n\n| Name | Email | Phone | Company |\n|---|---|---|---|\n| Anna Lee | anna@restopros.com | +44 7700 900123 | RestoPros |\n| Ben Ortiz | — | +44 7700 900456 | — |\n| Cleo Park | cleo@gmail.com | — | — |\n| Dan Fox | dan@restopros.com | — | RestoPros |\n| Sara Ramos | sara@restopros.com | — | RestoPros |\n\nAnna, Dan and Sara all have restopros.com addresses, so they're grouped under one company, **RestoPros**. Ben has only a phon",
+    "steps": 3,
+    "seconds": 23.0
+   },
+   {
+    "say": "make a table called connections with each person's name, email, profile url and company; each row is a person, known by their email or profile url, and the company is their organisation. Add Anna Lee, anna@restopros.com, https://www.linkedin.com/in/annalee, RestoPros; and Sara Ramos, sara.ramos@gmail.com, https://www.linkedin.com/in/sararamos, Acme Corp",
+    "ok": true,
+    "reply": "I made the **Connections** table. Each row is a person, matched by email or profile URL, and the company field links them to their company. Both rows are in, exactly as you gave them:\n\n| Name | Email | Profile URL | Company |\n|---|---|---|---|\n| Anna Lee | anna@restopros.com | linkedin.com/in/annalee | RestoPros |\n| Sara Ramos | sara.ramos@gmail.com | linkedin.com/in/sararamos | Acme Corp |\n\n- **Anna Lee** has the same email as the Anna Lee from your phone contacts, so she's still one person. She now has her LinkedIn profile too.\n- **Sara Ramos** has a different email from the Sara Ramos in yo",
+    "steps": 5,
+    "seconds": 19.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "one_person",
+    "arg": {
+     "email": "anna@restopros.com",
+     "same": [
+      {
+       "url": "https://www.linkedin.com/in/annalee"
+      }
+     ],
+     "sources": [
+      "vcf"
+     ],
+     "in_table": "connections"
+    },
+    "ok": true,
+    "why": "Anna Lee (anna@restopros.com, +447700900123); sources ['vcf']; rows in ['connections'].",
+    "seconds": 0.0
+   },
+   {
+    "check": "one_person",
+    "arg": {
+     "phone": "+447700900456",
+     "same": [
+      {
+       "phone": "07700 900456"
+      }
+     ]
+    },
+    "ok": true,
+    "why": "Ben Ortiz (+447700900456); sources ['vcf']; rows in no table.",
+    "seconds": 0.0
+   },
+   {
+    "check": "pairs",
+    "arg": {
+     "named": "Sara Ramos",
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 pair(s) waiting: Sara Ramos / Sara Ramos (same name).",
+    "seconds": 0.0
+   },
+   {
+    "check": "organisation",
+    "arg": {
+     "domain": "restopros.com",
+     "people_at_least": 3
+    },
+    "ok": true,
+    "why": "RestoPros (restopros.com): Anna Lee, Dan Fox, Sara Ramos.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 42.6,
+  "error": null
+ }
+]

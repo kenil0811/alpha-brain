@@ -3,7 +3,7 @@
  * one tap, the line saying where the card came from, and a decision's state in words and colour.
  */
 import { useState } from "react";
-import type { CardFrom, Client, DecisionCard, NeedItem, Staged } from "../core/client";
+import type { CardFrom, Client, DecisionCard, NeedItem, PairSide, PairsBatch, Staged } from "../core/client";
 import { REASONS, say } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
@@ -162,6 +162,88 @@ export function StagedCard({ item, client, onDone }: { item: NeedItem; client: C
         ) : null}
         <NoWithReason disabled={busy} onNo={(reason) => void decide({ accept: false, reason }, "Noted. Nothing was kept.")} />
       </div>
+      {error ? <p className="notice">{error}</p> : null}
+    </article>
+  );
+}
+
+/** Where a person or company came from, in words (P8): a row of a table, the Mac's contacts, a
+ *  .vcf, an email domain. */
+export function sourceWords(source: string): string {
+  if (source.startsWith("record:")) return `a row of ${source.slice(7).split("/")[0]}`;
+  if (source === "mac-contacts") return "your Mac's contacts";
+  if (source.startsWith("vcf:")) return source.slice(4);
+  if (source.startsWith("domain:")) return `the email domain ${source.slice(7)}`;
+  return source;
+}
+
+function PairSideView({ side }: { side: PairSide }) {
+  const keys = Object.values(side.keys).flat();
+  return (
+    <div className="pairs__side">
+      <b>{side.name}</b>
+      {side.kind === "organisation" ? <span className="faint"> · organisation</span> : null}
+      {side.organisations.length ? <span className="faint"> · {side.organisations.join(", ")}</span> : null}
+      <div className="faint pairs__keys">{keys.join(" · ") || "known by name only"}</div>
+      {side.sources.length ? <div className="faint">from {side.sources.map(sourceWords).join(", ")}</div> : null}
+    </div>
+  );
+}
+
+/** Two that may be the same person or company (P8): each pair side by side, with what each is
+ *  known by, where it belongs and where it came from; Merge or Keep apart per pair, and "Merge
+ *  all with the same name and organisation" when there are several such. Nothing is merged
+ *  without the person's word; a Keep apart is remembered. */
+export function PairsCard({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
+  const [batch, setBatch] = useState<PairsBatch>(item.pairs as PairsBatch);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const open = batch.pairs.filter((p) => p.state === "proposed");
+  const samePlace = open.filter((p) => p.why === "same name and organisation");
+  const act = async (key: string, call: () => Promise<PairsBatch>) => {
+    setBusy(key);
+    setError(null);
+    try {
+      const next = await call();
+      setBatch(next);
+      if (!next.open) onDone("Decided.");
+    } catch (e) {
+      setError(say(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <article className="card need pairs" aria-label={`May be the same: ${item.text}`}>
+      <span className="frame__eyebrow">May be the same</span>
+      <h3>{item.text}</h3>
+      {item.why ? <p className="because faint">{item.why}</p> : null}
+      <ul className="pairs__list">
+        {open.map((p) => (
+          <li key={p.id} className="pairs__pair" aria-label={`${p.a.name} and ${p.b.name}`}>
+            <div className="pairs__why faint">{p.why}</div>
+            <div className="pairs__sides">
+              <PairSideView side={p.a} />
+              <PairSideView side={p.b} />
+            </div>
+            <div className="row">
+              <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void act(p.id, () => client.decidePair(p.id, true))}>
+                Merge
+              </Button>
+              <Button size="sm" disabled={busy !== null} onClick={() => void act(p.id, () => client.decidePair(p.id, false))}>
+                Keep apart
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {samePlace.length > 1 ? (
+        <div className="row">
+          <Button disabled={busy !== null} onClick={() => void act("all", () => client.mergeSamePlace(batch.id))}>
+            Merge all {samePlace.length} with the same name and organisation
+          </Button>
+        </div>
+      ) : null}
       {error ? <p className="notice">{error}</p> : null}
     </article>
   );

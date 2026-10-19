@@ -11,6 +11,7 @@ import os
 from collections.abc import Callable
 from typing import Any, Protocol, cast, overload
 
+from alpha.world import people
 from alpha.world.journal import RUN
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -252,6 +253,16 @@ class Base:
         except Problem:
             return True  # no such table: the tool says so itself
         return owner is None or owner in self.world.modules.subtree(module)
+
+    def _people_moved(self, table: str) -> None:
+        """After rows of a table whose rows are people (or interactions with them) were
+        written: who may be the same is looked for and proposed, once (P8)."""
+        try:
+            identity = self.world.collections.describe(table).get("identity")
+        except Problem:
+            return
+        if identity:
+            people.settle_if_changed(self.world)
 
     def _provenance(self, source: str, assumed: str | None) -> dict[str, Any]:
         prov = provenance_of(source, assumed, turn=self.turn)

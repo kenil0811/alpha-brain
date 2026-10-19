@@ -6,8 +6,9 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { Client, Entity, EntityDetail, FileItem } from "../core/client";
-import { initials, when } from "../modules/format";
+import { dayText, initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
+import { sourceWords } from "./CardBits";
 import { Button, Badge, Trouble } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import { say } from "../core/client";
@@ -48,8 +49,8 @@ export function People({ client, version, onOpen }: { client: Client; version: n
                 {initials(e.name)}
               </span>
               <span className="people__name">{e.name}</span>
-              <span className="people__line muted">{e.summary || e.last_text || keysLine(e) || "Nothing known yet."}</span>
-              <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
+              <span className="people__line muted">{[e.organisation_names, e.summary || e.last_text || keysLine(e)].filter(Boolean).join(" · ") || "Nothing known yet."}</span>
+              <span className="faint people__when">{lately(e)}</span>
             </button>
           ))}
         </div>
@@ -75,9 +76,19 @@ export function People({ client, version, onOpen }: { client: Client; version: n
   );
 }
 
+/** How lately, in plain numbers (P8): "3 in 90 days · last 18 Oct", else when Alpha last
+ *  came across them, or an organisation's people. */
+function lately(e: Entity): string {
+  if (e.kind !== "person" && e.member_count) return `${e.member_count} ${e.member_count === 1 ? "person" : "people"}`;
+  if (e.last_contact) return `${e.in_90_days ? `${e.in_90_days} in 90 days · ` : ""}last ${dayText(new Date(e.last_contact))}`;
+  return e.last_at ? when(e.last_at) : "";
+}
+
 function keysLine(e: Entity): string {
-  return Object.values(e.keys ?? {})
-    .flat()
+  // an organisation's name kept as its key (P8) is its name, not a way to reach it
+  return Object.entries(e.keys ?? {})
+    .filter(([k]) => k !== "orgname")
+    .flatMap(([, v]) => v)
     .slice(0, 2)
     .join(" · ");
 }
@@ -139,7 +150,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onO
               {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
             </div>
             <div className="row" style={{ marginTop: 6 }}>
-              {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
+              {Object.entries(entity.keys ?? {}).filter(([k]) => k !== "orgname").flatMap(([k, values]) => values.map((v) => (
                 <Badge key={`${k}:${v}`} tone="gray" title={k}>
                   {v}
                 </Badge>
@@ -148,6 +159,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onO
           </div>
         </div>
       </div>
+
+      <EntityLinks entity={entity} client={client} onOpen={onOpen} onChanged={refresh} />
+      <EntityContact entity={entity} />
 
       <div className="section">
         <div className="section__head">
@@ -333,6 +347,100 @@ function EntityFiles({ client, entity, version, onChanged }: { client: Client; e
       ) : files ? (
         <div className="card">
           <p className="empty">No files about {entity.name} yet.</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Where someone belongs and where they came from (P8): their organisations (by an email
+ *  domain, a company's name or the person's word; an ended one faint), an organisation's
+ *  people, the sources that named them, and who was merged into them, each with Unmerge. */
+function EntityLinks({ entity, client, onOpen, onChanged }: { entity: EntityDetail; client: Client; onOpen: (id: string) => void; onChanged: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const orgs = entity.organisations ?? [];
+  const members = entity.members ?? [];
+  const merged = entity.merged ?? [];
+  // where they came from: the sources that named them, and the tables they are rows of
+  const sources = Array.from(new Set([...(entity.sources ?? []).map((s) => sourceWords(s.source)), ...(entity.rows ?? []).map((r) => `a row of ${r.collection}`)]));
+  if (!orgs.length && !members.length && !merged.length && !sources.length) return null;
+  const how = (by: string[]) => by.map((b) => (b.startsWith("domain:") ? `email at ${b.slice(7)}` : b === "company" ? "company named" : b)).join(", ");
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>{entity.kind === "organisation" ? "People here" : "Belongs to"}</h2>
+        {sources.length ? <span className="faint">from {sources.join(", ")}</span> : null}
+      </div>
+      <div className="card list">
+        {orgs.map((o) => (
+          <div key={o.id} className={o.ended_at ? "list__row faint" : "list__row"}>
+            <button type="button" className="people__name linkbtn" onClick={() => onOpen(o.id)}>
+              {o.name}
+            </button>
+            <span className="muted">{how(o.by)}{o.ended_at ? ` · until ${o.ended_at.slice(0, 10)}` : ""}</span>
+          </div>
+        ))}
+        {members.map((m) => (
+          <div key={m.id} className="list__row">
+            <button type="button" className="people__name linkbtn" onClick={() => onOpen(m.id)}>
+              {m.name}
+            </button>
+            <span className="muted">{keysLine(m)}</span>
+          </div>
+        ))}
+        {merged.map((m) => (
+          <div key={m.id} className="list__row">
+            <span>
+              Merged in: <b>{m.name}</b>
+            </span>
+            <span className="muted">{keysLine(m)}</span>
+            <span className="section__right">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  void client.unmerge(m.id).then(onChanged, (e: unknown) => setError(say(e)));
+                }}
+              >
+                Unmerge
+              </Button>
+            </span>
+          </div>
+        ))}
+      </div>
+      {error ? <p className="notice">{error}</p> : null}
+    </div>
+  );
+}
+
+/** When the person last had to do with them and how often lately (P8): meetings and the rows
+ *  of tables whose rows are interactions, counted by code, in plain numbers; each recent one
+ *  listed with its date. No score. */
+function EntityContact({ entity }: { entity: EntityDetail }) {
+  const c = entity.contact;
+  const list = entity.interactions ?? [];
+  if (!c || (!c.last && !list.length)) return null;
+  const channel = (name: string, n: number) => (name === "meeting" ? `${n} ${n === 1 ? "meeting" : "meetings"}` : `${n} in ${name}`);
+  const words = [
+    c.total ? `${c.channels.map((x) => channel(x.channel, x.count)).join(", ")} in the last ${c.days} days` : `Nothing in the last ${c.days} days`,
+    c.last ? `last on ${dayText(new Date(c.last))}` : "",
+    c.you || c.them ? `you started ${c.you}, they started ${c.them}` : "",
+  ].filter(Boolean);
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Contact</h2>
+        <span className="faint">{words.join(" · ")}</span>
+      </div>
+      {list.length ? (
+        <div className="card list">
+          {list.slice(0, 12).map((i) => (
+            <div key={`${i.ref}-${i.at}`} className="list__row">
+              <span className="faint">{dayText(new Date(i.at))}</span>
+              <span>{i.title || (i.channel === "meeting" ? "A meeting" : i.channel)}</span>
+              <span className="muted">{i.channel === "meeting" ? "meeting" : i.channel}{i.started_by ? ` · ${i.started_by === "you" ? "you wrote" : "they wrote"}` : ""}</span>
+            </div>
+          ))}
         </div>
       ) : null}
     </div>

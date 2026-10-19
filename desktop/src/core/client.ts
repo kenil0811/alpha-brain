@@ -548,8 +548,34 @@ export interface Staged {
   duplicate_of?: { id: string; title: string } | null;
 }
 
+/** One side of two that may be the same (P8): what each is known by, where it belongs, where
+ *  it came from. */
+export interface PairSide {
+  id: string;
+  name: string;
+  kind: string;
+  keys: Record<string, string[]>;
+  organisations: string[];
+  sources: string[];
+}
+
+/** Two that may be the same person or company, for the person's Merge or Keep apart (P8). */
+export interface Pair {
+  id: string;
+  why: string;
+  state: "proposed" | "merged" | "apart" | "withdrawn" | "found";
+  a: PairSide;
+  b: PairSide;
+}
+
+export interface PairsBatch {
+  id: string;
+  pairs: Pair[];
+  open: number;
+}
+
 export interface NeedItem {
-  kind: "ask" | "proposal" | "fact" | "action" | "workflow" | "staged";
+  kind: "ask" | "proposal" | "fact" | "action" | "workflow" | "staged" | "pairs";
   id: string;
   text: string;
   why?: string | null;
@@ -567,6 +593,7 @@ export interface NeedItem {
   by?: string | null;
   from?: CardFrom;
   staged?: Staged;
+  pairs?: PairsBatch;
 }
 
 export interface CalendarItem {
@@ -641,6 +668,34 @@ export interface Entity {
   last_text?: string | null;
   /** The one line of the entity's wiki page, when Alpha has written one. */
   summary?: string | null;
+  /** P8, on the list: their organisations' names, where they came from, when the person last
+   *  had to do with them and how often in the last 90 days; an organisation's people. */
+  organisation_names?: string | null;
+  sources?: string[];
+  last_contact?: string | null;
+  in_90_days?: number;
+  member_count?: number;
+}
+
+/** One interaction with someone (P8): a meeting, or a row of a table whose rows are
+ *  interactions; who started it when the table says. */
+export interface Interaction {
+  person: string;
+  at: string;
+  channel: string;
+  title: string | null;
+  started_by: "you" | "them" | null;
+  ref: string;
+}
+
+/** When the person last had to do with someone, and how often lately, per channel. */
+export interface ContactNumbers {
+  days: number;
+  last: string | null;
+  channels: { channel: string; count: number; last: string; you: number | null; them: number | null }[];
+  total: number;
+  you: number;
+  them: number;
 }
 
 /** A task (P1, 18 Oct 2026): a row of the tasks table as the core sends it, flat, with what it
@@ -713,13 +768,23 @@ export interface TaskAround {
   notes: string | null;
 }
 
-export interface EntityDetail extends Entity {
+export interface EntityDetail extends Omit<Entity, "sources"> {
   facts: Fact[];
   tasks?: TaskItem[];
   timeline: JournalEntry[];
   maybe_same: Entity[];
   /** The entity's page of Alpha's wiki: who they are to the person, what is going on. */
   page: Note | null;
+  /** P8: the organisations they belong to (how, and since when; ended ones too), who belongs
+   *  to an organisation, where they came from, what was merged into them (Unmerge), and the
+   *  rows that are them. */
+  organisations?: (Entity & { by: string[]; ended_at: string | null })[];
+  members?: Entity[];
+  sources?: { source: string; ref: string; entity: string; details: Record<string, unknown>; updated_at: string }[];
+  merged?: Entity[];
+  contact?: ContactNumbers;
+  interactions?: Interaction[];
+  rows?: ({ collection: string; id: string } & Record<string, unknown>)[];
 }
 
 /** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
@@ -1243,6 +1308,8 @@ export class Client {
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });
   connectCalendar = () => this.call<Connection>("POST", "/api/connections/calendar");
+  /** The Mac's contacts as people (P9): macOS asks once, then they are read. */
+  connectContacts = () => this.call<Connection>("POST", "/api/connections/contacts");
   syncConnection = (id: string) => this.call<Record<string, unknown>>("POST", `/api/connections/${id}/sync`);
   connectionRemoval = (id: string) => this.call<ConnectionRemoval>("GET", `/api/connections/${id}/removal`);
   removeConnection = (id: string) => this.call<ConnectionRemoval>("DELETE", `/api/connections/${id}`);
@@ -1445,6 +1512,12 @@ export class Client {
    *  place, Always when offered, a No's reason. */
   decideStaged = (id: string, body: { accept: boolean; ticks?: number[]; edits?: Record<string, Record<string, unknown>>; destination?: string; reason?: string; always?: boolean }) =>
     this.call<{ staged: Staged; landed: unknown }>("POST", `/api/staged/${id}/decide`, body);
+  /** Merge or Keep apart on two that may be the same (P8). */
+  decidePair = (id: string, merge: boolean) => this.call<PairsBatch>("POST", `/api/pairs/${id}/decide`, { merge });
+  /** "Merge all with the same name and organisation" on one card (P8). */
+  mergeSamePlace = (batch: string) => this.call<PairsBatch>("POST", `/api/pairs/batch/${batch}/merge-same-place`);
+  /** Undo a merge: the entity stands alone again (P8). */
+  unmerge = (id: string) => this.call<Entity>("POST", `/api/entities/${id}/unmerge`);
   /** Activity's Decisions (P3): every card, newest first. */
   decisions = (limit = 100) => this.call<DecisionCard[]>("GET", `/api/decisions?limit=${limit}`);
   /** A task's cards (P3): its page's Approvals. */

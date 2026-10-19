@@ -71,8 +71,9 @@ from alpha.runtime import (
 )
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
+from alpha.world import people as people_world
 from alpha.world import purge
-from alpha.world.store import Problem, now
+from alpha.world.store import Problem, new_id, now
 from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World, default_world_path
 
@@ -327,6 +328,11 @@ class Run:
                         woke.append(agent["name"])
             record = {"wake_agents": woke, "ok": True,
                       "detail": f"woke {', '.join(woke)}" if woke else "nothing woke"}
+        elif "connect_contacts" in spec:
+            from alpha.connectors.contacts import MacContacts
+
+            conn = MacContacts(self.world).connect()
+            record = {"connect_contacts": conn["status"], "ok": conn["status"] == "connected"}
         elif "decide_staged" in spec:
             # the person's yes or no on the newest batch an agent brought in (P3 item 5)
             arg = spec["decide_staged"]
@@ -391,6 +397,41 @@ class Run:
                 if "error" in made:
                     raise Problem(made["error"])
                 record = {"seed": f"agent {made['name']}", "ok": True}
+            elif seed.get("kind") == "table":
+                # a table there before the journey, with what its rows are (P8) and its rows
+                tools = Tools(self.world, turn=None)
+                shaped = tools.world_shape(
+                    seed["name"], seed.get("title") or seed["name"], seed["fields"],
+                    module=seed.get("module"), title_field=seed.get("title_field"),
+                    rows_are=seed.get("rows_are"), identity_field=seed.get("identity_field"),
+                    organisation_field=seed.get("organisation_field"),
+                    date_field=seed.get("date_field"),
+                    direction_field=seed.get("direction_field"))
+                if "error" in shaped:
+                    raise Problem(shaped["error"])
+                rows = [{k: (_days_from_now(v) if isinstance(v, str) and v.startswith("days:")
+                             else v) for k, v in row.items()} for row in seed.get("rows") or []]
+                if rows:
+                    tools.world_write(seed["name"], rows, source="stated")
+                record = {"seed": f"table {seed['name']} with {len(rows)} row(s)", "ok": True}
+            elif seed.get("kind") == "meeting":
+                # a meeting on the calendar before the journey, with its people (P8)
+                attendees = []
+                for a in seed.get("with") or []:
+                    who = self.world.entities.resolve("person", a.get("name") or a["email"],
+                                                      {"email": a["email"]})["entity"]
+                    attendees.append({"name": a.get("name"), "email": a["email"],
+                                      "entity_id": who["id"]})
+                at = _days_from_now(f"days:{int(seed.get('days', -1))}", time=True)
+                event = self.world.entities.resolve("event", seed["title"],
+                                                    {"uid": new_id("uid")})["entity"]
+                with self.world.store.tx() as db:
+                    db.execute("INSERT INTO events (id, entity_id, connection, uid, calendar,"
+                               " title, starts_at, ends_at, all_day, attendees, updated_at)"
+                               " VALUES (?,?,NULL,?,'Work',?,?,?,0,?,?)",
+                               (new_id("ev"), event["id"], new_id("uid"), seed["title"], at, at,
+                                json.dumps(attendees), at))
+                record = {"seed": f"meeting {seed['title']}", "ok": True}
             elif seed.get("kind") == "fact":
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
@@ -527,6 +568,8 @@ class Run:
         if arg.get("again"):
             first = folder / str(arg["again"])
             path.write_bytes(first.read_bytes())
+        elif "text" in arg:
+            path.write_text(str(arg["text"]))
         elif "sheets" in arg:
             from openpyxl import Workbook
 
@@ -829,10 +872,21 @@ class Run:
         # in the turn that uses it. What the model was given about whoever the sentence names
         # is the evidence of what it remembered.
         known = self._given(self.last_turn, "WHO THE SENTENCE NAMES")
-        remembered = (f"What Alpha already knew when it answered (its memory, given to it with"
-                      f" the sentence):\n{known}\n\n" if known else "")
-        prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}The answer:\n'
-                  f"{self.last_reply}\n\nThe rubric: {rubric}")
+        # 19 Oct 2026: when_did_we_last_talk's judge called the email subjects and dates
+        # invented, though the search's matches given with the sentence held every one
+        matched = self._given(self.last_turn, "MATCHES FOR THIS SENTENCE")
+        given = "\n".join(part for part in (known, matched) if part)
+        remembered = (f"What Alpha already knew when it answered (its memory and the matches"
+                      f" for the sentence, given to it with the sentence):\n{given}\n\n"
+                      if given else "")
+        # 19 Oct 2026: a read in SQL (world_query) leaves no step in the journal, so a true
+        # detail read that way looked invented; a journey that set its world up says what is
+        # true there, and the answer is judged against that
+        truth = (f"What is true in the person's world (the journey set it up; today is"
+                 f" {dt.now(UTC).date().isoformat()}):\n{arg['facts']}\n\n"
+                 if isinstance(arg, dict) and arg.get("facts") else "")
+        prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}{truth}'
+                  f"The answer:\n{self.last_reply}\n\nThe rubric: {rubric}")
         result = self.runner(running.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))
@@ -977,6 +1031,68 @@ class Run:
         return ok, (f"{len(runs)} run(s) woken by events" + (f"; {said[:240]}" if said else "")
                     + (f"; last: {(runs[0].get('line') or runs[0].get('why') or '')[:160]}"
                        if runs else ""))
+
+    def _person(self, arg: dict[str, Any]) -> dict[str, Any]:
+        keys = {k: arg[k] for k in ("email", "phone", "url") if arg.get(k)}
+        found = self.world.entities.find(keys=keys)
+        if not found:
+            raise Problem(f"No one is known by {keys}.")
+        return found[0]
+
+    def check_one_person(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Everything the journey names (`same`: other keys) is one person (P8), with
+        `sources` among where they came from and rows of `in_table`."""
+        person = self._person(arg)
+        others = [self._person(dict(other)) for other in arg.get("same") or []]
+        apart = [o["name"] for o in others if o["id"] != person["id"]]
+        sources = {r["source"].split(":")[0] for r in people_world.sources_of(
+            self.world, person["id"])}
+        rows = {r["collection"] for r in self.world.collections.linked_to(person["id"])}
+        wanted = set(arg.get("sources") or [])
+        table = arg.get("in_table")
+        ok = not apart and wanted <= sources and (
+            not table or any(t == table or t.endswith(f"_{table}") for t in rows))
+        reach = ", ".join(v for k, vs in person["keys"].items() if k in ("email", "phone")
+                          for v in vs)
+        return ok, (f"{person['name']} ({reach}); sources {sorted(sources) or 'none'};"
+                    f" rows in {sorted(rows) or 'no table'}"
+                    + (f"; apart: {apart}" if apart else "") + ".")
+
+    def check_pairs(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Possible same people wait on a card and none was merged by code (P8)."""
+        rows = self.world.store.all("SELECT * FROM maybe_same WHERE state = 'proposed'")
+        names = []
+        for r in rows:
+            try:
+                names.append((self.world.entities.get(r["a"])["name"],
+                              self.world.entities.get(r["b"])["name"], r["why"]))
+            except Problem:
+                continue
+        named = str(arg.get("named") or "")
+        hits = [n for n in names if not named or (n[0] == named and n[1] == named)]
+        merged = self.world.store.all("SELECT 1 FROM maybe_same WHERE state = 'merged'")
+        ok = len(hits) >= int(arg.get("at_least", 1)) and not merged
+        return ok, (f"{len(rows)} pair(s) waiting: " + "; ".join(
+            f"{a} / {b} ({why})" for a, b, why in names[:5]) + (f"; {len(merged)} merged"
+                                                                  if merged else "") + ".")
+
+    def check_organisation(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The organisation of a domain, with at least that many people (P8)."""
+        found = self.world.entities.find(keys={"domain": arg["domain"]})
+        if not found:
+            return False, f"No organisation for {arg['domain']}."
+        org = found[0]
+        members = self.world.entities.members(org["id"])
+        ok = len(members) >= int(arg.get("people_at_least", 1))
+        return ok, (f"{org['name']} ({arg['domain']}): "
+                    + ", ".join(m["name"] for m in members) + ".")
+
+    def check_people(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """How many people Alpha knows now (P9)."""
+        row = self.world.store.one("SELECT COUNT(*) AS n FROM entities WHERE kind = 'person'"
+                                   " AND merged_into IS NULL")
+        n = int(row["n"]) if row else 0
+        return n >= int(arg.get("at_least", 1)), f"{n} people."
 
     def check_count(self, arg: dict[str, Any]) -> tuple[bool, str]:
         rows = self.world.collections.query(self._table(arg["collection"]), limit=None)
@@ -1125,6 +1241,12 @@ class Run:
         noun = "entry" if len(entries) == 1 else "entries"
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
+
+
+def _days_from_now(words: str, *, time: bool = False) -> str:
+    """ "days:-2" → the date two days ago (a seed's dates stay relative to the run)."""
+    when = dt.now(UTC) + timedelta(days=int(words.split(":", 1)[1]))
+    return when.replace(microsecond=0).isoformat() if time else when.date().isoformat()
 
 
 def text_pdf(pages: list[str]) -> bytes:

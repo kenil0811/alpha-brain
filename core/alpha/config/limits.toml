@@ -69,6 +69,9 @@ back_days = 30                     # the calendar is read this far back
 ahead_days = 60                    # and this far ahead
 sync_every_s = 300                 # the calendar is read again every five minutes while the core runs
 
+[contacts]
+sync_every_s = 86400               # the Mac's contacts are read when Alpha opens and again once a day (P9: contacts change slowly, and a read of thousands is not free)
+
 [views]
 runs_window_days = 30              # the map of work counts a skill's runs over this window
 activity_window_days = 30          # and a module's activity

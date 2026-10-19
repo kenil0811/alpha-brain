@@ -30,7 +30,7 @@ const TABS: { id: IntelTab; label: string }[] = [
 
 /** What removing a connection takes with it: the same words Activity records afterwards. */
 function removalWords(plan: ConnectionRemoval): string {
-  return `Removes ${plan.what}. ${plan.connector === "files" ? "Your files stay." : "Your tables keep their rows."}`;
+  return `Removes ${plan.what}. ${plan.connector === "files" ? "Your files stay." : plan.connector === "contacts" ? "Your Mac's contacts stay, and people known another way stay too." : "Your tables keep their rows."}`;
 }
 
 function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
@@ -64,6 +64,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   }
   const live = useMemo(() => data.connections.filter((c) => c.status !== "off"), [data]);
   const hasCalendar = live.some((c) => c.connector === "calendar");
+  const hasContacts = live.some((c) => c.connector === "contacts");
   // the table (section 7b): its columns and rows kept the same until the connections change;
   // the buttons are read fresh each time, so they show what is busy
   const table = useMemo(() => connectionsTable(live), [live]);
@@ -138,6 +139,19 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
             <div className="row" style={{ marginTop: 10 }}>
               <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {!hasContacts ? (
+          <div className="card card--pad">
+            <div className="intel__head">
+              <h3>Your contacts</h3>
+            </div>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }}>Everyone in macOS Contacts (your iPhone's through iCloud, and Google's once added to the Mac) becomes one person in Alpha, however many places they come from. Read on this Mac only; macOS asks you once.</p>
+            <div className="row" style={{ marginTop: 10 }}>
+              <Button variant="primary" disabled={busy !== null} onClick={() => void run("contacts", () => client.connectContacts(), "Contacts connected.")}>
+                Connect contacts
               </Button>
             </div>
           </div>

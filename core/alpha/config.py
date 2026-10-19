@@ -113,6 +113,11 @@ class Calendar:
 
 
 @dataclass(frozen=True)
+class Contacts:
+    sync_every_s: int
+
+
+@dataclass(frozen=True)
 class Views:
     runs_window_days: int
     activity_window_days: int
@@ -185,6 +190,7 @@ class Settings:
     browser: Browser
     files: Files
     calendar: Calendar
+    contacts: Contacts
     views: Views
     accounts: Accounts
     doc: Doc

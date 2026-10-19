@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 # "which is this about?", a sign-in, a proposal, a standing instruction or a table offered,
 # an outward action, a drafted plan page.
 KINDS = ("question", "permission", "pick", "reminder", "check", "routing", "signin", "proposal",
-         "instruction", "offer", "action", "workflow", "staged")
+         "instruction", "offer", "action", "workflow", "staged", "pairs")
 # waiting until decided; a question is answered or skipped; a decision is yes, edited (yes after
 # the person changed it), no (with its reason), or allowed (a standing permission said yes);
 # withdrawn when what it was about went or a newer card took its place.
@@ -66,7 +66,8 @@ def kind_of(line: str, data: dict[str, Any]) -> str | None:
     if data.get("scout") or data.get("plan"):
         return None
     for key, kind in (("action", "action"), ("workflow", "workflow"),
-                      ("instruction", "instruction"), ("offer", "offer"), ("staged", "staged")):
+                      ("instruction", "instruction"), ("offer", "offer"), ("staged", "staged"),
+                      ("pairs", "pairs")):
         if data.get(key):
             return kind
     return "proposal"
@@ -94,7 +95,7 @@ def key_of(kind: str, actor: str, text: str, data: dict[str, Any], module: str |
         content = _words((data.get("routing") or {}).get("text") or text)
     elif kind == "pick":
         target, content = str(data.get("proposal")), ""
-    elif kind in ("action", "workflow", "staged"):
+    elif kind in ("action", "workflow", "staged", "pairs"):
         target, content = str(data.get(kind)), ""
     elif kind == "instruction":
         content = _words(str(data.get("instruction") or text))
@@ -186,7 +187,7 @@ class Cards:
                 if seen not in rests:
                     rests.append(seen)
         ref = (data.get("action") or data.get("workflow") or data.get("staged")
-               or data.get("proposal")
+               or data.get("pairs") or data.get("proposal")
                or data.get("reminder") or data.get("connection") or data.get("reader"))
         db.execute(
             "INSERT OR IGNORE INTO cards (id, kind, text, options, drafter, thread, module, turn,"

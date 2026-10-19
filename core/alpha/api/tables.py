@@ -39,6 +39,7 @@ from alpha.api.views import (
     relation_titles,
 )
 from alpha.config import settings
+from alpha.connectors import contacts
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
 from alpha.world.knowledge import RECORD_NOTE
@@ -444,13 +445,17 @@ def routes(app: FastAPI, s: Served) -> None:
                                      current["revision"], {"by": "person"})
             person_did("changed", f"Put {taken[0]['title']} on a row of {table}.", table,
                        {"record": record, "document": taken[0]["id"]})
+        # a .vcf of contacts is read by code into people (P9); no turn is needed for it
+        cards = [d for d in taken if str(d["path"]).lower().endswith(".vcf")]
+        read_in = [contacts.import_vcf(world, Path(d["path"]), label=d["title"]) for d in cards]
+        taken_for_turn = [d for d in taken if d not in cards]
         started = None
-        if module_id and live and not (table and record):
-            names = ", ".join(d["title"] for d in taken)
+        if module_id and live and not (table and record) and taken_for_turn:
+            names = ", ".join(d["title"] for d in taken_for_turn)
             started = running.start(AskBody(
                 text=config.prompt("files_added", names=names), module=module_id), actor="alpha",
                 journal_as=f"Read {names} the person added.")
-        return {"documents": taken, "turn": started}
+        return {"documents": taken, "turn": started, **({"contacts": read_in} if read_in else {})}
 
     def person_did(kind: str, text: str, collection: str, data: dict[str, Any]) -> None:
         world.journal.append(kind, text, actor="person", data={"collection": collection, **data},

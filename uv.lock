@@ -31,7 +31,9 @@ dependencies = [
     { name = "fastmcp" },
     { name = "mcp" },
     { name = "openpyxl" },
+    { name = "phonenumbers" },
     { name = "pydantic" },
+    { name = "pyobjc-framework-contacts" },
     { name = "pyobjc-framework-eventkit" },
     { name = "pypdf" },
     { name = "python-docx" },
@@ -50,7 +52,9 @@ requires-dist = [
     { name = "fastmcp", specifier = "==4.0.10" },
     { name = "mcp", specifier = "==2.2.0" },
     { name = "openpyxl", specifier = "==3.1.5" },
+    { name = "phonenumbers", specifier = "==9.0.41" },
     { name = "pydantic", specifier = "==2.13.5" },
+    { name = "pyobjc-framework-contacts", specifier = "==12.0" },
     { name = "pyobjc-framework-eventkit", specifier = "==12.0" },
     { name = "pypdf", specifier = "==6.1.1" },
     { name = "python-docx", specifier = "==1.2.0" },
@@ -939,6 +943,15 @@ wheels = [
 ]
 
 [[package]]
+name = "phonenumbers"
+version = "9.0.41"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/df/cc0d70f1c79e436ea00d935b6352053d526252b81ce6c130d39eee846fb2/phonenumbers-9.0.41.tar.gz", hash = "sha256:dfa6f74eeac67c044b75313fe0af10774d7d1e1242241437279d4c2fb8027c01", size = 2311017, upload-time = "2026-10-08T10:51:09.778Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/1a/4059026e9c8a4c3faeab4a45f5aa67fb77d1f0d9c767085ded69c5c533e2/phonenumbers-9.0.41-py2.py3-none-any.whl", hash = "sha256:ccf2ea44f8aa35c487f26146a31520ecedf8e1af1f57c803678ecb5ef5c01668", size = 2594658, upload-time = "2026-10-08T10:51:07.317Z" },
+]
+
+[[package]]
 name = "pillow"
 version = "12.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1114,6 +1127,20 @@ sdist = { url = "https://files.pythonhosted.org/packages/75/76/49c6da2c6a831020b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/e1/5d9b04ebb60042b9cb49adc2d33115e2f2c2e4ff7d548017bfaff8b7f536/pyobjc_framework_cocoa-12.2.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:600b1723184ca094931330e79355274949965460e23de38628d601b5a967baf9", size = 388181, upload-time = "2026-08-11T19:32:44.537Z" },
     { url = "https://files.pythonhosted.org/packages/b4/25/2a343357d5fe09bbe9c0e294dc03450866a0d6c1792fad36b6bcc00174c0/pyobjc_framework_cocoa-12.2.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:875f2aad73963faa81a6b36ae674fd494a4658d6d999e1075e0e2aca3d2391df", size = 392275, upload-time = "2026-08-11T19:32:45.631Z" },
+]
+
+[[package]]
+name = "pyobjc-framework-contacts"
+version = "12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/fb/9e60e4db4a4f4c02be4b0ba2d59ea116db230e1f4de134247d3390168dcb/pyobjc_framework_contacts-12.0.tar.gz", hash = "sha256:ac921f8ef7bf3767b335d8055f597b03ad6845dfd93c05647cf41550af6dcda3", size = 42727, upload-time = "2025-10-21T08:31:03.189Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/27/da5ffb07e7b0a54f5c16d99ebffe4e7407204681e2aa03efa4d47792a669/pyobjc_framework_contacts-12.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:5b9892f560586295fd9d8e87610add3417c36564a5cc3af70baf64f662024b56", size = 12183, upload-time = "2025-10-21T08:01:02.877Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/e2/d3f8fe4cb9018086b4dcea1090533cd3fc44ff99ffc809e5f5fef6845d8d/pyobjc_framework_contacts-12.0-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:70469137f625a909becee54770c1134766d6a9367f19027b9b04f04d673ce2d0", size = 12352, upload-time = "2025-10-21T08:01:05.025Z" },
 ]
 
 [[package]]

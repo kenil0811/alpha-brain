@@ -1,0 +1,36 @@
+[
+ {
+  "name": "when_did_we_last_talk",
+  "title": "People · when did we last talk, and how often lately, in plain numbers",
+  "steps": [
+   {
+    "seed": "table emails with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Call with Sara",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "when did I last talk to Sara Ramos, and how often lately?",
+    "ok": true,
+    "reply": "You last talked to Sara Ramos on **Saturday 17 October**, when you replied to her \"Sept P&L\" email. She had sent it the day before, on 16 October.\n\n**How often lately:** 3 emails in the past ~6 weeks:\n- **16–17 Oct:** her \"Sept P&L\" email and your reply\n- **9 Sep:** her \"Intro\" email\n\nBefore that the only one is \"An old thread\", which you sent on 2 April. So you were in touch once in the spring, then nothing for about 5 months, and it's picked up in the last few weeks.\n\nThis only covers the 4 emails I have stored. I don't have your calls, meetings or messages.",
+    "steps": 2,
+    "seconds": 9.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Does the answer say the last contact was two days ago (the email 'Re: Sept P&L', which the person sent) and say how often lately in numbers (three emails and one meeting in the last 90 days, or the same counts in other words), without giving a score or a made-up closeness rating?",
+    "ok": false,
+    "why": "The answer gets the last contact right (the 17 Oct 'Sept P&L' reply, two days ago) but misses the one meeting, says it has no meeting data, and its email details come from no recorded step in Alpha's journal.",
+    "seconds": 5.9
+   }
+  ],
+  "seconds": 15.6,
+  "error": null
+ }
+]

@@ -1,0 +1,11 @@
+name: contacts_from_the_mac
+title: "Contacts · the Mac's contacts read into people"
+why: >
+  P9 of the people-and-contacts proposal (19 Oct 2026, Q97). The Mac's Contacts are connected
+  (macOS asks once) and read into people, one per hard key. Reads Kenil's real contacts (on this
+  Mac only, nothing sent anywhere): run only on his say.
+fresh: true
+steps:
+  - connect_contacts: {}
+checks:
+  - people: {at_least: 1}

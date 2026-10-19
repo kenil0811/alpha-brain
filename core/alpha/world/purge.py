@@ -88,8 +88,79 @@ def _forget_entities(db: Any, ids: list[str]) -> None:
         Tasks.remove_who(db, f"entity:{i}")  # what they promised and were owed (Q46, P1)
     clause, args = _in("scope", [f"entity:{i}" for i in ids])
     db.execute(f"DELETE FROM notes WHERE {clause}", args)
+    # what P8 keeps about them: their links, their sources, the pairs they were in
+    for column in ("entity", "other"):
+        clause, args = _in(column, ids)
+        db.execute(f"DELETE FROM entity_links WHERE {clause}", args)
+    clause, args = _in("entity_id", ids)
+    db.execute(f"DELETE FROM entity_sources WHERE {clause}", args)
+    for column in ("a", "b"):
+        clause, args = _in(column, ids)
+        db.execute(f"DELETE FROM maybe_same WHERE {clause}", args)
     clause, args = _in("id", ids)
     db.execute(f"DELETE FROM entities WHERE {clause}", args)
+
+
+def _brought_only_by(db: Any, eid: str, source: str) -> bool:
+    """Whether an entity exists only because `source` brought it (P8): made by it, merged with
+    nothing, named by no other source, no row of a table, no meeting, nothing the person or
+    Alpha kept about it."""
+    row = db.execute("SELECT source, merged_into FROM entities WHERE id = ?", (eid,)).fetchone()
+    if row is None or row["merged_into"] or (row["source"] or "") != source:
+        return False
+    for sql, arg in (("SELECT 1 FROM entity_sources WHERE entity_id = ?", eid),
+                     ("SELECT 1 FROM entities WHERE merged_into = ?", eid),
+                     ("SELECT 1 FROM records WHERE entity_id = ? AND deleted_at IS NULL", eid),
+                     ("SELECT 1 FROM events WHERE attendees LIKE ?", f"%{eid}%"),
+                     ("SELECT 1 FROM facts WHERE subject = ?", f"entity:{eid}"),
+                     ("SELECT 1 FROM notes WHERE scope = ?", f"entity:{eid}")):
+        if db.execute(sql, (arg,)).fetchone():
+            return False
+    return True
+
+
+def _forget_lonely(db: Any, ids: list[str], source: str | None) -> int:
+    """Of these entities, the ones `source` alone brought (each its own source when None) go,
+    with the organisations made only for them (by their email domain, or by that source)."""
+    doomed = []
+    for eid in ids:
+        row = db.execute("SELECT source FROM entities WHERE id = ?", (eid,)).fetchone()
+        if row is not None and _brought_only_by(db, eid, source if source is not None
+                                                else row["source"] or ""):
+            doomed.append(eid)
+    orgs: set[str] = set()
+    if doomed:
+        clause, args = _in("entity", doomed)
+        orgs = {r["other"] for r in db.execute(
+            f"SELECT other FROM entity_links WHERE {clause}", args).fetchall()}
+    _forget_entities(db, doomed)
+    lonely = []
+    for org in orgs:
+        row = db.execute("SELECT source FROM entities WHERE id = ?", (org,)).fetchone()
+        if row is None:
+            continue
+        made = row["source"] or ""
+        made_for_them = made.startswith("domain:") or made == source or made.startswith("record:")
+        if made_for_them and not db.execute("SELECT 1 FROM entity_links WHERE other = ?",
+                                            (org,)).fetchone() and _brought_only_by(db, org, made):
+            lonely.append(org)
+    _forget_entities(db, lonely)
+    return len(doomed)
+
+
+def forget_refs(world: World, source: str, refs: list[str]) -> int:
+    """What a source no longer gives (contacts deleted on the Mac, a connection removed): its
+    rows go, and the people only it brought go with them, with the organisations made only for
+    them (P8 item 9). Returns how many people went."""
+    if not refs:
+        return 0
+    with world.store.tx() as db:
+        clause, args = _in("ref", refs)
+        ids = sorted({r["entity_id"] for r in db.execute(
+            f"SELECT entity_id FROM entity_sources WHERE source = ? AND {clause}",
+            (source, *args)).fetchall()})
+        db.execute(f"DELETE FROM entity_sources WHERE source = ? AND {clause}", (source, *args))
+        return _forget_lonely(db, ids, source)
 
 
 def _forget_skill(db: Any, store: Any, name: str) -> None:
@@ -194,6 +265,12 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
                 "DELETE FROM notes WHERE substr(scope, 1, ?) = ?", (len(prefix), prefix)).rowcount
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
             counts["lists"] = counts.get("lists", 0) + Views.remove_table(db, table)
+            # the people only its rows brought (P8 item 9); those known another way stay
+            gone = _forget_lonely(db, [r["id"] for r in db.execute(
+                "SELECT id FROM entities WHERE substr(source, 1, ?) = ?",
+                (len(prefix), prefix)).fetchall()], None)
+            if gone:
+                counts["people"] = counts.get("people", 0) + gone
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
             _forget_skill(db, store, reader)
@@ -391,7 +468,13 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         rows = store.all("SELECT id, entity_id FROM events WHERE connection = ?", (cid,))
         events = [r["id"] for r in rows]
         entity_ids = [r["entity_id"] for r in rows]
+    contact_refs: list[str] = []
+    if kind == "contacts":
+        # the people only the Mac's contacts brought (P9); those known another way stay
+        contact_refs = [r["ref"] for r in store.all(
+            "SELECT ref FROM entity_sources WHERE source = 'mac-contacts'")]
     what = [w for w in (
+        f"what Alpha read from {plural(len(contact_refs), 'contact')}" if contact_refs else "",
         "Alpha's sign-in" if profile is not None else "",
         plural(len(readers), "reader") if readers else "",
         plural(len(procedures), "procedure") if procedures else "",
@@ -408,6 +491,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     }
     if dry_run:
         return plan
+    forget_refs(world, "mac-contacts", contact_refs)
     threads = [a["thread"] for a in autos if a["thread"]]
     with store.tx() as db:
         for name in readers:

@@ -15,6 +15,7 @@ from alpha.api.served import Served
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
+from alpha.connectors.contacts import MacContacts
 from alpha.connectors.files import Files
 from alpha.world import grants
 from alpha.world.purge import remove_connection
@@ -50,6 +51,11 @@ def routes(app: FastAPI, s: Served) -> None:
     def connect_calendar() -> dict[str, Any]:
         return Calendar(world).connect()
 
+    @app.post("/api/connections/contacts", dependencies=[api])
+    def connect_contacts() -> dict[str, Any]:
+        """The Mac's contacts (P9): macOS asks the person once, then they are read."""
+        return MacContacts(world).connect()
+
     @app.post("/api/connections/{cid}/sync", dependencies=[api])
     def sync_connection(cid: str) -> dict[str, Any]:
         conn = Connections(world.store).get(cid)
@@ -57,6 +63,8 @@ def routes(app: FastAPI, s: Served) -> None:
             return Files(world).sync(conn["target"])
         if conn["connector"] == "calendar":
             return Calendar(world).sync()
+        if conn["connector"] == "contacts":
+            return MacContacts(world).sync()
         if conn["connector"] == "browser":
             return Browser(world).refresh(conn["target"])
         raise Problem(f"Nothing to sync for {conn['connector']}.")

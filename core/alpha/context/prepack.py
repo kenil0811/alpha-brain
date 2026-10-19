@@ -24,7 +24,7 @@ from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import grants
+from alpha.world import grants, people
 from alpha.world.store import local_midnight_utc
 from alpha.world.world import World
 
@@ -374,6 +374,19 @@ def build(world: World, sentence: str, *, module: str | None = None,
             cards.append(f"  {f['predicate']}: {f['value']} ({f['state']}, from {f['source']})")
         if last:
             cards.append(f"  last seen: {when(last['at'])} {_clip(last['text'], 160)}")
+        if e["kind"] == "person":
+            # where they belong and how lately, counted by code from the interactions (P8)
+            orgs = [o["name"] for o in world.entities.links(e["id"])]
+            if orgs:
+                cards.append(f"  organisation: {', '.join(orgs)}")
+            c = people.contact(world, e["id"])
+            if c["last"] or c["total"]:
+                lately = ", ".join(f"{x['count']} {x['channel']}" for x in c["channels"])
+                cards.append(f"  contact: last {c['last'] or 'not in the record'}; in the last"
+                             f" {c['days']} days {lately or 'none'}"
+                             + (f"; you started {c['you']}, they started {c['them']}"
+                                if c["you"] or c["them"] else "")
+                             + " (the `interactions` view has each one)")
     if cards:
         sections.append(("WHO THE SENTENCE NAMES", cards))
 

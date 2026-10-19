@@ -1,0 +1,39 @@
+[
+ {
+  "name": "when_did_we_last_talk",
+  "title": "People · when did we last talk, and how often lately, in plain numbers",
+  "steps": [
+   {
+    "seed": "table emails with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Call with Sara",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "when did I last talk to Sara Ramos, and how often lately?",
+    "ok": true,
+    "reply": "You last talked to Sara Ramos (Restopros) on **Saturday 17 October**, when you replied to her \"Sept P&L\" email.\n\n**In the last 90 days you've been in touch 4 times:**\n\n| Date | How | What | Started by |\n|---|---|---|---|\n| 17 Oct | Email | Re: Sept P&L | You |\n| 16 Oct | Email | Sept P&L | Sara |\n| 9 Oct | Call | Call with Sara | — |\n| 9 Sep | Email | Intro | Sara |\n\nYou've been in touch more often lately: three of those four were in the last 10 days. Before her intro email on 9 September, the last contact was a thread you started on 2 April. I can't tell who set up the 9 October call, so it i",
+    "steps": 2,
+    "seconds": 15.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Does the answer say the last contact was two days ago (the email 'Re: Sept P&L', which the person sent) and say how often lately in numbers (three emails and one meeting in the last 90 days, or the same counts in other words), without giving a score or a made-up closeness rating, and without anything that contradicts what is true in the world?",
+     "facts": "Emails with Sara Ramos (sara@restopros.com): 'Sept P&L' received three days ago; 'Re: Sept P&L' sent two days ago; 'Intro' received 40 days ago; 'An old thread' sent 200 days ago. A meeting, 'Call with Sara', ten days ago, with Sara Ramos. Nothing else."
+    },
+    "ok": true,
+    "why": "The answer says the last contact was Saturday 17 October (two days ago), when the person sent 'Re: Sept P&L'; its table gives the right counts for the last 90 days (three emails and the 9 October call); it gives no score or closeness rating, and nothing in it contradicts the world.",
+    "seconds": 7.1
+   }
+  ],
+  "seconds": 22.2,
+  "error": null
+ }
+]

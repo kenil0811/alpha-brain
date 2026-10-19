@@ -12,6 +12,7 @@ from alpha.config import settings
 from alpha.runtime import running, staging
 from alpha.runtime.agents import WORDS
 from alpha.runtime.agents.scheduler import Scheduler
+from alpha.world import people
 from alpha.world.actions import file_fields
 from alpha.world.journal import entry
 from alpha.world.store import Problem, loads, local_midnight_utc
@@ -123,6 +124,13 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                 items.append({"kind": "staged", "id": c["id"], "text": c["text"],
                               "why": line["data"].get("why"), "at": line["at"],
                               "module": c["module"], "staged": held, "by": came["by"],
+                              "from": came})
+        elif c["kind"] == "pairs":
+            batch = people.batch_view(world, str(c["ref"]))
+            if batch["open"]:
+                items.append({"kind": "pairs", "id": c["id"], "text": c["text"],
+                              "why": line["data"].get("why"), "at": line["at"],
+                              "module": c["module"], "pairs": batch, "by": came["by"],
                               "from": came})
         else:
             items.append({"kind": "proposal", "id": c["id"], "text": c["text"],

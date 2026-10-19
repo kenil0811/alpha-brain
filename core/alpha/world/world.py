@@ -80,6 +80,9 @@ class World:
         self.tasks.ensure()
         self.cards.backfill()  # a world from before the cards, once
         self.cards.sweep()  # what a removed module, agent or thread left waiting
+        # people for real (P8, Q97): phones in one form, organisations by their name, once
+        self.entities.renormalise_phones()
+        self.entities.index_orgnames()
         self.files.sync()  # the modules' directories brought in line (slice 5)
 
     def close(self) -> None:

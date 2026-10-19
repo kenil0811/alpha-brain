@@ -140,6 +140,48 @@ CREATE TABLE IF NOT EXISTS entity_keys (
     entity_id TEXT NOT NULL REFERENCES entities(id),
     PRIMARY KEY (key, value)
 );
+CREATE INDEX IF NOT EXISTS entity_keys_entity ON entity_keys(entity_id);
+-- one entity belonging to another (P8, 19 Oct 2026): a person to their organisation, by an
+-- email domain, a company name or the person's word; a link that ends keeps its dates
+CREATE TABLE IF NOT EXISTS entity_links (
+    id TEXT PRIMARY KEY,
+    entity TEXT NOT NULL,
+    other TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    by TEXT NOT NULL,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    ended_at TEXT
+);
+CREATE INDEX IF NOT EXISTS entity_links_entity ON entity_links(entity, kind, ended_at);
+CREATE INDEX IF NOT EXISTS entity_links_other ON entity_links(other, kind, ended_at);
+-- where an entity came from (P8, P9): the Mac's contacts, a .vcf, a table's row, with what that
+-- source said of it; removing a source removes the people only it brought
+CREATE TABLE IF NOT EXISTS entity_sources (
+    entity_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    ref TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (source, ref)
+);
+CREATE INDEX IF NOT EXISTS entity_sources_entity ON entity_sources(entity_id);
+-- two entities that may be the same (P8): proposed on one card per batch, never merged by
+-- code; a Keep apart is remembered so the pair is never proposed again
+CREATE TABLE IF NOT EXISTS maybe_same (
+    id TEXT PRIMARY KEY,
+    a TEXT NOT NULL,
+    b TEXT NOT NULL,
+    why TEXT NOT NULL,
+    batch TEXT,
+    card TEXT,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    UNIQUE (a, b)
+);
+CREATE INDEX IF NOT EXISTS maybe_same_batch ON maybe_same(batch, state);
 
 CREATE TABLE IF NOT EXISTS modules (
     id TEXT PRIMARY KEY,
