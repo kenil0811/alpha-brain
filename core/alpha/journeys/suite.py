@@ -210,6 +210,7 @@ class Run:
         self.last_row: tuple[str, str] | None = None
         self.last_kit: str | None = None
         self.last_document: dict[str, Any] | None = None
+        self.last_thread: str | None = None  # the conversation the last sentence went to
         builtin.ensure(world)
         self.mark = mark(world)
 
@@ -235,6 +236,7 @@ class Run:
                         raise Problem("Alpha asked which this is about instead of routing it:"
                                       f" {routed['options']}")
                     self.last_routing = routed
+                    self.last_thread = routed["thread"]
                     outcome = turn.ask(self.world, spec["say"], thread=routed["thread"],
                                        runner=self.runner, conversation=True)
                     deferred = [a for a in self.world.journal.open_asks()
@@ -288,6 +290,19 @@ class Run:
             record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
                       "result": self.last_agent.get("last_result"),
                       "problem": self.last_agent.get("last_error")}
+        elif "compact" in spec:
+            # the last sentence's conversation is compacted as a long one would be (B6): the
+            # SDK's own /compact, in that session; it passes when the summary ran and the start
+            # layer was given again after it
+            thread = self.last_thread or self.world.modules.home_thread()["id"]
+            squeezed = turn.ask(self.world, "/compact", thread=thread, runner=self.runner,
+                                conversation=True,
+                                journal_as="(the journey compacts this conversation)")
+            kept = self.world.journal.context(squeezed.said)
+            again = bool(kept and "GIVEN AGAIN AFTER A COMPACTION" in str(kept["context"]))
+            record = {"compact": self.world.modules.thread(thread)["title"], "ok": again,
+                      "detail": "compacted; the start layer given again" if again
+                      else "no compaction came back"}
         elif "start_tasks" in spec:
             # what the scheduler's tick does (P2): the tasks agents were given and someone moved
             # to Working, run now with the journey's model
@@ -1361,7 +1376,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "check", "reader", "agent", "break_reader",
+            kind = next((k for k in ("say", "check", "reader", "agent", "break_reader", "compact",
                                      "kit_export", "kit_install", "module_remove",
                                      "connect_folder", "due_now",
                                      "approve_action",

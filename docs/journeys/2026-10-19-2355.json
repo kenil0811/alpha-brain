@@ -1,0 +1,76 @@
+[
+ {
+  "name": "agent_wakes_on_a_row",
+  "title": "Agents · an agent wakes when a row is added, once, and never on its own writes",
+  "steps": [
+   {
+    "say": "make a table named deals with each deal's name, its EBITDA in millions and its stage",
+    "ok": true,
+    "reply": "I've made a **Deals** table in a new module called Deal pipeline. The table couldn't share the module's name, so the module got a different one. The table has three columns:\n\n- **Name**\n- **EBITDA**, in millions, with dollars assumed\n- **Stage**, with these options: Sourcing, Screening, Due diligence, LOI, Closing, Closed, Passed\n\nThe table is empty for now. Tell me your deals, or point me to where they're kept, and I'll fill it in. If your stages or currency are different, tell me and I'll change them.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 92783,
+    "tokens_cache_made": 14072,
+    "tokens_out": 953,
+    "first_text_ms": 19526,
+    "seconds": 22.5
+   },
+   {
+    "seed": "agent Deal Analyst",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "add a deal: Midwest HVAC, EBITDA 2.1, stage new",
+    "ok": true,
+    "reply": "I've added **Midwest HVAC** to your Deals table with EBITDA of $2.1M.\n\nYour stages don't include \"New,\" so I put it under **Sourcing**, the first stage. Tell me if you'd rather have it under Screening, or I can add \"New\" as a stage.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 98113,
+    "tokens_cache_made": 9744,
+    "tokens_out": 498,
+    "first_text_ms": 7695,
+    "seconds": 10.8
+   },
+   {
+    "wake_agents": [
+     "Deal Analyst"
+    ],
+    "ok": true,
+    "detail": "woke Deal Analyst",
+    "seconds": 14.3
+   },
+   {
+    "wake_agents": [],
+    "ok": true,
+    "detail": "nothing woke",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "woke",
+    "arg": {
+     "agent": "Deal Analyst",
+     "runs": 1,
+     "contains": "Midwest HVAC"
+    },
+    "ok": true,
+    "why": "1 run(s) woken by events; Run of Deal Analyst, woken by: 1 row(s) added to Deals: Midwest HVAC; last: I screened Midwest HVAC and added a row for it, \"Screened: Midwest HVAC\". The deals table has no \"screened\" stage, so I set it to \"Screening\", the closest one i",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "deals",
+     "at_least": 2
+    },
+    "ok": true,
+    "why": "2 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 47.6,
+  "error": null
+ }
+]

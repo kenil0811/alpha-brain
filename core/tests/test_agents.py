@@ -323,8 +323,8 @@ def test_an_agent_that_reads_by_its_brief_converts_itself_to_steps(world: World)
     ran: list[str] = []
 
     def runner(req: TurnRequest) -> RunResult:
-        # The model, told so by the wall, converts the agent and finishes.
-        assert "never your work in a run" in req.system
+        # The model, told so by the wall (the refusal's own words, above), converts the agent
+        # and finishes.
         Tools(world, thread=auto["thread"]).agent_update(
             auto["id"], steps=[{"read": "linkedin_connections", "into": "connections",
                                 "key": "linkedin_url", "keep": ["tags"]}, {"tell": "connections"}])
@@ -578,6 +578,13 @@ def test_an_at_mention_makes_the_agent_answer_in_the_conversation(world: World) 
     assert replied["actor"] == auto["id"] and said["thread"] == replied["thread"]
     run = world.runs.last(auto["id"])
     assert run and run["trigger"] == "mention" and run["verdict"] == "succeeded"
+    # Home says where it went, as for a routed sentence, and the window moves there (19 Oct:
+    # the answer sat in the agent's item and Home showed nothing)
+    home = world.modules.home_thread()["id"]
+    sent = [e for e in world.journal.recent(20, thread=home) if e["data"].get("routed")]
+    assert sent and sent[-1]["data"]["routed"] == said["thread"]
+    assert sent[-1]["text"] == "Sent \"@deal scout what's new?\" to Deal Scout."
+    assert world.modules.thread(said["thread"])["title"] == "Deal Scout"
     # No agent of that name: an ordinary turn, Alpha's own.
     assert world.agents.by_mention("@nobody hello") is None
     assert world.agents.by_mention("deal scout") is None
@@ -808,3 +815,22 @@ def test_an_agents_own_pipeline_is_not_in_the_skills_list_and_says_what_it_does(
     c = TestClient(create_app(world, live=False))
     listed = [s["name"] for s in c.get("/api/intelligence").json()["skills"]]
     assert "linkedin_connections" in listed and auto["skill"] not in listed
+
+
+def test_an_agents_own_item_is_titled_with_its_name(world: World) -> None:
+    """An agent made in a work item takes that item as its own (harness §7), and the item is
+    titled with the agent's name, not the request that made it; a title the person gave
+    stays, and Home is never renamed."""
+    made_in = world.modules.open_thread("Make an agent called Deal Analyst that, when given…",
+                                        "work", None)
+    t = building(world, turn="j_1")
+    t.thread = made_in["id"]
+    t.agent_create("Deal Analyst", "", "Review a deal when asked.", name="Deal Analyst")
+    assert world.modules.thread(made_in["id"])["title"] == "Deal Analyst"
+    other = world.modules.open_thread("My watches", "work", None)
+    world.modules.retitle(other["id"], "My watches", by_person=True)
+    t.thread = other["id"]
+    t.agent_create("Board watch", "daily 07:00", "Look at the board.", name="Board watch")
+    assert world.modules.thread(other["id"])["title"] == "My watches"
+    world.modules.title_agents_items()
+    assert world.modules.home_thread()["title"] != "Deal Analyst"

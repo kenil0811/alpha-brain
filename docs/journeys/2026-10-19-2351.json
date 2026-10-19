@@ -1,0 +1,10 @@
+[
+ {
+  "name": "automation_self_converts",
+  "title": "An automation that reads by procedure converts itself to steps and reads with no model",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: 0 agents match 'Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections'."
+ }
+]

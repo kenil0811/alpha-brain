@@ -380,6 +380,13 @@ def route(world: World, sentence: str, *, module: str | None = None, runner: Any
     return {"ask": jid, "options": options, "confidence": verdict.confidence}
 
 
+def mentioned(world: World, sentence: str, tid: str) -> dict[str, Any]:
+    """A sentence typed in Home to one of the person's agents by name ("@Deal Analyst ...")
+    goes to that agent's own item, said in Home like a routed sentence and the focus moved
+    there (19 Oct 2026: the agent's answer sat in its item, and Home showed nothing)."""
+    return _settled(world, sentence, tid, "mention", world.modules.home_thread())
+
+
 def _settled(world: World, sentence: str, tid: str, by: str, home_row: dict[str, Any], *,
              verdict: judge.Verdict | None = None, opened: bool = False) -> dict[str, Any]:
     """The decision, journaled in Home (every routing decision is a line there: a card under

@@ -134,3 +134,34 @@ def test_codex_is_given_the_layers_in_its_instructions(world: World) -> None:
     assert "WHO THE PERSON IS" in given and "NOW" in given
     assert "WHO THE PERSON IS" not in codex_cli.instructions(resumed)
     assert "NOW" in codex_cli.instructions(resumed)
+
+
+def test_a_compaction_is_told_what_to_keep_and_the_checkpoint_is_written_afresh(
+        world: World) -> None:
+    """B6: the PreCompact hook's message is the summary's instructions (what to keep), and a
+    turn whose session was compacted has Watson write the conversation's checkpoint again."""
+    from alpha import config
+    from alpha.runtime.agents import watson
+
+    assert watson.refreshed in turn.AFTER_COMPACTION
+    judged: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        if req.kind == "judge":  # Watson's checkpoint
+            judged.append(req.sentence)
+            return RunResult(ok=True, reply='{"decisions": [{"what": "Log food in Food log",'
+                                            ' "why": null, "quote": "yes"}], "open": null}')
+        hook: Any = engine._hooks(req)["PreCompact"][0].hooks[0]
+        out = asyncio.run(hook({"trigger": "auto", "custom_instructions": None}, None,
+                               cast(Any, None)))
+        assert out == {"systemMessage": config.prompt("compact")}
+        return RunResult(ok=True, reply="ok", session_id="s1")
+
+    tid = world.modules.home_thread()["id"]
+    turn.ask(world, "log two eggs", thread=tid, runner=runner, conversation=True)
+    note = world.knowledge.find_note(f"conversation:{tid}", watson.CHECKPOINT)
+    assert judged and note is not None and "Decided: Log food in Food log" in note["body"]
+    # a judge's run is never told what to keep: it has no conversation
+    judge = TurnRequest(sentence="x", system="", world_path=world.path, turn_id="j", kind="judge")
+    hook: Any = engine._hooks(judge)["PreCompact"][0].hooks[0]
+    assert asyncio.run(hook({"trigger": "auto"}, None, cast(Any, None))) == {}

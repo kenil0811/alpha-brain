@@ -1,0 +1,91 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I made a **Deal list** in a new Deals module with two columns: the firm's name and the asking price. It's empty for now. Each firm is also linked to what I know about that company elsewhere.\n\nWhat currency are the prices in? Tell me and I'll label the column. To add deals, just tell me something like \"Acme, 2.5M\".",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 92731,
+    "tokens_cache_made": 14075,
+    "tokens_out": 778,
+    "first_text_ms": 15182,
+    "seconds": 18.3
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I added Midwest HVAC to your deal list with an asking price of $900,000. It's the first deal on the list.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 69602,
+    "tokens_cache_made": 8455,
+    "tokens_out": 251,
+    "first_text_ms": 6625,
+    "seconds": 10.4
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "I've made **Deal Analyst** in your Deals module. It only works when you ask: give it a task or mention it with **@Deal Analyst**, and nothing runs on a schedule.\n\nWhen you give it a task about a deal, it will:\n- **Read the deal's row** in your deal list, plus anything else I know about that firm.\n- **Work out the answer** and show which values it used and where each one came from.\n- **Save what it found on the same row**, naming the source of each value. Anything it estimates is labelled as an estimate. It won't overwrite a value you entered unless you say so.\n- **Ask you on a card** for anyth",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 98844,
+    "tokens_cache_made": 10798,
+    "tokens_out": 1253,
+    "first_text_ms": 22345,
+    "seconds": 25.3
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added \"Ask the broker for 3 years of P&L\" to Midwest HVAC in your deal list. It's assigned to the Deal Analyst, who should start on it within about half a minute.\n\nNothing gets sent to the broker without your yes. Any message the Deal Analyst drafts will come to you as a card to approve first. I don't have the broker's name or contact details yet, so if the Deal Analyst can't find them, it will ask you.",
+    "steps": 6,
+    "tokens_input": 10,
+    "tokens_cache_read": 138462,
+    "tokens_cache_made": 15097,
+    "tokens_out": 857,
+    "first_text_ms": 7367,
+    "seconds": 16.4
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 20.1
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC? Their name and email address, so the request for 3 years of P&L can go to the right person.",
+    "ok": true,
+    "detail": "{\"answered\":\"j_b0865f80a2b7\",\"turn\":null,\"agent\":\"a_f1cafb5a312e\"}",
+    "seconds": 20.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: I added the broker to the Midwest HVAC entry, but I still haven't sent the request. The task stays **blocked**.\n\n**Saved on the entry:** the broker's name (Kenil Shah) and email (kenilshah081198@gmail",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 111.5,
+  "error": null
+ }
+]

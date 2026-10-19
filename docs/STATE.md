@@ -5,7 +5,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
 **As of 19 October 2026, night.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
-- **The prompt and the context (B1–B8; Q99): steps 0, 1 and 2 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md), [`log/2026-10-19-prompt-and-context-step2.md`](log/2026-10-19-prompt-and-context-step2.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)).
+- **The prompt and the context (B1–B8; Q99): steps 0 to 3 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md), [`log/2026-10-19-prompt-and-context-step2.md`](log/2026-10-19-prompt-and-context-step2.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)).
   - **Found first:** a resumed SDK session kept its first turn's system prompt, so since 17 Oct every turn after a conversation's first had a stale pre-pack. Now `snapshot` is off and the prompt is fixed.
   - **Steps 0–1 (`8d88bbe`):**
     - tokens kept apart per turn;
@@ -18,7 +18,16 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - the checkpoint rides in a fresh session's start layer;
     - `context/prepack.py` and its limits are deleted for `context/layers.py`.
     - His word after the restart: "ok looks good". Journeys: the three new ones passed (instructions whole, a day's journal, fields from the view); `remove_asks` failed only on its reply's wording.
-  - **Next:** step 3 (B6 compaction guidance and a fresh checkpoint; B7 agents' runs on the layers), being built; the other 33 journeys run on a frozen copy of step 2. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
+  - **Step 3 (B6, B7) and Q102, accepted and committed** ([`log/2026-10-19-prompt-and-context-step3.md`](log/2026-10-19-prompt-and-context-step3.md)):
+    - a compaction is told what to keep, and Watson writes the checkpoint afresh;
+    - agent_run.md is the brief's frame plus paragraphs 2–5 (128 words, from 506).
+    - Q102: an @mention typed in Home is said there and the window moves to the agent's item, which is titled with its name.
+    - His word: "The mention works in my app".
+  - **Journeys:**
+    - the compaction one and B7's proofs (`reminder_fires`, `memory_noticing`) pass;
+    - stale journeys: `agent_verdict`, `automation_self_converts`, `doc_repairs_a_reader` and `attachment_in` name things the 18 Oct wipe removed; `eta_daily` uses a step kind the suite no longer has; `sherlock_looks_into_it` checks the workflow page removed on 17–18 Oct; and `question_card` meets today's guessed lunch;
+    - `branded_food` failed its independent check (an unstated assumption), on and off since 14 Oct.
+  - **Next:** step 4 (the "after" run against the before table, B8), then engine reach S2–S5. Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
@@ -84,12 +93,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 19 Oct night, section B step 2 built)
+## Numbers (`just stats`, 20 Oct, section B step 3 built)
 
-- 432 core tests, 238 desktop tests; lint and types clean.
-- 70 tools; 50 journeys defined.
-- Core 29,005 lines, tests 11,262, desktop 21,476.
-- 298 commits before step 2.
+- 434 core tests, 238 desktop tests; lint and types clean.
+- 70 tools; 51 journeys defined.
+- Core 29,063 lines, tests 11,320, desktop 21,476.
+- 299 commits before step 3.
 
 ## What is built, against the design's order of work
 

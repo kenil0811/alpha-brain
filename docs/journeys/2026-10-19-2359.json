@@ -1,0 +1,84 @@
+[
+ {
+  "name": "staged_from_a_run",
+  "title": "Tasks · what an agent brings in waits on one card, and lands on the yes",
+  "steps": [
+   {
+    "say": "make a table named contacts with each person's name and email",
+    "ok": true,
+    "reply": "I've made a **Contacts** table with Name and Email columns, inside a new module called People. Alpha wouldn't let the module share the table's name, so I called it People. Each row counts as a person, matched by email, so a contact links up with anything else Alpha learns about them.\n\nThe table is empty for now, because I don't have anyone's details yet. Where should the people come from?\n\n- **Tell me directly**: send a list of names and emails and I'll add them.\n- **Your calendar**: I can connect it and add everyone you've had meetings with. macOS will ask you once to allow access.\n- **A file",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 92697,
+    "tokens_cache_made": 13996,
+    "tokens_out": 896,
+    "first_text_ms": 11130,
+    "seconds": 14.4
+   },
+   {
+    "seed": "agent Intake",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Intake",
+    "ok": true,
+    "result": "I found 2 people in the inbox: Anna Lee (anna@restopros.test) and Ben Ortiz (ben@restopros.test). They aren't in your contacts yet; they go in when you say yes on the card.",
+    "problem": null,
+    "seconds": 7.2
+   },
+   {
+    "decide_staged": {
+     "accept": true
+    },
+    "ok": true,
+    "detail": "stg_d2eb23265686: landed",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "card",
+    "arg": {
+     "kind": "staged",
+     "state": "waiting"
+    },
+    "ok": true,
+    "why": "staged card \"Add 2 rows to Contacts\", waiting, drafted by a_9a0b8702817f",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "contacts",
+     "at_least": 0
+    },
+    "ok": true,
+    "why": "0 rows (wanted at least 0).",
+    "seconds": 0.0
+   },
+   {
+    "check": "card",
+    "arg": {
+     "kind": "staged",
+     "state": "yes"
+    },
+    "ok": true,
+    "why": "staged card \"Add 2 rows to Contacts\", yes, drafted by a_9a0b8702817f",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "contacts",
+     "at_least": 2
+    },
+    "ok": true,
+    "why": "2 rows (wanted at least 2).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 21.7,
+  "error": null
+ }
+]

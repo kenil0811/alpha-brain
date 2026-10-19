@@ -236,6 +236,18 @@ class Modules:
                        (title, "person" if by_person else None, tid))
         return self.thread(tid)
 
+    def title_agents_items(self) -> None:
+        """An agent's own work item is titled with the agent's name, unless the person named it
+        (19 Oct 2026: Deal Analyst's item read "Make an agent called Deal Analyst that...", the
+        request that made it, and its answers there were not found). Kept on every open, so a
+        renamed agent's item follows."""
+        with self.store.tx() as db:
+            db.execute("UPDATE threads SET title = (SELECT a.name FROM agents a WHERE"
+                       " a.thread = threads.id) WHERE kind = 'work' AND (titled IS NULL OR"
+                       " titled != 'person') AND id IN (SELECT thread FROM agents WHERE thread"
+                       " IS NOT NULL) AND title != (SELECT a.name FROM agents a WHERE"
+                       " a.thread = threads.id)")
+
     def set_brief(self, tid: str, brief: str) -> dict[str, Any]:
         """A thread's brief: what this work is for, what was decided, what didn't work and why,
         what is open, what comes next. Each run starts from it and the thread's own journal,

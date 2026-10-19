@@ -61,7 +61,8 @@ def test_every_prompt_file_is_used_and_every_prompt_used_exists() -> None:
 def test_placeholders_are_filled_and_an_unfilled_one_is_a_mistake() -> None:
     text = config.prompt("agent_run", name="Deal Scout")
     assert text.startswith("You are Deal Scout, one of the person's agents")
-    assert "{{" not in text and '{"read": "<reader>"' in text  # the JSON braces are plain
+    assert "{{" not in text and "{{name}}" not in text
+    assert '{"' in config.prompt("watson_checkpoint")  # JSON braces in a prompt are plain
     with pytest.raises(ConfigProblem, match="placeholder nothing fills: {{name}}"):
         config.prompt("agent_run")
     with pytest.raises(ConfigProblem, match="no prompt 'nothing_here'"):

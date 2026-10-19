@@ -1,0 +1,42 @@
+[
+ {
+  "name": "scout_picks_the_day",
+  "title": "Scout looks across the world and picks what deserves attention today",
+  "steps": [
+   {
+    "agent": "Scout",
+    "ok": true,
+    "result": "5 picks for today (a follow-up, a pattern in your data, something to stop doing by hand); 12 links on the map to confirm; 2 left out by the checks.",
+    "problem": null,
+    "seconds": 78.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "picks",
+    "arg": {
+     "min": 1
+    },
+    "ok": true,
+    "why": "6 pick(s): Eating far under target [pattern] → Show me what to eat today to reach 2,500 kcal and 115 g protein; Usual day falls short on carbs [pattern] → Suggest one carb- and fibre-rich addition to my usual day; Same meals logged again and again [by_hand, less sure] → Log my usual day's meals in one go when I say 'usual day'; Midwest HVAC P&L request never sent [follow_up, card] → Draft the P&L request to the Midwest HVAC broker in Gmail; No earnings on any deal [follow_up] → Add a cash flow (SDE) field to my deal list; Links worth confirming [link, less sure] → confirm them on the map.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 78.1,
+  "error": null
+ }
+]

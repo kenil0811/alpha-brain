@@ -74,6 +74,7 @@ class AgentTools(Base):
                                          module=module_id, thread=thread["id"], steps=clean,
                                          goal=goal, stage=self._stage_tables(stage),
                                          events=lines)
+        self.world.modules.title_agents_items()
         if brief.strip():
             self.world.knowledge.write_note(f"agent:{agent['id']}", "Brief", brief,
                                             source=self.turn)

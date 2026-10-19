@@ -1,0 +1,1 @@
+In the summary, keep: the cards still open to the person, with their questions and ids; what was made in this conversation (tables, skills, agents, pages), with their ids; the person's corrections and standing wishes, in their words; and what is being worked on now.

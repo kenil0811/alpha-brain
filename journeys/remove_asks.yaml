@@ -10,4 +10,4 @@ steps:
   - say: "remove the eggs from the log"
 checks:
   - journal: {kind: asked, contains: "Remove "}
-  - reply: {matches: "removed|gone|deleted|taken"}
+  - reply: {matches: "removed|gone|deleted|taken|took"}

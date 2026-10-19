@@ -162,6 +162,9 @@ def tokens_of(result: RunResult) -> dict[str, int]:
 # What was going on in a conversation, for a fresh session (A12): Watson's checkpoint, which
 # registers itself here (it imports this module, so it cannot be imported back).
 CARRY_OVER: list[Callable[..., str | None]] = []
+# What a conversation keeps when its session was compacted during a turn (B6, Q99): Watson
+# writes its checkpoint afresh, so a fresh session there later carries what is true now.
+AFTER_COMPACTION: list[Callable[..., Any]] = []
 
 
 def carry_over(world: World, thread: str, runner: Runner) -> str | None:
@@ -264,6 +267,12 @@ def ask(
     if "start after a compaction" in request.injected:
         world.journal.keep_context(said, f"{given}\n\nGIVEN AGAIN AFTER A COMPACTION\n\n{start}",
                                    rules_hash)
+    if "compacted" in request.injected and conversation and thread:
+        for keep in AFTER_COMPACTION:
+            try:
+                keep(world, thread, runner=runner)
+            except Exception:
+                log.exception("after the compaction of %s", thread)
     if conversation and thread and result.ok and result.session_id:
         world.modules.set_session(thread, result.session_id, tools=engine.fingerprint())
     data = {

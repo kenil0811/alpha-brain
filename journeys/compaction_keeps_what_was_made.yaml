@@ -1,0 +1,20 @@
+name: compaction_keeps_what_was_made
+title: "A conversation compacted still knows what it made"
+why: >
+  Section B, B6 (Q99, 19 Oct 2026): when a long conversation's session is compacted, the
+  summary is told what to keep (open cards, what was made with ids, corrections and wishes,
+  what is being worked on), the start layer is given again, and Watson writes the checkpoint
+  afresh. Forced here with the SDK's own /compact in the same session.
+fresh: true
+steps:
+  - say: "track what I eat"
+    home: true
+  - say: "log two boiled eggs for breakfast"
+    home: true
+  - compact: true
+  - say: "what have we set up for tracking my food so far, and what's logged in it?"
+    home: true
+checks:
+  - judge:
+      rubric: "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries."
+      facts: "In this conversation Alpha made a food log table (in a Food or Nutrition module) and logged two boiled eggs for breakfast today. Nothing else is logged."

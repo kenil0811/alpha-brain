@@ -488,7 +488,13 @@ def _hooks(req: TurnRequest) -> dict[str, list[HookMatcher]]:
                 log.exception("on_step")
         else:
             LIVE.note(_keys(req), doing=COMPACTED)
-        return {}
+        req.injected.append("compacted")
+        if req.kind != "turn":
+            return {}
+        # What the summary keeps (B6): a PreCompact hook's message is the summary's custom
+        # instructions (read in the bundled CLI, 19 Oct 2026). The turn refreshes the
+        # conversation's checkpoint after the run (turn.AFTER_COMPACTION).
+        return {"systemMessage": config.prompt("compact")}
 
     async def sentence_given(input_data: Any, tool_use_id: str | None,
                              context: HookContext) -> SyncHookJSONOutput:

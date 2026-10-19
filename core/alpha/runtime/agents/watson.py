@@ -396,7 +396,13 @@ def carried(world: World, cid: str, *, runner: turn.Runner = route.run) -> str |
     return str(note["body"]) if note and str(note.get("body") or "").strip() else None
 
 
+def refreshed(world: World, cid: str, *, runner: turn.Runner = route.run) -> None:
+    """The checkpoint written afresh when the conversation's session was compacted (B6)."""
+    checkpoint(world, cid, runner=runner)
+
+
 turn.CARRY_OVER.append(carried)
+turn.AFTER_COMPACTION.append(refreshed)
 
 
 def now_iso() -> str:

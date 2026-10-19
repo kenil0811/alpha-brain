@@ -4,7 +4,9 @@ why: >
   'The second one' refers to what Alpha just listed; a fresh turn that forgot its own list fails
   this. Its deal tracker was the person's own until the world was wiped (18 Oct 2026); since
   19 Oct the journey brings its own, on a fresh world, so it can run before and after section B
-  (B3: the conversation is no longer in the prompt, the resumed session holds it).
+  (B3: the conversation is no longer in the prompt, the resumed session holds it). Since 19 Oct
+  night its sentences go through Home as the app's do: as one-off turns with no session, the
+  second had nothing to point back to.
 fresh: true
 steps:
   - seed:
@@ -26,8 +28,8 @@ steps:
         - {business: "Bright Smile Dental Lab", asking_price: 640000, city: Bath, revenue: 380000, notes: "Two technicians stay on"}
         - {business: "Corner Print Shop", asking_price: 210000, city: Hull, revenue: 120000, notes: "Equipment five years old"}
   - say: "list the three deals with the highest asking price in the deal tracker, numbered"
-    module: Deal Tracker
+    home: true
   - say: "tell me more about the second one"
-    module: Deal Tracker
+    home: true
 checks:
   - judge: {rubric: "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.", history: 1}
