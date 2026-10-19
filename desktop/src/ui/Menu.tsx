@@ -7,7 +7,9 @@ export function Menu({ trigger, children, align = "end" }: { trigger: ReactNode;
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="menu__list" align={align} sideOffset={4}>
+        {/* placed by Radix and kept inside the window, as every other menu (19 Oct: the reasons
+            menu, aligned to its button's start, sat a full width to its left and was cut off) */}
+        <DropdownMenu.Content className="menu__list popover" align={align} sideOffset={4} collisionPadding={8}>
           {children}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

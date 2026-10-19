@@ -12,6 +12,7 @@ from fastapi import FastAPI
 
 from alpha.api.bodies import AskBody
 from alpha.api.served import Served
+from alpha.api.views import card_from
 from alpha.context.again import again, failures_view
 from alpha.context.entry_page import entry_page
 from alpha.runtime import acting
@@ -21,6 +22,13 @@ from alpha.world.store import Problem
 def routes(app: FastAPI, s: Served) -> None:
     world = s.world
     api = s.api
+
+    @app.get("/api/decisions", dependencies=[api])
+    def decisions(limit: int = 100) -> list[dict[str, Any]]:
+        """Activity's Decisions (P3 item 8): every card, newest first, with its state (waiting,
+        answered, yes, edited, no with its reason, allowed, skipped, withdrawn) and where it
+        came from."""
+        return [{**c, "from": card_from(world, c)} for c in world.cards.decided(limit)]
 
     @app.get("/api/activity", dependencies=[api])
     def activity(limit: int = 100, module: str | None = None, q: str | None = None,

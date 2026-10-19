@@ -156,6 +156,13 @@ def _run(world: World, agent: dict[str, Any], run_id: str, thread: str, *,
     if task is not None:
         parts.append(world.tasks.around_text(task))
     parts.append(front(world, agent))
+    # what the person declined of its drafts since a run was last told, with why (P3 item 3):
+    # it tunes what the agent does, never its code
+    declined = world.cards.declined_for(agent_id)
+    if declined:
+        parts.append("What the person said no to, and why:\n" + "\n".join(
+            f"- {c['text'][:200]}: {c['reason']}" for c in declined))
+        world.cards.told([c["id"] for c in declined])
     if task is not None or answered:
         parts.append(("Do this task, then settle it: Done, or Blocked with what stops it."
                       if task is not None else "Carry on from their answer.")

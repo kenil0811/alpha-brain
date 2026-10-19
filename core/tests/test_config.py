@@ -85,8 +85,11 @@ def test_a_prompt_edit_reaches_the_next_call_without_a_restart(
 def test_the_models_table_and_the_environments_say(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ALPHA_MODEL", raising=False)
     monkeypatch.delenv("ALPHA_SYSTEM_ONE_MODEL", raising=False)
-    assert config.model_for("turn") == "sonnet" and config.model_for("judge") == "haiku"
-    assert config.model_for("refile") == "sonnet" and config.model_for("trial") == "haiku"
+    # what models.toml says (Kenil moved the turn to opus, the judge to sonnet, 19 Oct)
+    table = config.models.claude
+    assert config.model_for("turn") == table["turn"] and config.model_for("judge") == table["judge"]
+    assert config.model_for("refile") == table["refile"]
+    assert config.model_for("trial") == table["trial"]
     monkeypatch.setenv("ALPHA_MODEL", "opus")
     monkeypatch.setenv("ALPHA_SYSTEM_ONE_MODEL", "sonnet")
     assert config.model_for("turn") == "opus" and config.model_for("independent") == "opus"
@@ -95,6 +98,7 @@ def test_the_models_table_and_the_environments_say(monkeypatch: pytest.MonkeyPat
         config.model_for("poet")
     # the ChatGPT route: a Claude alias is an effort on the person's Codex model
     monkeypatch.delenv("ALPHA_MODEL")
-    assert config.chatgpt_effort(None) == (None, "medium")
+    usual = config.models.chatgpt_effort[config.models.chatgpt_default]
+    assert config.chatgpt_effort(None) == (None, usual)
     assert config.chatgpt_effort("haiku") == (None, "low")
-    assert config.chatgpt_effort("gpt-5-codex") == ("gpt-5-codex", "medium")
+    assert config.chatgpt_effort("gpt-5-codex") == ("gpt-5-codex", usual)

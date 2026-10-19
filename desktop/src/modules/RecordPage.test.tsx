@@ -139,6 +139,7 @@ const task: RecordRow = {
 
 describe("a task's own page (P1)", () => {
   let runs: unknown = { task: "t1", agent: null, runs: [] };
+  let cards: unknown[] = [];
   function mountTask() {
     const client = {
       record: vi.fn(async () => ({ table: tasksTable, record: task, relations: {}, note: null })),
@@ -155,6 +156,7 @@ describe("a task's own page (P1)", () => {
       dropTask: vi.fn(async () => ({})),
       addTask: vi.fn(async () => ({})),
       taskRuns: vi.fn(async () => runs),
+      taskCards: vi.fn(async () => ({ task: "t1", cards })),
       agents: vi.fn(async () => [{ id: "a_2", name: "Deal Reader", kind: "custom" }, { id: "a_w", name: "Watson", kind: "watson" }]),
       editRecord: vi.fn(async () => task),
       startTask: vi.fn(async () => ({ ...task.values, id: "t1" })),
@@ -184,6 +186,16 @@ describe("a task's own page (P1)", () => {
     expect(screen.getAllByText("DealPilot › Deals › Midwest HVAC › Price").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Tasks" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "tasks" });
+  });
+
+  it("lists its Approvals: what waited on you for it, and how each was decided (P3)", async () => {
+    cards = [{ id: "j_9", kind: "action", text: "Make: Draft to the broker (google.com)", state: "no", reason: "Wrong recipient", answer: "No", drafter: "a_2", thread: null, module: null, task: "t1", created_at: "2026-10-19T09:46:00Z", decided_at: "2026-10-19T09:47:00Z", from: { by: "Deal Reader", run_at: null, task: null, rests_on: [], twins: 0 } }];
+    const { onGo } = mountTask();
+    expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
+    expect(screen.getByText("Wrong recipient")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Draft to the broker/ }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "entry", id: "j_9" });
+    cards = [];
   });
 
   it("gives a task to an agent, and Start runs it; a run shows its steps (P2)", async () => {

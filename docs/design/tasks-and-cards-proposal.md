@@ -1,8 +1,9 @@
 # Tasks, runs that serve them, and cards as decisions (P1–P3)
 
 *Agreed by Kenil as written, 18 October 2026, with the recommendation on all five questions
-(Q91). **P1 built the same night** (`../log/2026-10-18-p1-tasks.md`), accepted by Kenil in his app on 19 Oct; P2 and P3
-next.*
+(Q91). **P1 built the same night** (`../log/2026-10-18-p1-tasks.md`), accepted by Kenil in his app on 19 Oct; **P2
+built and committed 19 Oct** with Q92–Q93 (`../log/2026-10-19-p2-runs-serve-tasks.md`); **P3a built 19 Oct**
+(`../log/2026-10-19-p3a-cards.md`: items 1–4 and 8), then P3b (item 9), P3c (items 5–6), P3d (item 7).*
 
 *A proposal, 18 October 2026, for Kenil's yes before any code. These are the first three platform
 changes Vikas's four projects need (`requirements/alpha-fit-four-projects.md` beside the repo),

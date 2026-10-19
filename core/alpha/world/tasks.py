@@ -62,6 +62,8 @@ FIELDS: list[dict[str, Any]] = [
     {"name": "reminded_at", "kind": "datetime", "label": "Reminded"},
     {"name": "by", "kind": "text", "label": "Made by"},
     {"name": "suggested", "kind": "bool", "label": "Suggested"},
+    # a card waits on the person for it (P3): code keeps it, from the cards
+    {"name": "waiting", "kind": "bool", "label": "Waiting for your yes"},
 ]
 # The ways of looking at the tasks every world starts with (the person and Alpha add more).
 LISTS: list[dict[str, Any]] = [
@@ -81,6 +83,8 @@ LISTS: list[dict[str, Any]] = [
         "match": "all", "rules": [{"field": "owner", "op": "starts", "value": "entity:"}]}}},
     {"title": "Suggested", "config": {"hide_done": True, "rules": {"match": "all", "rules": [
         {"field": "suggested", "op": "checked", "value": ""}]}}},
+    {"title": "Waiting for my yes", "config": {"hide_done": True, "rules": {"match": "all",
+        "rules": [{"field": "waiting", "op": "checked", "value": ""}]}}},
 ]
 # The words a repeat is said in: a step from the last one (a day, N weeks, a month) or a
 # weekday; anything else is refused with these examples.
@@ -186,6 +190,11 @@ class Tasks:
             missing = [f for f in FIELDS if f["name"] not in have]
             if missing:
                 cols.add_fields(TABLE, missing)
+            # a list added since the table was made (P3's Waiting for my yes), once
+            kept = {v["title"] for v in self.world.views.for_table(TABLE)}
+            for spec in LISTS:
+                if spec["title"] not in kept and spec["title"] == "Waiting for my yes":
+                    self.world.views.save(TABLE, spec["title"], spec["config"], source="alpha")
         self._move_commitments()
         self._drop_jobs()
         with self.store.tx() as db:  # Watson's write list says what it writes now

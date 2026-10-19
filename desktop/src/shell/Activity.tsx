@@ -5,10 +5,11 @@
  * only, so none is missed on a busy day.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Client, JournalEntry } from "../core/client";
+import type { Client, DecisionCard, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { Button, Trouble } from "../ui";
 import { say } from "../core/client";
+import { DECISION } from "./CardBits";
 import type { Surface } from "./Rail";
 
 const PAGE = 300;
@@ -30,7 +31,19 @@ export function Activity({ client, version, onGo }: { client: Client; version: n
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed">("all");
+  const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed" | "decisions">("all");
+  // Decisions (P3): every card, what it asked and how it was decided
+  const [cards, setCards] = useState<DecisionCard[] | null>(null);
+  useEffect(() => {
+    if (filter !== "decisions") return;
+    client
+      .decisions()
+      .then((r) => {
+        setCards(r);
+        setError(null);
+      })
+      .catch((e: unknown) => setError(say(e)));
+  }, [client, filter, version, tick]);
   const [loading, setLoading] = useState(false);
   const kind = filter === "failed" ? "failed" : undefined;
   useEffect(() => {
@@ -92,14 +105,36 @@ export function Activity({ client, version, onGo }: { client: Client; version: n
             <span aria-hidden="true">⌕</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
           </div>
-          {(["all", "alpha", "you", "failed"] as const).map((f) => (
+          {(["all", "alpha", "you", "failed", "decisions"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {f === "all" ? "All" : f === "alpha" ? "Alpha" : f === "you" ? "You" : "Failed"}
+              {f === "all" ? "All" : f === "alpha" ? "Alpha" : f === "you" ? "You" : f === "failed" ? "Failed" : "Decisions"}
             </button>
           ))}
         </div>
-        <div className="runs">
-          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}
+        {filter === "decisions" ? (
+          <div className="runs">
+            {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Decisions: {error}</Trouble> : null}
+            {cards === null ? <p className="empty">Loading…</p> : null}
+            {cards && !cards.length ? <p className="empty">Nothing has waited on you yet.</p> : null}
+            {(cards ?? []).map((c) => {
+              const d = DECISION[c.state];
+              return (
+                <button key={c.id} type="button" className="item item--btn" onClick={() => onGo({ kind: "entry", id: c.id })}>
+                  <span className="item__when num">{when(c.decided_at ?? c.created_at)}</span>
+                  <span className={`badge ${d.cls}`}>{d.words}</span>
+                  <span className="item__body">
+                    <b>{c.text}</b>
+                    <span className="faint item__sub">
+                      {[c.from.by ? `drafted by ${c.from.by}` : null, c.reason, c.answer && c.state === "answered" ? `“${c.answer}”` : null].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        <div className="runs" style={filter === "decisions" ? { display: "none" } : undefined}>
+          {error && filter !== "decisions" ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}
           {rows === null ? <p className="empty">Loading…</p> : null}
           {rows && !shown.length ? <p className="empty">{q ? "Nothing matches." : "Nothing has happened yet."}</p> : null}
           {shown.map((e) => {

@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from alpha.api.bodies import PlaceBody, TaskBody
 from alpha.api.served import Served
+from alpha.api.views import card_from
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
 from alpha.world.tasks import DROPPED, FINISHED, TABLE, WORKING
@@ -82,6 +83,13 @@ def routes(app: FastAPI, s: Served) -> None:
         else:
             agent_runner.run(world, owner, trigger="task", task=tid, runner=s.runner)
         return view(world.tasks.get(tid))
+
+    @app.get("/api/tasks/{tid}/cards", dependencies=[api])
+    def task_cards(tid: str) -> dict[str, Any]:
+        """A task's cards, newest first (P3): its page's Approvals section."""
+        world.tasks.get(tid)
+        return {"task": tid, "cards": [{**c, "from": card_from(world, c)}
+                                       for c in world.cards.of_task(tid)]}
 
     @app.get("/api/tasks/{tid}/around", dependencies=[api])
     def around(tid: str) -> dict[str, Any]:

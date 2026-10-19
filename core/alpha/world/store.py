@@ -347,6 +347,38 @@ CREATE TABLE IF NOT EXISTS actions (
 );
 CREATE INDEX IF NOT EXISTS actions_state ON actions(state, created_at);
 
+-- a card (P3, Q86, Q91, 19 Oct 2026): anything waiting on the person's decision, one row
+-- whatever it asks; the journal keeps the lines, this is the state (world/cards.py)
+CREATE TABLE IF NOT EXISTS cards (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    options TEXT NOT NULL DEFAULT '[]',
+    drafter TEXT NOT NULL,
+    thread TEXT,
+    module TEXT,
+    turn TEXT,
+    run TEXT,
+    task TEXT,
+    ref TEXT,
+    key TEXT NOT NULL,
+    rests_on TEXT NOT NULL DEFAULT '[]',
+    state TEXT NOT NULL,
+    answer TEXT,
+    reason TEXT,
+    decided_by TEXT,
+    decided_at TEXT,
+    told_at TEXT,
+    twins INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cards_state ON cards(state, created_at);
+CREATE INDEX IF NOT EXISTS cards_key ON cards(key, state);
+CREATE INDEX IF NOT EXISTS cards_task ON cards(task, state);
+CREATE INDEX IF NOT EXISTS cards_ref ON cards(ref);
+CREATE INDEX IF NOT EXISTS cards_thread ON cards(thread, state);
+CREATE INDEX IF NOT EXISTS cards_drafter ON cards(drafter, state);
+
 -- standing permissions, as sentences the person granted and can revoke
 CREATE TABLE IF NOT EXISTS permissions (
     id TEXT PRIMARY KEY,

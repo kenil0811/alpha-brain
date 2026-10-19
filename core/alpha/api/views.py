@@ -49,38 +49,76 @@ def asked_by(world: World, a: dict[str, Any]) -> str | None:
     return str(row["name"]) if row else None
 
 
+# a card that asks a question rather than for a decision on something drafted
+ASK_KINDS = ("question", "permission", "pick", "reminder", "check", "routing", "signin")
+
+
+def card_from(world: World, c: dict[str, Any]) -> dict[str, Any]:
+    """Where a card came from (P3 item 2): who drafted it (an agent's name; none for Alpha),
+    the run it came from and when that run began, the task it is for, what it rests on."""
+    by = None
+    if c["drafter"] not in ("alpha", "person"):
+        row = world.store.one("SELECT name FROM agents WHERE id = ?", (c["drafter"],))
+        by = str(row["name"]) if row else None
+    run_at = None
+    if c.get("run"):
+        r = world.store.one("SELECT started_at FROM runs WHERE id = ?", (c["run"],))
+        run_at = r["started_at"] if r else None
+    task = None
+    if c.get("task"):
+        try:
+            t = world.tasks.get(str(c["task"]))
+            task = {"id": t["id"], "title": t.get("title")}
+        except Problem:
+            task = None
+    return {"by": by, "run_at": run_at, "task": task, "rests_on": c.get("rests_on") or [],
+            "twins": c.get("twins") or 0}
+
+
 def needs_you(world: World) -> list[dict[str, Any]]:
-    """Everything waiting on the person: questions, proposals, suggested facts, same-name
-    people to confirm."""
+    """Everything waiting on the person: the waiting cards (P3), oldest first. An action's card
+    waits while its action does (a dry run that failed can't be decided); a page's while it is
+    drafted."""
     items: list[dict[str, Any]] = []
-    for a in world.journal.open_asks():
-        items.append({"kind": "ask", "id": a["id"], "text": a["text"], "at": a["at"],
-                      "options": a["data"].get("options", []), "module": a["module"],
-                      "turn": a["data"].get("turn"), "derived": bool(a["data"].get("derived")),
-                      "choose": a["data"].get("kind") or "one", "hint": a["data"].get("hint"),
-                      "by": asked_by(world, a)})
-    answered = {loads(r["data"], {}).get("proposal")
-                for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
-    for p in world.journal.recent(50, kinds=["proposed"]):
-        # a plan's proposal (before 12 Oct 2026, Q40) can't be answered any more: never shown
-        if p["data"].get("scout"):
-            continue  # Scout's picks live on Home; the sure, costly one is a question card
-        if p["id"] not in answered and not p["data"].get("plan"):
-            items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
-                          "why": p["data"].get("why"), "at": p["at"], "module": p["module"]})
-    for wf in world.workflows.all(("drafted",)):
-        items.append({"kind": "workflow", "id": wf["id"], "text": f"Your workflow: {wf['title']}",
-                      "why": wf["body"].get("purpose"), "at": wf["created_at"],
-                      "module": wf.get("module"),
-                      "workflow": {**wf, "research": research_of(world, wf)}})
-    # Watson's suggested facts are not here (slice 4b, 18 Oct): they are marked suggested on
-    # the person's About-you table, where they are confirmed or cleared.
-    for a in world.actions.all(("proposed",)):
-        items.append({"kind": "action", "id": a["id"], "text": a["title"], "why": a["evidence"],
-                      "at": a["created_at"], "module": a["module"],
-                      "action": action_view(world, a)})
-    return [i for i in items if i["kind"] != "proposal"
-            or not (_is_action_proposal(world, i) or _is_workflow_proposal(world, i))]
+    for c in world.cards.waiting():
+        try:
+            line = world.journal.read(c["id"])
+        except Problem:
+            continue  # a line forgotten since: nothing to show
+        came = card_from(world, c)
+        if c["kind"] in ASK_KINDS:
+            d = line["data"]
+            items.append({"kind": "ask", "id": c["id"], "text": c["text"], "at": line["at"],
+                          "options": d.get("options", []), "module": c["module"],
+                          "turn": c["turn"], "derived": bool(d.get("derived")),
+                          "choose": d.get("kind") or "one", "hint": d.get("hint"),
+                          "by": came["by"], "from": came})
+        elif c["kind"] == "action":
+            try:
+                a = world.actions.get(str(c["ref"]))
+            except Problem:
+                continue
+            if a["state"] == "proposed":
+                items.append({"kind": "action", "id": a["id"], "text": a["title"],
+                              "why": a["evidence"], "at": a["created_at"], "module": a["module"],
+                              "action": action_view(world, a), "by": came["by"], "from": came})
+        elif c["kind"] == "workflow":
+            try:
+                wf = world.workflows.get(str(c["ref"]))
+            except Problem:
+                continue
+            if wf["state"] == "drafted":
+                items.append({"kind": "workflow", "id": wf["id"],
+                              "text": f"Your workflow: {wf['title']}",
+                              "why": wf["body"].get("purpose"), "at": wf["created_at"],
+                              "module": wf.get("module"),
+                              "workflow": {**wf, "research": research_of(world, wf)},
+                              "by": came["by"], "from": came})
+        else:
+            items.append({"kind": "proposal", "id": c["id"], "text": c["text"],
+                          "why": line["data"].get("why"), "at": line["at"],
+                          "module": c["module"], "by": came["by"], "from": came})
+    return items
 
 
 def research_of(world: World, wf: dict[str, Any]) -> dict[str, Any] | None:
@@ -100,18 +138,6 @@ def research_of(world: World, wf: dict[str, Any]) -> dict[str, Any] | None:
                                              and d.get("conversation") == wf["conversation"]):
             return {"agent": sherlock["id"], "name": sherlock["name"], "state": "running"}
     return None
-
-
-def _is_workflow_proposal(world: World, item: dict[str, Any]) -> bool:
-    """A workflow's own `proposed` entry is shown as its page, not as a plain proposal."""
-    entry = world.journal.read(item["id"])
-    return bool(entry["data"].get("workflow"))
-
-
-def _is_action_proposal(world: World, item: dict[str, Any]) -> bool:
-    """An action's own `proposed` journal entry is shown as its card, not as a plain proposal."""
-    entry = world.journal.read(item["id"])
-    return bool(entry["data"].get("action"))
 
 
 def action_view(world: World, a: dict[str, Any]) -> dict[str, Any]:

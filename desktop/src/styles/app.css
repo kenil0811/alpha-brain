@@ -1078,3 +1078,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .lane__head { font-size: var(--text-sm); color: var(--text-2); font-weight: 500; margin: 0 0 4px; }
 .askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */
 .askcard:focus { outline: none; box-shadow: 0 0 0 2px var(--primary-soft); }
+
+/* where a card came from (P3): one faint line under its question or title */
+.cardfrom { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--text-sm); margin: 2px 0 6px; }
+.cardfrom a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
+/* a decision's who and why, under its words (Activity's Decisions, P3) */
+.item__sub { display: block; margin-top: 2px; }

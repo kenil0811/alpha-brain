@@ -87,10 +87,17 @@ class ActionApproveBody(BaseModel):
 
 class DecideBody(BaseModel):
     accept: bool
+    # a No says why, in one tap (P3): one of cards.REASONS
+    reason: str | None = None
 
 
 class AnswerBody(BaseModel):
     text: str
+    reason: str | None = None
+
+
+class DeclineBody(BaseModel):
+    reason: str | None = None
 
 
 class AnswersBody(BaseModel):

@@ -12,6 +12,7 @@ import type { Ask, Client, JournalEntry, Turn } from "../core/client";
 import { say } from "../core/client";
 import { Button, Card } from "../ui";
 import { Check } from "../ui/icons";
+import { CardFromLine } from "../shell/CardBits";
 
 const SEVERAL = ", ";
 
@@ -114,6 +115,7 @@ export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client;
       }
     >
       <p className="askcard__q">{ask.text}</p>
+      <CardFromLine from={ask.from} />
       {ask.options.length ? (
         <div className="askcard__rows" role="group" aria-label={several ? "Tick what applies" : "Pick one"}>
           {ask.options.map((o, i) => (

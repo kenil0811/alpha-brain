@@ -17,7 +17,7 @@ import { RecordHistory, RecordNote } from "./RecordHistory";
 import { RecordFields } from "./views/RecordFields";
 import { say } from "../core/client";
 import { TASKS_TABLE } from "../shell/Rail";
-import { TaskAgent, TaskParts, TaskSuggestion, TasksHere, addressOf } from "./Tasks";
+import { TaskAgent, TaskApprovals, TaskParts, TaskSuggestion, TasksHere, addressOf } from "./Tasks";
 
 export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null } | null>(null);
@@ -129,6 +129,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
       </div>
       {isTask ? <TaskParts client={client} row={row} version={version} onChanged={() => { setTick((n) => n + 1); onChanged(); }} onGo={onGo} /> : null}
       {isTask ? <TaskAgent client={client} row={row} version={version} onChanged={() => { setTick((n) => n + 1); onChanged(); }} onGo={onGo} /> : null}
+      {isTask ? <TaskApprovals client={client} taskId={row.id} version={version} onGo={onGo} /> : null}
       {!isTask && !readonly ? <TasksHere client={client} at={addressOf(data.table.name, row.id, module)} version={version} onChanged={onChanged} onGo={onGo} fields={fields.filter((f) => f.name !== titleField).map((f) => ({ name: f.name, label: fieldLabel(f) }))} /> : null}
       <RecordHistory client={client} table={data.table.name} row={row} fields={fields} readonly={readonly} version={version} onUndone={(saved) => { setData({ ...data, record: saved }); onChanged(); }} />
       <RecordNote client={client} table={data.table.name} id={row.id} note={data.note} readonly={readonly} onSaved={() => { setTick((n) => n + 1); onChanged(); }} />

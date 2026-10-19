@@ -1,0 +1,52 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your **Food log** is set up in a new Nutrition module. It's empty for now.\n\nJust tell me what you ate, for example \"two eggs and toast for breakfast\" or \"a latte at 4pm\". I'll log it with:\n- **What** you ate, **when**, which **meal** it was (breakfast, lunch, dinner, snack or drink) and the **amount**\n- **Calories, protein, carbs and fat**. If you don't give these, I'll look them up from the label or a nutrition database, or estimate them. Each entry will say where its numbers came from.\n\nIf you don't say when, I'll use the time you tell me. Later I can show your daily totals as a chart or che",
+    "steps": 2,
+    "seconds": 12.9
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged **2 eggs** as breakfast at 11:41 today:\n\n| Calories | Protein | Carbs | Fat |\n|---|---|---|---|\n| 143 kcal | 12.6 g | 0.7 g | 9.5 g |\n\nThese numbers are the USDA values for large eggs. I assumed they were boiled or poached, and that you had them just now. If you fried or scrambled them in butter or oil, tell me and I'll add the fat (about 35–100 kcal more). I can also change the time or the meal.",
+    "steps": 2,
+    "seconds": 12.6
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I removed the eggs, so your food log is empty again.",
+    "steps": 2,
+    "seconds": 7.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "1 asked entry: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 32.7,
+  "error": null
+ }
+]

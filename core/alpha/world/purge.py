@@ -35,6 +35,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
 from alpha.connectors.files import Files
 from alpha.world import workspaces
+from alpha.world.cards import Cards
 from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
@@ -217,6 +218,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         # the tasks living in it, on its tables, rows and pages (P1): for good, as its rows go
         counts["tasks"] = Tasks.remove_at(db, f"#/m/{mid}", for_good=True)
         counts["sources"] = world.sources.remove_module(db, mid)
+        Cards.withdraw_in(db, module=mid)  # what waited on the person for it (P3)
         counts["actions"] = world.actions.remove_module(db, mid)
         docs = db.execute("SELECT id, path, entity_id FROM documents WHERE module = ?",
                           (mid,)).fetchall()
@@ -321,6 +323,7 @@ def remove_conversation(world: World, cid: str) -> dict[str, Any]:
         for aid in plan["actions"]:
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE id = ?",
                        (now(), aid))
+        Cards.withdraw_in(db, thread=cid, refs=plan["actions"])  # P3
         db.execute("UPDATE workflows SET conversation = NULL WHERE conversation = ?", (cid,))
         db.execute("UPDATE agents SET thread = NULL WHERE thread = ?", (cid,))
         db.execute("DELETE FROM threads WHERE id = ?", (cid,))
@@ -410,13 +413,19 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
             _forget_skill(db, store, name)
             db.execute("UPDATE permissions SET revoked_at = ? WHERE procedure = ?"
                        " AND revoked_at IS NULL", (now(), name))
+            Cards.withdraw_in(db, refs=[r["id"] for r in db.execute(
+                "SELECT id FROM actions WHERE procedure = ? AND state IN ('proposed',"
+                " 'approved')", (name,)).fetchall()])  # their cards (P3)
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE procedure = ?"
                        " AND state IN ('proposed', 'approved')", (now(), name))
             # The module still reads from that place; it just has no reader for it now.
             db.execute("UPDATE sources SET reader = NULL, status = 'not_built', detail = ?,"
                        " updated_at = ? WHERE reader = ?",
                        (f"Its reader went with the {target} connection.", now(), name))
+        if readers:
+            Cards.withdraw_in(db, refs=list(readers))  # their sign-in questions (P3)
         for a in autos:
+            Cards.withdraw_in(db, drafter=a["id"])
             if a.get("skill"):
                 _forget_skill(db, store, a["skill"])
             db.execute("DELETE FROM runs WHERE agent = ?", (a["id"],))
@@ -472,7 +481,8 @@ def remove_agent(world: World, aid: str) -> dict[str, Any]:
             if a.get("thread") and a["thread"] == agent.get("thread")]
     with world.store.tx() as db:
         db.execute("DELETE FROM runs WHERE agent = ?", (aid,))
-        Tasks.release_agent(db, aid)  # its job goes; what it was given comes back (P2)
+        Tasks.release_agent(db, aid)  # what it was given comes back (P2, Q92)
+        Cards.withdraw_in(db, drafter=aid)  # what it left waiting on the person (P3)
         db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{aid}",))
         Decisions.remove_about(db, "agent", aid)
         if agent.get("skill"):

@@ -1,0 +1,28 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "Nothing is logged for today yet, so I need to know what you had for lunch. Your usual ones are:\n\n- Dal rice with veg (1 plate)\n- Paneer wrap (1 wrap)\n- Chicken rice bowl (1 plate)\n\nPick one, or tell me what you ate and roughly how much. I'll add it as today's lunch with its calories and macros.",
+    "steps": 4,
+    "seconds": 8.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": true,
+    "why": "\"What did you have for lunch today?\" with ['Dal rice with veg (1 plate)', 'Paneer wrap (1 wrap)', 'Chicken rice bowl (1 plate)'] options (the model's own)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 8.8,
+  "error": null
+ }
+]

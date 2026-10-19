@@ -13,6 +13,7 @@ from alpha.api.bodies import (
     AnswersBody,
     AskBody,
     DecideBody,
+    DeclineBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -24,6 +25,7 @@ from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations, engine
 from alpha.runtime.agents import columbo, scout, watson
 from alpha.runtime.agents import runner as agent_runner
+from alpha.world.cards import reason_of
 from alpha.world.store import Problem, local_midnight_utc
 
 
@@ -104,8 +106,10 @@ def routes(app: FastAPI, s: Served) -> None:
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
         asked = world.journal.read(ask_id)
         back = its_run(asked)
+        reason = reason_of(body.reason)
         jid = world.journal.append("answered", body.text, actor="person",
-                                   data={"ask": ask_id, **({"to": back[0]["id"]} if back else {})},
+                                   data={"ask": ask_id, **({"to": back[0]["id"]} if back else {}),
+                                         **({"reason": reason} if reason else {})},
                                    module=asked["module"], thread=asked["thread"])
         if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
             # A hand waiting for the person's yes (harness §8): the turn carries on with it.
@@ -190,7 +194,9 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
-        answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
+        reason = reason_of(body.reason) if not body.accept else None
+        answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"],
+                                                 **({"reason": reason} if reason else {}))
         if proposal["data"].get("scout"):
             # Scout's pick (Q48): the decision is the person's, by the pick's key; a Take is
             # done by Alpha as a turn in the pick's words (the map's links open the map)
@@ -247,8 +253,11 @@ def routes(app: FastAPI, s: Served) -> None:
         return agreed
 
     @app.post("/api/workflows/{wid}/decline", dependencies=[api])
-    def decline_workflow(wid: str) -> dict[str, Any]:
+    def decline_workflow(wid: str, body: DeclineBody | None = None) -> dict[str, Any]:
+        reason = reason_of(body.reason if body else None)
         declined = world.workflows.decline(wid)
+        if reason:
+            world.cards.give_reason(wid, "workflow", reason)
         world.journal.append("did", f"Set aside the workflow {declined['title']}.",
                              actor="person", thread=declined.get("conversation"),
                              data={"workflow": wid})

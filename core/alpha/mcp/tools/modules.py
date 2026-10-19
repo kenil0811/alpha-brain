@@ -106,8 +106,9 @@ class Modules(Base):
     def propose(self, text: str, why: str) -> dict[str, Any]:
         """Propose something the person did not ask for (a target, a new field, a follow-up),
         with the evidence in why. It waits for their yes."""
+        # proposed as whoever uses the tools: an agent's run drafts as the agent (P3)
         jid = self.world.journal.append(
             "proposed", text, data={"why": why, "turn": self.turn},
-            module=self.module, thread=self.thread,
+            actor=self.actor, module=self.module, thread=self.thread,
         )
         return {"proposed": jid}

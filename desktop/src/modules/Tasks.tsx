@@ -6,7 +6,8 @@
  * The tasks are a table the world keeps itself, so every view, edit and History is the table's.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Agent, Client, ModuleCard, RecordRow, TableDesc, TaskAround, TaskItem, TaskRuns } from "../core/client";
+import type { Agent, Client, DecisionCard, ModuleCard, RecordRow, TableDesc, TaskAround, TaskItem, TaskRuns } from "../core/client";
+import { DECISION } from "../shell/CardBits";
 import { say } from "../core/client";
 import { surfaceFromPath } from "../shell/address";
 import { TASKS_TABLE, type Surface } from "../shell/Rail";
@@ -559,6 +560,40 @@ export function AgentTasks({ client, agentId, version, onGo }: { client: Client;
             {t.due ? <span className="faint">due {showValue(t.due, "date")}</span> : null}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** A task's Approvals (P3): the cards that waited on the person for it, newest first, with how
+ *  each was decided. Nothing when none ever did. */
+export function TaskApprovals({ client, taskId, version, onGo }: { client: Client; taskId: string; version: number; onGo: (s: Surface) => void }) {
+  const [cards, setCards] = useState<DecisionCard[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    client.taskCards(taskId).then((r) => live && setCards(r.cards)).catch(() => live && setCards([]));
+    return () => {
+      live = false;
+    };
+  }, [client, taskId, version]);
+  if (!cards?.length) return null;
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Approvals</h2>
+        <span className="faint">what waited on you for this task</span>
+      </div>
+      <div className="card list">
+        {cards.map((c) => {
+          const d = DECISION[c.state];
+          return (
+            <button key={c.id} type="button" className="list__row" onClick={() => onGo({ kind: "entry", id: c.id })}>
+              <span>{c.text}</span>
+              <span className={`badge ${d.cls}`}>{d.words}</span>
+              {c.reason ? <span className="faint">{c.reason}</span> : null}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

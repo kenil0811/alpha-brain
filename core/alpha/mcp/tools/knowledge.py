@@ -73,7 +73,7 @@ class Knowledge(Base):
         jid = self.world.journal.append(
             "proposed", f"Make this a standing instruction: {sentence}",
             data={"instruction": sentence, "why": why, "turn": self.turn},
-            module=self.module, thread=self.thread,
+            actor=self.actor, module=self.module, thread=self.thread,
         )
         return {"proposed": jid}
 

@@ -51,9 +51,15 @@ def entry(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+# The lines that put or decide a card (P3): the cards table is written in their transaction.
+CARD_LINES = ("asked", "proposed", "answered")
+
+
 class Journal:
     def __init__(self, store: Store) -> None:
         self.store = store
+        # the world's cards (P3, 19 Oct 2026), set once the world has them
+        self.cards: Any = None
 
     def append(
         self,
@@ -73,7 +79,14 @@ class Journal:
         run = RUN.get()
         if run and (data is None or "run" not in data):
             data = {**(data or {}), "run": run}
+        cards = self.cards if kind in CARD_LINES else None
         with self.store.tx() as db:
+            if cards is not None and kind != "answered":
+                # one waiting card per identical step (P3 item 4): a twin is not written; the
+                # waiting card's id comes back and it takes the newer turn
+                twin = cards.twin(db, kind, actor, text, data or {}, module, thread)
+                if twin is not None:
+                    return str(twin)
             db.execute(
                 "INSERT INTO journal (id, at, kind, actor, text, data, module, thread, entity_ids,"
                 " source) VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -90,6 +103,10 @@ class Journal:
                     source,
                 ),
             )
+            if cards is not None:
+                cards.on_line(db, jid, kind, actor, text, data or {}, module, thread)
+        if cards is not None:
+            cards.after(jid, kind, data or {})
         return jid
 
     def read(self, jid: str) -> dict[str, Any]:
@@ -244,13 +261,19 @@ class Journal:
         return int(row["n"])
 
     def open_asks(self) -> list[dict[str, Any]]:
-        """Questions Alpha asked the person that have no answer yet."""
+        """Questions waiting on the person: their `asked` lines whose card waits (P3). A twin
+        asked again in a later turn moved the card to that turn, which the line's data says."""
         rows = self.store.all(
-            "SELECT * FROM journal a WHERE a.kind = 'asked' AND a.deleted_at IS NULL"
-            " AND NOT EXISTS (SELECT 1 FROM journal b WHERE b.kind = 'answered'"
-            " AND json_extract(b.data, '$.ask') = a.id) ORDER BY a.at"
-        )
-        return [entry(r) for r in rows]
+            "SELECT a.*, c.turn AS card_turn FROM journal a JOIN cards c ON c.id = a.id"
+            " WHERE a.kind = 'asked' AND a.deleted_at IS NULL AND c.state = 'waiting'"
+            " ORDER BY a.at")
+        out = []
+        for r in rows:
+            e = entry(r)
+            if r["card_turn"]:
+                e["data"]["turn"] = r["card_turn"]
+            out.append(e)
+        return out
 
     def keep_context(self, turn: str, context: str, rules: str) -> None:
         """What the model was given for a turn: the pre-pack, and which rules (by hash)."""

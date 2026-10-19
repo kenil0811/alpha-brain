@@ -7,6 +7,7 @@ from pathlib import Path
 
 from alpha.world.actions import Actions, Permissions, Procedures
 from alpha.world.agents import Agents
+from alpha.world.cards import Cards
 from alpha.world.collections import Collections
 from alpha.world.decisions import Decisions
 from alpha.world.entities import Entities
@@ -46,6 +47,9 @@ class World:
         self.path = Path(path) if path is not None else default_world_path()
         self.store = Store(self.path)
         self.journal = Journal(self.store)
+        # cards (P3, 19 Oct 2026): written by the journal in the line's own transaction
+        self.cards = Cards(self)
+        self.journal.cards = self.cards
         self.entities = Entities(self.store)
         self.collections = Collections(self.store, self.entities)
         self.knowledge = Knowledge(self.store)
@@ -71,6 +75,8 @@ class World:
         # The tasks (P1, 18 Oct 2026): a table the world keeps itself; commitments moved once.
         self.tasks = Tasks(self)
         self.tasks.ensure()
+        self.cards.backfill()  # a world from before the cards, once
+        self.cards.sweep()  # what a removed module, agent or thread left waiting
         self.files.sync()  # the modules' directories brought in line (slice 5)
 
     def close(self) -> None:

@@ -12,12 +12,14 @@ from fastapi.responses import FileResponse
 from alpha.api.bodies import (
     ActionApproveBody,
     ActionEditBody,
+    DeclineBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
     action_view,
 )
 from alpha.runtime import acting
+from alpha.world.cards import reason_of
 from alpha.world.store import Problem
 
 
@@ -67,5 +69,7 @@ def routes(app: FastAPI, s: Served) -> None:
         return action_view(world, world.actions.get(aid))
 
     @app.post("/api/actions/{aid}/decline", dependencies=[api])
-    def decline_action(aid: str) -> dict[str, Any]:
-        return action_view(world, acting.decline(world, aid))
+    def decline_action(aid: str, body: DeclineBody | None = None) -> dict[str, Any]:
+        """The person's no, with its reason when they gave one (P3)."""
+        return action_view(world, acting.decline(world, aid,
+                                                 reason_of(body.reason if body else None)))

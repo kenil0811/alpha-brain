@@ -8,6 +8,7 @@ import { AskCard, AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
 import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem, Thread } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
+import { CardFromLine, NoWithReason } from "./CardBits";
 import type { Surface } from "./Rail";
 import { Badge, Button, Confirm, IconButton } from "../ui";
 import { ArrowRight, X } from "../ui/icons";
@@ -32,7 +33,7 @@ export function groupNeeds(items: NeedItem[]): NeedItem[][] {
 }
 
 function askOf(item: NeedItem): Ask {
-  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null, choose: item.choose, hint: item.hint };
+  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null, choose: item.choose, hint: item.hint, by: item.by ?? null, from: item.from };
 }
 
 function greeting(): string {
@@ -125,7 +126,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
     }
   }
   if (item.kind === "action" && item.action) {
-    return <ActionCard action={item.action} client={client} onDecided={(note) => { onDone(note); }} />;
+    return <ActionCard action={item.action} client={client} by={item.by ?? null} from={item.from} onDecided={(note) => { onDone(note); }} />;
   }
   if (item.kind === "workflow" && item.workflow) {
     return <WorkflowCard workflow={item.workflow} client={client} onDecided={() => onDone("Noted.")} />;
@@ -137,19 +138,19 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   if (item.kind === "proposal") {
     return (
       <article className="card need">
+        {item.by ? <span className="frame__eyebrow">{item.by} suggests</span> : null}
         <h3>{item.text}</h3>
         {item.why ? (
           <p className="because">
             <b>Because</b> {item.why}
           </p>
         ) : null}
+        <CardFromLine from={item.from} />
         <div className="row">
           <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), "On it. Alpha is doing that now.")}>
             Yes, do it
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
-            Not now
-          </Button>
+          <NoWithReason disabled={busy} onNo={(reason) => void act(() => client.decideProposal(item.id, false, reason), "Noted. It won't come back.")} />
         </div>
         {error ? <p className="notice">{error}</p> : null}
       </article>

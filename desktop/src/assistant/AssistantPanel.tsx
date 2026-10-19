@@ -13,6 +13,7 @@ import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, use
 import { moduleWords, say } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Turn, Workflow, Agent } from "../core/client";
 import { ActionCard } from "../shell/ActionCard";
+import { NoWithReason } from "../shell/CardBits";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { useHoldToSend, useSpeech } from "../shell/voice";
 import { Button, Card, IconButton, Popover, Trouble } from "../ui";
@@ -112,9 +113,9 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
   const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(b.questions ?? []));
   const [showSources, setShowSources] = useState<Record<string, boolean>>({});
   const drafted = workflow.state === "drafted";
-  const decide = (yes: boolean) => {
+  const decide = (yes: boolean, reason?: string) => {
     setBusy(true);
-    void (yes ? client.agreeWorkflow(workflow.id, b.suggestions.length ? decisions : undefined, b.questions.length ? answers : undefined) : client.declineWorkflow(workflow.id)).finally(() => {
+    void (yes ? client.agreeWorkflow(workflow.id, b.suggestions.length ? decisions : undefined, b.questions.length ? answers : undefined) : client.declineWorkflow(workflow.id, reason)).finally(() => {
       setBusy(false);
       onDecided();
     });
@@ -239,9 +240,7 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
             <Button size="sm" variant="primary" disabled={busy} onClick={() => decide(true)}>
               Yes, build it
             </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
-              Not now
-            </Button>
+            <NoWithReason disabled={busy} onNo={(reason) => decide(false, reason)} />
           </div>
         </>
       ) : workflow.state === "stopped" ? (

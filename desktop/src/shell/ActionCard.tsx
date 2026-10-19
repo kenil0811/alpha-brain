@@ -4,10 +4,11 @@
  * Nothing leaves until the person says yes here or in words.
  */
 import { useEffect, useState } from "react";
-import type { Action, Client } from "../core/client";
+import type { Action, CardFrom, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Button, Card, Dialog } from "../ui";
 import { say } from "../core/client";
+import { CardFromLine, NoWithReason } from "./CardBits";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -22,7 +23,7 @@ const EFFECT: Record<string, string> = {
   send: "Reaches someone: it asks every time",
 };
 
-export function ActionCard({ action, client, onDecided, compact }: { action: Action; client: Client; onDecided: (note: string) => void; compact?: boolean }) {
+export function ActionCard({ action, client, onDecided, compact, by, from }: { action: Action; client: Client; onDecided: (note: string) => void; compact?: boolean; by?: string | null; from?: CardFrom }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -69,7 +70,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
   const badge = open ? (action.effect === "send" ? "Send?" : "Make?") : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Not now" : "Approved";
 
   return (
-    <Card className={`need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`} eyebrow={action.effect === "send" ? "Alpha would send" : "Alpha would prepare"} title={action.title} badge={<span className={`badge ${action.state === "failed" ? "badge--failed" : action.state === "done" ? "badge--good" : "badge--waiting"}`}>{badge}</span>}>
+    <Card className={`need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`} eyebrow={`${by ?? "Alpha"} would ${action.effect === "send" ? "send" : "prepare"}`} title={action.title} badge={<span className={`badge ${action.state === "failed" ? "badge--failed" : action.state === "done" ? "badge--good" : "badge--waiting"}`}>{badge}</span>}>
       <p className="because">
         <b>{action.effect === "send" ? "Sends" : "Prepares"}</b> on {action.site} · {EFFECT[action.effect]} · {when(action.created_at)}
       </p>
@@ -154,13 +155,12 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
               <Button disabled={busy} onClick={() => setEditing(true)}>
                 Change
               </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Left it.")}>
-                Not now
-              </Button>
+              <NoWithReason disabled={busy} onNo={(reason) => void act(() => client.declineAction(action.id, reason), "Left it.")} />
             </>
           )}
         </div>
       ) : null}
+      <CardFromLine from={from} />
       {error ? <p className="notice">{error}</p> : null}
     </Card>
   );

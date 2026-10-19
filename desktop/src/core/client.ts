@@ -461,6 +461,36 @@ export interface Permission {
   granted_at: string;
 }
 
+/** Where a card came from (P3): who drafted it (an agent's name; none for Alpha), the run it
+ *  came from and when that began, the task it is for, and the outside pages it rests on. */
+export interface CardFrom {
+  by: string | null;
+  run_at: string | null;
+  task: { id: string; title: string | null } | null;
+  rests_on: { text: string; url?: string | null }[];
+  twins: number;
+}
+
+/** One card (P3): anything that waited on the person, with its state. */
+export interface DecisionCard {
+  id: string;
+  kind: string;
+  text: string;
+  state: "waiting" | "answered" | "yes" | "edited" | "no" | "allowed" | "skipped" | "withdrawn";
+  reason: string | null;
+  answer: string | null;
+  drafter: string;
+  thread: string | null;
+  module: string | null;
+  task: string | null;
+  created_at: string;
+  decided_at: string | null;
+  from: CardFrom;
+}
+
+/** A No says why, in one tap (P3); the core keeps the same six. */
+export const REASONS = ["Wrong place", "Duplicate", "Not needed", "Bad timing", "Wrong recipient", "Something else"] as const;
+
 export interface NeedItem {
   kind: "ask" | "proposal" | "fact" | "action" | "workflow";
   id: string;
@@ -476,6 +506,9 @@ export interface NeedItem {
   module?: string | null;
   action?: Action;
   workflow?: Workflow;
+  /** The agent that drafted it, and where it came from (P3). */
+  by?: string | null;
+  from?: CardFrom;
 }
 
 export interface CalendarItem {
@@ -894,6 +927,8 @@ export interface Ask {
   hint?: string | null;
   /** The agent whose run asked it (Q92); none when Alpha asked. */
   by?: string | null;
+  /** Where it came from (P3). */
+  from?: CardFrom;
 }
 
 /** One event of a turn pushed by the core as it happens (`/api/turns/{id}/events`). */
@@ -1333,7 +1368,7 @@ export class Client {
   answerAsks = (answers: Record<string, string>) => this.call<{ answered: string[]; turn: Turn | null; agent?: string }>("POST", "/api/asks/answer", { answers });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
   approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
-  declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);
+  declineAction = (id: string, reason?: string) => this.call<Action>("POST", `/api/actions/${id}/decline`, { reason: reason ?? null });
   editAction = (id: string, payload: Record<string, string>) => this.call<Action>("PATCH", `/api/actions/${id}`, { payload });
   revokePermission = (id: string) => this.call<Permission>("POST", `/api/permissions/${id}/revoke`);
   /** A screenshot of an action, as an object URL the caller revokes. */
@@ -1344,9 +1379,13 @@ export class Client {
   };
   agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
     this.call<Workflow>("POST", `/api/workflows/${id}/agree`, suggestions || answers ? { suggestions, answers } : undefined);
-  declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
+  declineWorkflow = (id: string, reason?: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`, { reason: reason ?? null });
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
-  decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null; open?: string | null }>("POST", `/api/proposals/${id}/decide`, { accept });
+  decideProposal = (id: string, accept: boolean, reason?: string) => this.call<{ decided: string; turn: Turn | null; open?: string | null }>("POST", `/api/proposals/${id}/decide`, { accept, reason: reason ?? null });
+  /** Activity's Decisions (P3): every card, newest first. */
+  decisions = (limit = 100) => this.call<DecisionCard[]>("GET", `/api/decisions?limit=${limit}`);
+  /** A task's cards (P3): its page's Approvals. */
+  taskCards = (id: string) => this.call<{ task: string; cards: DecisionCard[] }>("GET", `/api/tasks/${encodeURIComponent(id)}/cards`);
   /** What Alpha knows, changed by the person (13 Oct, slice 2 D1, D11, D1b). */
   correctFact = (id: string, value: string) => this.call<Fact>("POST", `/api/facts/${encodeURIComponent(id)}/correct`, { value });
   forgetFact = (id: string) => this.call<Fact>("DELETE", `/api/facts/${encodeURIComponent(id)}`);

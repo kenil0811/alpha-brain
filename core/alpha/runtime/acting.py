@@ -207,10 +207,12 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
     return perform(world, action_id, browser=browser, runner=runner, repair=repair)
 
 
-def decline(world: World, action_id: str) -> dict[str, Any]:
+def decline(world: World, action_id: str, reason: str | None = None) -> dict[str, Any]:
+    """The person's no, with its reason when they gave one (P3): kept on the card."""
     action = world.actions.decline(action_id)
     if action.get("proposal"):
-        world.journal.answer_proposal(action["proposal"], False, action=action_id)
+        world.journal.answer_proposal(action["proposal"], False, action=action_id,
+                                      **({"reason": reason} if reason else {}))
     return action
 
 

@@ -1,0 +1,71 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I set up a **Deal list** in a new Deals module. It has two columns: the firm's name and the asking price. It's empty for now.\n\nTo add a deal, tell me something like \"Acme Ltd, asking 2.5m\". The price is stored as a plain number with no currency, so tell me if you want one set, like £ or $.",
+    "steps": 3,
+    "seconds": 21.1
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I added **Midwest HVAC** to your deal list at an asking price of 900,000. It's the first deal on the list. No currency is set yet, so tell me if you want one, like $ or £.",
+    "steps": 2,
+    "seconds": 12.2
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "I made **Deal Analyst** in your Deals module. It doesn't run on a schedule. It only works when you give it a task.\n\nWhen you give it a task, it will:\n1. **Find the deal's row** by the firm's name. If it can't tell which deal you mean, it asks you.\n2. **Work the task out** from what the row holds. It looks up public facts and names the source, and it never guesses.\n3. **Save what it found on the row**, with where each value came from: a web address, \"worked out from the row\", or \"estimated\". If it needs a column that doesn't exist yet, it adds one. It never overwrites a value you entered yourse",
+    "steps": 2,
+    "seconds": 18.4
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task **\"Ask the broker for 3 years of P&L\"** to Midwest HVAC in your Deal list. It's assigned to the **Deal Analyst**, which has started and will begin within about half a minute. You can follow its progress on the task's page.\n\nThe deal's row only has the firm's name and the asking price, so it doesn't say who the broker is. The Deal Analyst will probably ask you for the broker's name and email. It also can't send anything on its own. Any message to the broker will come to you as a draft first, and nothing goes out until you approve it.",
+    "steps": 3,
+    "seconds": 15.6
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 24.8
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC (name and email)? I have a request for 3 years of P&L drafted (in the Deals notes), and I need to know who it goes to before ",
+    "ok": true,
+    "detail": "{\"answered\":\"j_5d8007ca034a\",\"turn\":null,\"agent\":\"a_709fb6388786\"}",
+    "seconds": 42.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: I saved Kenil Shah (kenilshah081198@gmail.com) as the broker on the Midwest HVAC row, adding two fields to the Deal list for this, and addressed the P&L request note to him. Nothing was sent.\n\nThe tas",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 134.4,
+  "error": null
+ }
+]

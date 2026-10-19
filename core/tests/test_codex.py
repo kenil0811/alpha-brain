@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from alpha import config
 from alpha.api.server import create_app
 from alpha.runtime import claude_account, codex_account, codex_cli, engine, route
 from alpha.runtime.running import LIVE, NO_ANSWER, RunResult, TurnRequest
@@ -50,7 +51,9 @@ def test_the_codex_command_line_and_instructions(world: World, monkeypatch: Any,
     args = codex_cli.argv(_req(world), tmp_path, tmp_path / "last.txt", binary="codex")
     assert args[:3] == ["codex", "exec", "--json"]
     assert "--ignore-user-config" in args and "--ephemeral" in args and "read-only" in args
-    assert 'approval_policy="never"' in args and 'model_reasoning_effort="medium"' in args
+    # the turn's effort is the one models.toml gives the turn's class (Kenil moves it, 19 Oct)
+    effort = config.chatgpt_effort(config.model_for("turn"))[1]
+    assert 'approval_policy="never"' in args and f'model_reasoning_effort="{effort}"' in args
     assert args[args.index("-m") + 1] == "gpt-5.5"
     env = next(a for a in args if a.startswith("mcp_servers.alpha.env="))
     assert f'ALPHA_WORLD="{world.path}"' in env and 'ALPHA_TURN="j_1"' in env
@@ -63,7 +66,8 @@ def test_the_codex_command_line_and_instructions(world: World, monkeypatch: Any,
     assert "--ephemeral" not in live and live[-3:] == ["resume", "thr_1", "log two eggs"]
     assert codex_cli.instructions(_req(world)).startswith("You are Alpha. Work only through")
     assert codex_cli.instructions(_req(world, kind="judge")) == "RULES\n\nPACK"
-    assert codex_cli.model_for(_req(world, model="gpt-5-mini")) == ("gpt-5-mini", "medium")
+    usual = config.models.chatgpt_effort[config.models.chatgpt_default]
+    assert codex_cli.model_for(_req(world, model="gpt-5-mini")) == ("gpt-5-mini", usual)
 
 
 def test_codex_events_become_a_result(world: World) -> None:

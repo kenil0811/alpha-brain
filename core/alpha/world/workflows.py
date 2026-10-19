@@ -333,6 +333,11 @@ class Workflows:
                 f"UPDATE workflows SET state = ?{', ' + sets if sets else ''}, updated_at = ?"
                 f" WHERE id = ? AND state IN ({marks})",
                 (to, *fields.values(), now(), wid, *when)).rowcount
+            if moved and to in ("agreed", "declined"):
+                # the page's card (P3): its yes or no is the decision
+                db.execute("UPDATE cards SET state = ?, decided_at = ?, decided_by = 'person'"
+                           " WHERE ref = ? AND kind = 'workflow' AND state = 'waiting'",
+                           ("yes" if to == "agreed" else "no", now(), wid))
         if not moved:
             wf = self.get(wid)
             raise Problem(f"The workflow '{wf['title']}' is {wf['state']}, not"
