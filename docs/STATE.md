@@ -21,7 +21,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - The calendar had marked all 28 events removed after one empty read; the next sync put them back. Fixed (Q101): a removal needs a second, fresh read to agree. Proven by tests only; the app's next sync is the real check.
   - **His second look (22:58):** "log my lunch" was guessed and logged (a paneer wrap, "estimated"): B1's paragraph 3 had dropped his "or asked". Restored on his word ("What only the person can know is asked."), with `snapshot` off brought forward from step 2 so open sessions get it. On copies of his world: 8 of 8 runs guessed nothing, 7 of 8 asked on a card. The guessed row is still in his food log, for him to change or remove.
   - **Next:**
-    - his third look (23:11 BST): "The four tries look right in my app"; committed on his word;
+    - his third look (23:11 BST): "The four tries look right in my app"; committed as `8d88bbe` on his word;
     - then step 2 (B2's content, B4, B5).
     - His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
@@ -94,7 +94,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 - 431 core tests, 238 desktop tests; lint and types clean.
 - 70 tools; 47 journeys defined.
 - Core 29,050 lines, tests 11,230, desktop 21,476.
-- 296 commits before this one.
+- 297 commits.
 
 ## What is built, against the design's order of work
 

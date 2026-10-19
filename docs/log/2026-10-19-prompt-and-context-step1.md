@@ -318,4 +318,5 @@ His Home conversation and 12 work items had sessions made under the old prompt.
 After the restart he tried the four sentences in his app: "log my lunch", correcting the
 guessed row, a removal, and the Monthly P&L's columns. His word: "The four tries look right in
 my app." Steps 0 and 1 are accepted, with Q100, Q101 and the restored paragraph 3. Committed
-on his word ("Commit steps 0 and 1 with the fixes and their docs to main").
+on his word ("Commit steps 0 and 1 with the fixes and their docs to main"): `8d88bbe`, all
+checks clean (431 core, 238 desktop, lint and types).
