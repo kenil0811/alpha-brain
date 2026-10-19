@@ -6,22 +6,22 @@
 
 [claude]
 # the person's turns, an agent's runs, builds, repairs: the work with the world as tools
-turn = "sonnet"
+turn = "opus"
 # the System One seam: routing, Watson's passes, asking's parser, connecting; small, no tools
-judge = "haiku"
+judge = "sonnet"
 # the second opinion's independent answer: the same model as the turn, web search only
-independent = "sonnet"
+independent = "opus"
 # Watson's one-off refiling of the facts kept before it: a wrong move loses a fact, so the
 # turn's model, not the small one (16 Oct: Haiku called the person's weight "passing state")
-refile = "sonnet"
+refile = "opus"
 # the route's trial that one real tool call comes back: the smallest model that can call a tool
-trial = "haiku"
+trial = "sonnet"
 # the look at a page the model drew (slice 7b): one image read, six rules; the small model has eyes
-look = "haiku"
+look = "sonnet"
 
 [chatgpt]
 # the Claude alias the ChatGPT route starts from when nothing says; it becomes an effort below
-default = "sonnet"
+default = "opus"
 
 [chatgpt.effort]
 # a Claude alias as a reasoning effort on the person's own Codex model
