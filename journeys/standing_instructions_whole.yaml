@@ -1,0 +1,29 @@
+name: standing_instructions_whole
+title: "Standing instructions longer than a paragraph are given whole"
+why: >
+  Section B, B2 (Q99, 19 Oct 2026): the pre-pack clipped the standing instructions (ALPHA.md) at
+  800 characters. The start layer gives them whole, so an instruction past the 800th character
+  is known and honoured.
+fresh: true
+steps:
+  - seed:
+      kind: note
+      title: Standing instructions
+      body: |
+        - Write to me in British English, plainly, without exclamation marks.
+        - When I log food, estimate the macros from the label if there is one, else from a standard source, and say which.
+        - Keep my deal list sorted by asking price, highest first, whenever you show it.
+        - When you send anything outward, show me the final text first unless I said to send it as it is.
+        - Never book anything on my calendar before 9 in the morning or after 7 in the evening.
+        - When a reader breaks, tell me once, in one line, and fix it before telling me again.
+        - Summaries of a document come as five bullets at most, each under twenty words.
+        - Dates are written as 19 Oct 2026, never as numbers alone.
+        - When I ask how I am doing on a goal, give the number against the target, not a judgement.
+        - Keep anything about my health out of anything shared with other people.
+        - When I mention a person for the first time, ask whether to keep them as a contact.
+        - Every Friday's weekly review leads with what slipped, then what moved.
+  - say: "what are my standing instructions about Friday's weekly review and about dates?"
+checks:
+  - judge:
+      rubric: "Passes if the answer says that Friday's weekly review leads with what slipped, then what moved, and that dates are written like 19 Oct 2026, never as numbers alone. Fails if it misses either, says it has no instructions about them, or contradicts them."
+      facts: "The person's standing instructions (ALPHA.md) are twelve lines; the last three are: anything about health is kept out of what is shared; a person mentioned for the first time: ask whether to keep them as a contact; every Friday's weekly review leads with what slipped, then what moved. Another line says dates are written as 19 Oct 2026, never as numbers alone."

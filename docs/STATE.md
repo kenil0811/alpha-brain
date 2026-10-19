@@ -5,25 +5,20 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
 **As of 19 October 2026, night.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
-- **The prompt and the context (B1–B8; Q99): steps 0 and 1 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md), his spec word for word, all nine questions as recommended).
-  - **Found first:** a resumed SDK session keeps its first turn's system prompt (the preset's `snapshot`). So since 17 Oct, every turn after a conversation's first had that first turn's pre-pack.
-  - **Step 0:** every reply records input, cache read, cache made and output apart; `just turns` prints them with time to first words. The "before" journeys ran on S1 with step 0, frozen.
-  - **Step 1:**
-    - turn.md is six short paragraphs (147 words, from 841), and the system prompt is fixed;
-    - the world rides on the sentence through the SDK's hooks: the start layer when a session is new and after a compaction, the turn layer (a few lines) every sentence;
-    - the conversation's copy, the day's turns and the entity cards' bodies are gone from what is given.
-  - **Journeys:**
-    - before: all seven passed;
-    - step 1: all twelve now pass. Three needed a sentence each in a hand's docstring (Q100: `ask_person`, `world_change`, `world_query`'s `people`), and one a fix to the suite's judge.
-    - From the second turn on, less is written to the cache (14k → 9k); first words aren't sooner yet.
-  - **His first look (22:40):**
-    - "log my lunchy" came as prose: with tool search on, `ask_person` was a bare name the model never opened. Fixed (Q101): the four hands that put a card to the person are always loaded. Proven on a real turn, and `question_card` passed three times.
-    - The calendar had marked all 28 events removed after one empty read; the next sync put them back. Fixed (Q101): a removal needs a second, fresh read to agree. Proven by tests only; the app's next sync is the real check.
-  - **His second look (22:58):** "log my lunch" was guessed and logged (a paneer wrap, "estimated"): B1's paragraph 3 had dropped his "or asked". Restored on his word ("What only the person can know is asked."), with `snapshot` off brought forward from step 2 so open sessions get it. On copies of his world: 8 of 8 runs guessed nothing, 7 of 8 asked on a card. The guessed row is still in his food log, for him to change or remove.
-  - **Next:**
-    - his third look (23:11 BST): "The four tries look right in my app"; committed as `8d88bbe` on his word;
-    - then step 2 (B2's content, B4, B5).
-    - His three "feels dumb" sentences come separately.
+- **The prompt and the context (B1–B8; Q99): steps 0, 1 and 2 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md), [`log/2026-10-19-prompt-and-context-step2.md`](log/2026-10-19-prompt-and-context-step2.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)).
+  - **Found first:** a resumed SDK session kept its first turn's system prompt, so since 17 Oct every turn after a conversation's first had a stale pre-pack. Now `snapshot` is off and the prompt is fixed.
+  - **Steps 0–1 (`8d88bbe`):**
+    - tokens kept apart per turn;
+    - turn.md in Kenil's six paragraphs (155 words), with paragraph 3's "asked" restored after a guessed lunch;
+    - the world on the sentence (the start layer once per session and after a compaction, a few lines with every sentence);
+    - Q100: three docstring sentences;
+    - Q101: the four card hands always loaded, and a calendar removal confirmed by a second read.
+  - **Step 2:**
+    - the start layer gives ALPHA.md, the permissions and NOTES.md whole, and a map without fields (world_query's `fields` view has them);
+    - the checkpoint rides in a fresh session's start layer;
+    - `context/prepack.py` and its limits are deleted for `context/layers.py`.
+    - His word after the restart: "ok looks good". Journeys: the three new ones passed (instructions whole, a day's journal, fields from the view); `remove_asks` failed only on its reply's wording.
+  - **Next:** step 3 (B6 compaction guidance and a fresh checkpoint; B7 agents' runs on the layers), being built; the other 33 journeys run on a frozen copy of step 2. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
@@ -89,12 +84,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 19 Oct night, section B step 1 built)
+## Numbers (`just stats`, 19 Oct night, section B step 2 built)
 
-- 431 core tests, 238 desktop tests; lint and types clean.
-- 70 tools; 47 journeys defined.
-- Core 29,050 lines, tests 11,230, desktop 21,476.
-- 297 commits.
+- 432 core tests, 238 desktop tests; lint and types clean.
+- 70 tools; 50 journeys defined.
+- Core 29,005 lines, tests 11,262, desktop 21,476.
+- 298 commits before step 2.
 
 ## What is built, against the design's order of work
 

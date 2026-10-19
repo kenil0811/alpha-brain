@@ -1,7 +1,8 @@
 """Run one model turn through OpenAI's Codex CLI on the person's ChatGPT subscription (Q32).
 
-`codex exec` gets the sentence as its prompt; Alpha's rules and pre-pack go in as `AGENTS.md`
-in the run's own temporary folder, which is how Codex takes standing instructions; the world
+`codex exec` gets the sentence as its prompt; Alpha's rules and the layers of what it is given
+(the start layer on a new session, the turn layer always; section B) go in as `AGENTS.md` in the
+run's own temporary folder, which is how Codex takes standing instructions; the world
 goes in as an MCP server through config overrides (no file), with the turn, thread and module in
 its environment. The person's own Codex configuration never loads (`--ignore-user-config`: none
 of their plugins or servers), the sandbox is read-only and approvals are never asked, so a run
@@ -48,11 +49,14 @@ REFUSED = "Codex refused the call under its own approval gate (\"user cancelled 
 
 
 def instructions(req: TurnRequest) -> str:
-    """What goes into AGENTS.md: the guard for the kind of run, then the request's system."""
+    """What goes into AGENTS.md: the guard for the kind of run, the request's system, then the
+    layers Claude's route gives through its hooks (Codex has none): the start layer when the
+    run is not resumed, the turn layer always."""
     if req.kind == "judge":
         return req.system
     guard = config.prompt("codex_independent_guard" if req.kind == "independent" else "codex_guard")
-    return f"{guard}\n\n{req.system}"
+    layers = [req.turn_layer] if req.resume else [req.start_layer, req.turn_layer]
+    return "\n\n".join(part for part in (guard, req.system, *layers) if part)
 
 
 def _toml_string(value: str) -> str:

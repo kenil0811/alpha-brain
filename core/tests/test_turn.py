@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.runtime.running import RunResult, TurnRequest
 from alpha.runtime.turn import ask, timings
 from alpha.world.world import World
@@ -55,18 +55,20 @@ def test_what_the_model_saw_is_kept_with_dates(world: World) -> None:
     assert re.match(r"- (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d ", line)
 
 
-def test_prepack_states_the_clock_and_emptiness(world: World) -> None:
-    text = prepack.build(world, "anything")
+def test_the_layers_state_the_clock_and_emptiness(world: World) -> None:
+    text = layers.given(world, "anything")
     assert "Today's date is" in text and "created_at >=" in text
     assert "Nothing yet: no modules, no tables." in text
     assert "WORK ITEMS" in text and "- None open." in text
 
 
-def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its_budget(
+def test_the_start_layer_maps_tables_without_fields_and_gives_instructions_whole(
         world: World) -> None:
-    """A data question is one query, not a describe and a query (3 Oct: every such turn paid
-    the step); a long section says what it left out instead of the tail being cut blind."""
+    """B2 and B4: the map names each table with its rows, the fields are one query away; the
+    standing instructions (ALPHA.md) are given whole, however long; nothing is cut for room."""
     from conftest import building
+
+    from alpha.world import queries
 
     t = building(world)
     module = t.module_create("Nutrition", "eat well")["id"]
@@ -75,23 +77,31 @@ def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its
                                            "choices": ["Breakfast", "Lunch"]},
         {"name": "item", "kind": "text"}, {"name": "calories", "kind": "number", "unit": "kcal"},
         {"name": "client", "kind": "relation", "relation": "clients"}], module=module)
-    text = prepack.build(world, "how much did I eat")
-    assert "WHAT ALPHA HOLDS (each table with its fields: query it straight away)" in text
-    assert ("  food_log (0 rows): date date, meal choice[Breakfast|Lunch], item,"
-            " calories number kcal, client relation->clients") in text
-    assert f"- Module Nutrition ({module}) — eat well" in text
+    text = layers.given(world, "how much did I eat")
+    assert f"- Module Nutrition ({module}) — eat well: food_log (0 rows)" in text
+    assert "meal choice" not in text and "calories number" not in text
+    fields = queries.query(world.path, "SELECT field, kind, unit, choices, relation FROM fields"
+                           " WHERE table_name = 'food_log'")["rows"]
+    assert [f["field"] for f in fields] == ["date", "meal", "item", "calories", "client"]
+    assert fields[3]["unit"] == "kcal" and fields[4]["relation"] == "clients"
+    assert "Breakfast" in str(fields[1]["choices"])
+    # the standing instructions whole: 1,200 characters, the last line given too
+    rules = "\n".join(f"- rule {i}: " + "always say it plainly " * 3 for i in range(16))
+    world.knowledge.write_note("person", "Standing instructions", rules + "\n- last: no emoji",
+                               source="stated")
+    start = layers.start_layer(world)
+    assert len(rules) > 800 and "- last: no emoji" in start
     # A long conversation is the session's: neither layer carries a copy of it (B3).
     home = world.modules.home_thread()["id"]
     for i in range(12):
         world.journal.append("said", f"turn {i} " + "words " * 80, actor="person", thread=home)
         world.journal.append("replied", f"reply {i} " + "words " * 80, thread=home)
-    assert "reply 11" not in prepack.build(world, "anything")
-    # A world with a long index still fits: the start layer shrinks by section, never cut short.
-    for i in range(300):
+    assert "reply 11" not in layers.given(world, "anything")
+    # A long index is given as it is: no budget, no cap, nothing left out for room (B5).
+    for i in range(150):
         world.knowledge.write_note(f"topic:t{i}", f"Topic {i}", "Body.", summary="s" * 120)
-    start = prepack.start_layer(world)
-    assert len(start) <= prepack.MAX_CHARS and "cut short" not in start
-    assert "lines left out for room" in start[start.index("WHAT ALPHA KNOWS"):]
+    start = layers.start_layer(world)
+    assert "Topic 149" in start and "left out for room" not in start and "cut short" not in start
 
 
 def test_turn_timings_are_measured_from_the_journal(world: World) -> None:

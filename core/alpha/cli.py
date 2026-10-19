@@ -6,7 +6,7 @@
     alpha tables
     alpha show food_log [--limit 20]
     alpha notes
-    alpha prepack "how much protein today" [--module Food]
+    alpha layers "how much protein today" [--module Food]
     alpha context j_turn            (what the model saw for that turn)
     alpha turns [--limit 40]        (how long the last turns took: wall, model, steps)
     alpha check [j_turn] [--no-repair]   (Columbo: a reply against an independent answer
@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 import alpha.mcp.tools  # noqa: F401  (wires the world's tools into the SDK engine, every command)
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.runtime import turn
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -80,8 +80,8 @@ def main(argv: list[str] | None = None) -> int:
                             " answer and against the person's world")
     p.add_argument("turn", nargs="?", help="the turn's journal id; default: the last one")
     p.add_argument("--no-repair", action="store_true", help="only judge; don't let Alpha fix")
-    p = sub.add_parser("prepack", help="print what a new session is given with a sentence:"
-                                       " the start layer, then the turn layer")
+    p = sub.add_parser("layers", help="print what a new session is given with a sentence:"
+                                      " the start layer, then the turn layer")
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
     sub.add_parser("mcp", help="run the MCP server (stdio)")
@@ -304,8 +304,8 @@ def main(argv: list[str] | None = None) -> int:
 
             print(json.dumps(remove_module(world, args.module)))
             return 0
-        if args.command == "prepack":
-            print(prepack.build(world, " ".join(args.text), module=args.module))
+        if args.command == "layers":
+            print(layers.given(world, " ".join(args.text), module=args.module))
             return 0
         if args.command == "check":
             from alpha.runtime.agents import builtin, columbo

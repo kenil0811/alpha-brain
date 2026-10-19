@@ -53,7 +53,7 @@ core/alpha/
   world/        the store and the tables, one module per kind of thing (journal, collections,
                 entities, knowledge (facts, pages, goals), skills, agents, decisions, workflows, actions,
                 sources, modules, purge). No model, no HTTP, no browser here.
-  context/      what the model is given: the pre-pack (prepack.py) and module summaries.
+  context/      what the model is given: the start and turn layers (layers.py).
   runtime/      how a run happens: claude_cli (the model boundary), turn, workflow_build and
                 parts (the build from the page and what runs on rows), workspace and proxy (the
                 walls), pipeline, acting, agents (the runner and the scheduler), conversations, judge (the

@@ -181,8 +181,8 @@ def test_a_page_has_an_index_line_and_grows_under_a_heading(world: World) -> Non
     assert k.index()[0]["summary"] == "Had coffee."  # the first line of text, not the heading
 
 
-def test_the_prepack_carries_the_index_and_a_card_for_whoever_is_named(world: World) -> None:
-    from alpha.context import prepack
+def test_the_layers_carry_the_index_and_a_line_for_whoever_is_named(world: World) -> None:
+    from alpha.context import layers
 
     k = world.knowledge
     k.write_note("topic:cooking", "Cooking", "Batch on Sundays.", summary="How Kenil cooks")
@@ -194,27 +194,27 @@ def test_the_prepack_carries_the_index_and_a_card_for_whoever_is_named(world: Wo
                      "3 Oct 2026: Is moving to Bangalore.")
     world.journal.append("said", "promised Vikas the model", actor="person",
                          entity_ids=[vikas["id"]])
-    text = prepack.build(world, "what's going on with vikas these days?")
+    text = layers.given(world, "what's going on with vikas these days?")
     assert "WHAT ALPHA KNOWS" in text and "[topic:cooking] Cooking: How Kenil cooks" in text
     assert "WHO THE SENTENCE NAMES" in text
     # one line each with its id; the card itself is one query away (B3, B4)
-    named = prepack.section_of(text, "WHO THE SENTENCE NAMES")
+    named = layers.part_of(text, "WHO THE SENTENCE NAMES")
     assert named == f"- Vikas Badami (person, {vikas['id']})"
-    assert "WHO THE SENTENCE NAMES" not in prepack.build(world, "what did I eat today?")
+    assert "WHO THE SENTENCE NAMES" not in layers.given(world, "what did I eat today?")
     # A first name alone finds a person; a three-letter word does not match by accident.
-    assert prepack.entities_named(world, "coffee with vikas")[0]["id"] == vikas["id"]
-    assert prepack.entities_named(world, "vik and the rest") == []
+    assert layers.entities_named(world, "coffee with vikas")[0]["id"] == vikas["id"]
+    assert layers.entities_named(world, "vik and the rest") == []
 
 
 def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
     from datetime import UTC, datetime, timedelta
 
-    from alpha.context import prepack
+    from alpha.context import layers
 
     now = datetime(2026, 10, 3, 14, 0, tzinfo=UTC)
 
     def named(sentence: str) -> tuple[str, str, str]:
-        window = prepack.day_named(sentence, now)
+        window = layers.day_named(sentence, now)
         assert window is not None
         return window
 
@@ -230,7 +230,7 @@ def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
     assert datetime.fromisoformat(u) - datetime.fromisoformat(s) == timedelta(days=7)
     assert named("on Tuesday I said")[2] == "tuesday"
     assert named("how much protein today")[2] == "today"
-    assert prepack.day_named("what is my protein target", now) is None
+    assert layers.day_named("what is my protein target", now) is None
     # The window reaches the journal: yesterday's exchange is in the pack, dated.
     said = world.journal.append("said", "remind me that i promised vikas the financial model"
                                         " by friday", actor="person")
@@ -240,8 +240,8 @@ def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
     with world.store.tx() as db:
         db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (yesterday, said, replied))
     # the window reaches the journal's matches: yesterday's line, dated, with its id
-    text = prepack.turn_layer(world, "what did i say about vikas yesterday?")
-    matches = prepack.section_of(text, "MATCHES FOR THIS SENTENCE")
+    text = layers.turn_layer(world, "what did i say about vikas yesterday?")
+    matches = layers.part_of(text, "MATCHES FOR THIS SENTENCE")
     assert f"said ({said}): remind me that i promised [vikas]" in matches
     assert world.journal.between(yesterday[:10], "2999")[0]["id"] == said
     assert world.journal.search("vikas", since="2999") == []

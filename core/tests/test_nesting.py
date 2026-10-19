@@ -7,7 +7,7 @@ from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.context.graph import work_graph
 from alpha.mcp.tools import Tools
 from alpha.world.purge import remove_module
@@ -74,16 +74,17 @@ def test_a_parents_page_summary_and_activity_reach_what_it_holds(world: World) -
     assert convo["conversation"]["scope"] == "Job › Search"
 
 
-def test_the_pack_and_the_map_show_the_tree(world: World) -> None:
+def test_the_start_layer_and_the_map_show_the_tree(world: World) -> None:
     job, search, resume = _job(world)
-    text = prepack.build(world, "anything", module=search)
+    text = layers.given(world, "anything", module=search)
     held = text[text.index("WHAT ALPHA HOLDS"):text.index("WHAT ALPHA CAN REACH")]
     lines = held.splitlines()
     assert lines[1].startswith(f"- Module Job ({job}) — a founding engineer role, holds Resume,"
                                " Search: no tables of its own")
-    assert lines[2].startswith(f"  - Module Search ({search})")  # the sentence's own module first
-    assert lines[3].startswith("    openings (0 rows): title")
-    assert lines[4].startswith(f"  - Module Resume ({resume})")
+    # the sentence's own module first, each with its tables on its line (B2: no fields)
+    assert lines[2].startswith(f"  - Module Search ({search})")
+    assert lines[2].endswith(": openings (0 rows)")
+    assert lines[3].startswith(f"  - Module Resume ({resume})")
     g = work_graph(world, [])
     assert {"from": f"module:{search}", "to": f"module:{job}", "kind": "in"} in \
         [{k: e[k] for k in ("from", "to", "kind")} for e in g["edges"]]

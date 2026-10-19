@@ -56,7 +56,7 @@ from fastapi.testclient import TestClient
 
 from alpha import config
 from alpha.api.server import create_app
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.mcp.tools import Tools
 from alpha.runtime import (
     acting,
@@ -383,7 +383,9 @@ class Run:
             # Something that was true before the journey began: a past exchange, a fact.
             seed = spec["seed"]
             if seed.get("kind") == "turn":
-                days = int(str(seed.get("ago", "1d")).rstrip("d"))
+                # `day: tuesday` is the last such day before today; else `ago: 2d`
+                days = (_days_since(str(seed["day"])) if seed.get("day")
+                        else int(str(seed.get("ago", "1d")).rstrip("d")))
                 at = (dt.now(UTC) - timedelta(days=days)).replace(microsecond=0).isoformat()
                 said = self.world.journal.append("said", seed["said"], actor="person")
                 replied = self.world.journal.append("replied", seed["replied"],
@@ -446,6 +448,12 @@ class Run:
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            elif seed.get("kind") == "note":
+                # a note the person wrote (their standing instructions are ALPHA.md's), whole
+                self.world.knowledge.write_note(seed.get("scope", "person"), seed["title"],
+                                                str(seed["body"]).strip(), source="stated")
+                record = {"seed": f"note {seed['title']} ({len(str(seed['body']))} characters)",
+                          "ok": True}
             else:
                 raise Problem(f"Unknown seed: {seed}")
             # Seeds are not the journey's own work: move the mark past them.
@@ -852,9 +860,9 @@ class Run:
         return True, "The reply reads as expected."
 
     def _given(self, turn_id: str, title: str, cap: int = 1_500) -> str:
-        """One section of what the model was given for a turn (the pre-pack kept with it)."""
+        """One part of what the model was given for a turn (the layers kept with it)."""
         kept = self.world.journal.context(turn_id)
-        return prepack.section_of(str(kept["context"]) if kept else "", title)[:cap]
+        return layers.part_of(str(kept["context"]) if kept else "", title)[:cap]
 
     def check_judge(self, arg: Any) -> tuple[bool, str]:
         rubric = arg if isinstance(arg, str) else arg["rubric"]
@@ -1256,6 +1264,13 @@ class Run:
         noun = "entry" if len(entries) == 1 else "entries"
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
+
+
+def _days_since(weekday: str) -> int:
+    """How many days back the last `weekday` before today was (1 to 7)."""
+    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    today = dt.now().astimezone().weekday()
+    return (today - days.index(weekday.lower())) % 7 or 7
 
 
 def _days_from_now(words: str, *, time: bool = False) -> str:

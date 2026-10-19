@@ -1,0 +1,15 @@
+name: said_on_a_day
+title: "What was said on a named day is found in the journal"
+why: >
+  Section B, B4 (Q99, 19 Oct 2026): the pre-pack's WHAT WAS SAID <day> is gone; a day's
+  journal is one query on its `at` (world_query's words say so), and a named day still narrows
+  the journal's matches given with the sentence.
+fresh: true
+steps:
+  - seed: {kind: turn, day: tuesday, said: "the car wash in Leeds wants 850k but the bays need new pumps, so offer 760k at most", replied: "Noted: offer at most 760k for the Leeds car wash, since the bays need new pumps."}
+  - seed: {kind: turn, ago: 1d, said: "remind me to call the dentist", replied: "I'll remind you."}
+  - say: "what did I say about the car wash on Tuesday?"
+checks:
+  - judge:
+      rubric: "Passes if the answer says the person said the Leeds car wash wants 850k, the bays need new pumps, and to offer 760k at most, and places it on Tuesday. Fails if it says nothing was said, invents something else, or asks which car wash."
+      facts: "On Tuesday the person said: the car wash in Leeds wants 850k but the bays need new pumps, so offer 760k at most. Alpha replied that it noted it. Yesterday they asked to be reminded to call the dentist. Nothing else."

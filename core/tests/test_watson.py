@@ -198,7 +198,7 @@ def test_a_commitment_and_a_decision_are_filed_by_type_and_the_rest_stays_in_the
 def test_tasks_due_today_ride_with_the_sentence(world: World) -> None:
     from datetime import date, timedelta
 
-    from alpha.context import prepack
+    from alpha.context import layers
 
     soon = (date.today() + timedelta(days=3)).isoformat()
     later = (date.today() + timedelta(days=30)).isoformat()
@@ -208,7 +208,7 @@ def test_tasks_due_today_ride_with_the_sentence(world: World) -> None:
     today = date.today().isoformat()
     world.tasks.record("person", "pay the invoice", due=today, source="turn:x")
     # due today or overdue rides with the sentence (B3); the week is a query away
-    pack = prepack.turn_layer(world, "what's on this week?")
+    pack = layers.turn_layer(world, "what's on this week?")
     assert "DUE TODAY" in pack and "pay the invoice" in pack
     assert "send the deck" not in pack and "renew the lease" not in pack and "call mum" not in pack
     assert [c["title"] for c in world.tasks.due_within(7)] == ["pay the invoice", "send the deck"]

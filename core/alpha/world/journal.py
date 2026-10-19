@@ -276,7 +276,7 @@ class Journal:
         return out
 
     def keep_context(self, turn: str, context: str, rules: str) -> None:
-        """What the model was given for a turn: the pre-pack, and which rules (by hash)."""
+        """What the model was given for a turn: its layers, and which rules (by hash)."""
         with self.store.tx() as db:
             db.execute("INSERT OR REPLACE INTO turn_contexts (turn, at, context, rules)"
                        " VALUES (?,?,?,?)", (turn, now(), context, rules))

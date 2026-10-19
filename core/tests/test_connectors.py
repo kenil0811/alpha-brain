@@ -11,7 +11,7 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Attendee, Calendar, CalendarEvent
 from alpha.connectors.files import Files
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.mcp.tools import Tools
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
@@ -277,15 +277,15 @@ def test_calendar_without_access_needs_ok(world: World) -> None:
 # ---- the pre-pack and tools see it ----
 
 
-def test_prepack_shows_reach_calendar_and_documents(world: World, tmp_path: Path) -> None:
-    assert "No folder is granted for reading" in prepack.build(world, "x")
+def test_the_layers_show_reach_calendar_and_documents(world: World, tmp_path: Path) -> None:
+    assert "No folder is granted for reading" in layers.given(world, "x")
     Calendar(world, FakeCalendar()).connect()
     folder = tmp_path / "notes"
     folder.mkdir()
     (folder / "lumen.md").write_text("Lumen salary band 90 to 100k")
     Files(world).watch(str(folder))
     Files(world).sync()
-    text = prepack.build(world, "what is the lumen salary band")
+    text = layers.given(world, "what is the lumen salary band")
     assert "calendar: macos — connected" in text and "files:" in text
     assert "document" in text and "lumen.md" in text
     if datetime.now().astimezone().hour < 23:

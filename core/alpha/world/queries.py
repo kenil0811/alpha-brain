@@ -79,6 +79,18 @@ def _views(db: sqlite3.Connection) -> list[str]:
             # the person's tasks read as `tasks`, whatever tables they keep themselves
             db.execute(f"CREATE TEMP VIEW tasks AS SELECT * FROM {view}")
             made.append(f"tasks(id, {', '.join(fields)}, created_at, updated_at): the tasks")
+    # every table's fields, one row each: what the start layer no longer lists (B4, Q99);
+    # `table_name`, since `table` is SQL's own word and fails unquoted
+    db.execute("CREATE TEMP VIEW fields AS SELECT c.name AS table_name,"
+               " json_extract(f.value, '$.name') AS field,"
+               " json_extract(f.value, '$.kind') AS kind,"
+               " json_extract(f.value, '$.label') AS title,"
+               " json_extract(f.value, '$.unit') AS unit,"
+               " json_extract(f.value, '$.choices') AS choices,"
+               " json_extract(f.value, '$.relation') AS relation,"
+               " coalesce(json_extract(f.value, '$.required'), 0) AS required"
+               " FROM collections c, json_each(c.schema, '$.fields') f ORDER BY c.name, f.key")
+    made.append("fields(table_name, field, kind, title, unit, choices, relation, required)")
     return made
 
 

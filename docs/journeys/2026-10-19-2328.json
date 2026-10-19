@@ -1,0 +1,39 @@
+[
+ {
+  "name": "fields_from_the_view",
+  "title": "A table's fields come from world_query's fields view",
+  "steps": [
+   {
+    "seed": "table deals with 1 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what fields does my Deals table have?",
+    "ok": true,
+    "reply": "Your Deals table (in Deal Tracker) has 5 fields:\n\n| Field | Type |\n|---|---|\n| Business | Text |\n| Asking price | Number, in £ |\n| City | Text |\n| Stage | Choice: Looking, Offer made, Closed |\n| Broker email | Text |\n\nNone of them are required. The table has one deal in it so far.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 64604,
+    "tokens_cache_made": 12743,
+    "tokens_out": 298,
+    "first_text_ms": 9323,
+    "seconds": 12.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer lists the fields business, asking price (in £), city, stage (with its choices Looking, Offer made, Closed, or naming it a choice) and broker email, and nothing that isn't a field. Fails if it misses a field, invents one, or says it can't tell.",
+     "facts": "The Deals table (module Deal Tracker) has five fields: business (text), asking_price (number, £), city (text), stage (choice: Looking, Offer made, Closed), broker_email (text). It has one row, Harbour Car Wash."
+    },
+    "ok": true,
+    "why": "The answer lists all five fields (business, asking price in £, city, stage with its choices Looking/Offer made/Closed, and broker email), adds no extra fields, and agrees with what is true in the person's world.",
+    "seconds": 5.4
+   }
+  ],
+  "seconds": 18.1,
+  "error": null
+ }
+]

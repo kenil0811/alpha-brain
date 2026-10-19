@@ -1,0 +1,44 @@
+[
+ {
+  "name": "said_on_a_day",
+  "title": "What was said on a named day is found in the journal",
+  "steps": [
+   {
+    "seed": "6 day(s) ago: the car wash in Leeds wants 850k but the bays need new pumps",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "1 day(s) ago: remind me to call the dentist",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did I say about the car wash on Tuesday?",
+    "ok": true,
+    "reply": "On Tuesday 13 October you said the **Leeds car wash** is asking **£850k**, but the bays need new pumps, so you'd **offer 760k at most**.\n\nThat was only a note in the conversation. I haven't saved it anywhere as a deal or a target. I can start keeping track of it if you're pursuing it.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 89966,
+    "tokens_cache_made": 12669,
+    "tokens_out": 416,
+    "first_text_ms": 7063,
+    "seconds": 18.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer says the person said the Leeds car wash wants 850k, the bays need new pumps, and to offer 760k at most, and places it on Tuesday. Fails if it says nothing was said, invents something else, or asks which car wash.",
+     "facts": "On Tuesday the person said: the car wash in Leeds wants 850k but the bays need new pumps, so offer 760k at most. Alpha replied that it noted it. Yesterday they asked to be reminded to call the dentist. Nothing else."
+    },
+    "ok": true,
+    "why": "The answer puts the remark on Tuesday 13 October and includes all three rubric facts: the Leeds car wash wants 850k, the bays need new pumps, and the offer is 760k at most. Adding £ to the 850k is a minor embellishment and does not invent anything else.",
+    "seconds": 6.0
+   }
+  ],
+  "seconds": 24.8,
+  "error": null
+ }
+]

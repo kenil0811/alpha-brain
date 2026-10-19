@@ -34,7 +34,7 @@ from urllib.parse import urlparse
 
 from alpha import config
 from alpha.config import settings
-from alpha.context.prepack import section_of
+from alpha.context.layers import part_of
 from alpha.runtime import route, turn, value_sources
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
 from alpha.runtime.running import RunResult, TurnRequest
@@ -373,10 +373,10 @@ def _held_for_turn(world: World, turn_id: str, records: list[dict[str, Any]]) ->
     kept = world.journal.context(turn_id)
     context = str(kept["context"]) if kept else ""
     held: list[str] = []
-    matches = section_of(context, "MATCHES FOR THIS SENTENCE")
+    matches = part_of(context, "MATCHES FOR THIS SENTENCE")
     if matches:
         held.append("Matches for the sentence (before this turn):\n" + matches[:2500])
-    named = section_of(context, "WHO THE SENTENCE NAMES")
+    named = part_of(context, "WHO THE SENTENCE NAMES")
     if named:
         held.append("Who the sentence names:\n" + named[:1500])
     if records:

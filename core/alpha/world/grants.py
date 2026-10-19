@@ -61,7 +61,7 @@ def module_dir(world: World, module_id: str | None) -> Path:
 
 
 def describe(world: World, module_id: str | None) -> list[str]:
-    """The lines the pre-pack carries: where the model may read and write."""
+    """The lines the start layer carries: where the model may read and write."""
     where = module_dir(world, module_id)
     granted = folders(world)
     lines = [f"- Your own directory, where you may write files (Write, Edit, the shell):"

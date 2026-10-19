@@ -1,0 +1,39 @@
+[
+ {
+  "name": "standing_instructions_whole",
+  "title": "Standing instructions longer than a paragraph are given whole",
+  "steps": [
+   {
+    "seed": "note Standing instructions (1004 characters)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what are my standing instructions about Friday's weekly review and about dates?",
+    "ok": true,
+    "reply": "Your standing instructions say:\n\n- **Friday's weekly review:** it starts with what slipped, then covers what moved.\n- **Dates:** written like 19 Oct 2026, never as numbers alone.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 13597,
+    "tokens_cache_made": 11648,
+    "tokens_out": 68,
+    "first_text_ms": 1622,
+    "seconds": 6.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer says that Friday's weekly review leads with what slipped, then what moved, and that dates are written like 19 Oct 2026, never as numbers alone. Fails if it misses either, says it has no instructions about them, or contradicts them.",
+     "facts": "The person's standing instructions (ALPHA.md) are twelve lines; the last three are: anything about health is kept out of what is shared; a person mentioned for the first time: ask whether to keep them as a contact; every Friday's weekly review leads with what slipped, then what moved. Another line says dates are written as 19 Oct 2026, never as numbers alone."
+    },
+    "ok": true,
+    "why": "The answer says Friday's weekly review leads with what slipped and then what moved, and says dates are written like 19 Oct 2026, never as numbers alone, which matches both standing instructions.",
+    "seconds": 4.1
+   }
+  ],
+  "seconds": 10.1,
+  "error": null
+ }
+]

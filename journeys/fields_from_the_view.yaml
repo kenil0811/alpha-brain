@@ -1,0 +1,26 @@
+name: fields_from_the_view
+title: "A table's fields come from world_query's fields view"
+why: >
+  Section B, B4 (Q99, 19 Oct 2026): the start layer names each table with its rows but no
+  fields; a question about a table's fields is answered from the `fields` view, in one query.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: deals
+      title: Deals
+      module: Deal Tracker
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number, unit: "£"}
+        - {name: city, kind: text}
+        - {name: stage, kind: choice, choices: [Looking, Offer made, Closed]}
+        - {name: broker_email, kind: text}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000, city: Leeds, stage: Looking, broker_email: "sam@brokers.example"}
+  - say: "what fields does my Deals table have?"
+checks:
+  - judge:
+      rubric: "Passes if the answer lists the fields business, asking price (in £), city, stage (with its choices Looking, Offer made, Closed, or naming it a choice) and broker email, and nothing that isn't a field. Fails if it misses a field, invents one, or says it can't tell."
+      facts: "The Deals table (module Deal Tracker) has five fields: business (text), asking_price (number, £), city (text), stage (choice: Looking, Offer made, Closed), broker_email (text). It has one row, Harbour Car Wash."

@@ -1,13 +1,14 @@
 """A turn: the person says something; Alpha does it and answers.
 
 1. the sentence is journaled (`said`);
-2. the pre-pack is assembled for the scope;
+2. the layers are built for the scope (`context/layers.py`): the start layer, given when the
+   session is new and after a compaction, and the turn layer, given with every sentence;
 3. what the model is given is recorded with the turn (`turn_contexts`), so a wrong answer can
    be traced to what it saw;
 4. the model runs with the world's tools; Home and a work item resume their own session
-   (`conversation=True`) when it was made with the same tools, else start a fresh one (the
-   pre-pack carries the conversation); an agent's run starts from its brief and its own
-   journal, never from a remembered conversation;
+   (`conversation=True`) when it was made with the same tools and the same way of giving the
+   world, else start a fresh one carrying the conversation's checkpoint; an agent's run starts
+   from its brief and its own thread, never from a remembered conversation;
 5. the answer is journaled (`replied`), or the failure (`failed`) in plain words.
 """
 
@@ -22,7 +23,7 @@ from typing import Any
 
 from alpha import config
 from alpha.connectors.base import skills_text
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.runtime import engine, route, running
 from alpha.runtime.conversations import first_line
 from alpha.runtime.running import NO_ANSWER, STALLED, RunResult, TurnRequest
@@ -216,20 +217,19 @@ def ask(
     # with every sentence.
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     rules_hash = hashlib.sha256(fixed.encode()).hexdigest()[:12]
-    start = prepack.start_layer(world, module=module_id, thread=thread)
-    layer = prepack.turn_layer(world, sentence, module=module_id, thread=thread, said=said)
+    start = layers.start_layer(world, module=module_id, thread=thread)
+    layer = layers.turn_layer(world, sentence, module=module_id, thread=thread, said=said)
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
-    asked = sentence
     if (resume and thread_row and thread_row.get("session_tools") != engine.fingerprint()
             and not answers_a_deferral(world, thread)):
         # A session made with other tool names would have the model call names this run lacks
         # (18 Oct 2026), and one made before the layers keeps the world in its old system
-        # prompt (section B): a fresh one starts, given the start layer and, in front of the
-        # sentence, what was going on (A12: the conversation's checkpoint)
+        # prompt (section B): a fresh one starts, given the start layer with what was going on
+        # (A12: the conversation's checkpoint, in the start layer since Q99 question 5)
         resume = None
         carried = carry_over(world, thread, runner)
         if carried:
-            asked = f"What was going on here before this fresh session:\n{carried}\n\n{sentence}"
+            start = f"{start}\n\n{layers.carried_part(carried)}"
         world.journal.append("did", "Starting a fresh session here: Alpha changed since the last"
                              " turn" + (", carrying what was going on." if carried else "."),
                              actor="alpha", thread=thread, module=module_id,
@@ -239,7 +239,7 @@ def ask(
     world.journal.keep_context(said, given, rules_hash)
     replier = agent or "alpha"
     request = TurnRequest(
-        sentence=asked,
+        sentence=sentence,
         system=fixed,
         world_path=world.path,
         turn_id=said,

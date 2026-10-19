@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from conftest import building
 
-from alpha.context import prepack
+from alpha.context import layers
 from alpha.mcp.tools import Tools
 from alpha.runtime import pipeline
 from alpha.world.purge import remove_module
@@ -152,7 +152,7 @@ def test_the_index_finds_and_shows_skills_and_their_notes(world: World) -> None:
     found = t.skills_find(site="google.com")
     assert [f["name"] for f in found] == ["gmail_draft"] and "script" not in found[0]
     # The pre-pack carries every skill in one line, with when to use it.
-    text = prepack.build(world, "anything")
+    text = layers.given(world, "anything")
     assert "WHAT ALPHA CAN DO" in text
     assert "[read] linkedin_connections (linkedin.com, 10 rows When: The person's own" in text
     assert "[act] gmail_draft (google.com, untried, prepare): Make a draft email in Gmail" in text

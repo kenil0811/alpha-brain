@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from alpha.context import layers
 from alpha.mcp import inprocess
 from alpha.mcp.tools import Tools
 from alpha.mcp.tools.base import hand
@@ -57,10 +58,11 @@ def test_a_fresh_session_starts_with_what_was_going_on(world: World, monkeypatch
     turn.ask(world, "what next?", thread=tid, runner=runner, conversation=True)
     fresh = [r for r in seen if r.kind == "turn"][-1]
     assert fresh.resume is None
-    assert fresh.sentence.startswith("What was going on here before this fresh session:\nAs of ")
-    assert "Decided: Track deals in a table named deals" in fresh.sentence
-    assert "Open: Which broker sites to read first" in fresh.sentence
-    assert fresh.sentence.endswith("\n\nwhat next?")
+    # the checkpoint rides in the fresh session's start layer; the sentence is the person's own
+    carried = layers.part_of(fresh.start_layer, "WHAT WAS GOING ON HERE BEFORE THIS FRESH SESSION")
+    assert carried.startswith("As of ") and fresh.sentence == "what next?"
+    assert "Decided: Track deals in a table named deals" in carried
+    assert "Open: Which broker sites to read first" in carried
     said = [e for e in world.journal.recent(10, thread=tid) if e["kind"] == "said"]
     assert said[-1]["text"] == "what next?"  # the person's words stay theirs in the journal
     # the checkpoint is kept and reused: a second change of names makes no second call

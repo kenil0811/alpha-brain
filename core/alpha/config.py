@@ -68,15 +68,6 @@ class Readers:
 
 
 @dataclass(frozen=True)
-class Prepack:
-    max_chars: int
-    thread_history: int
-    default_budget: int
-    fields_line: int
-    budget: dict[str, int]
-
-
-@dataclass(frozen=True)
 class Conversations:
     confident: float
 
@@ -127,6 +118,7 @@ class Views:
     turn_matches: int
     turn_elsewhere: int
     turn_due: int
+    thread_history: int
 
 
 @dataclass(frozen=True)
@@ -185,7 +177,6 @@ class Settings:
     scheduler: Scheduler
     runs: Runs
     readers: Readers
-    prepack: Prepack
     conversations: Conversations
     workflows: Workflows
     browser: Browser

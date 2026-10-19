@@ -1,0 +1,63 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your food log is set up, in a new **Food** module.\n\n**How to use it:** just tell me what you ate, in your own words. For example, \"two eggs and toast for breakfast\" or \"had a large latte at 3pm\". I'll log what you had, when you had it, which meal it was and how much. I'll also estimate the calories, protein, carbs and fat, and mark those numbers as estimates. If you give me exact numbers from a label, I'll use those instead.\n\nThere's also a **Calories per day** chart, so you can see your daily totals over time.\n\nIs there a goal behind this, like a calorie or protein target, losing weight or ju",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 98840,
+    "tokens_cache_made": 17374,
+    "tokens_out": 1119,
+    "first_text_ms": 19571,
+    "seconds": 23.1
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs as a snack at 23:30 tonight. I estimated about **144 kcal**, with 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\nThat assumes large eggs cooked with no added fat, using typical values for one large egg. If you fried them in butter or oil, or ate them earlier as a different meal, tell me and I'll change the entry.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 96973,
+    "tokens_cache_made": 9868,
+    "tokens_out": 860,
+    "first_text_ms": 20557,
+    "seconds": 20.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 44.0,
+  "error": null
+ }
+]

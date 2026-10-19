@@ -19,11 +19,11 @@ def test_the_limits_load_typed_and_every_table_is_used() -> None:
     s = config.load_settings()
     assert s.scheduler.check_every_s == 30 and s.scheduler.slept_gap_s == 3 * 30
     assert s.readers.drop == 0.5 and isinstance(s.readers.drop, float)
-    assert s.prepack.budget["WHAT ALPHA HOLDS"] == 3600 and s.prepack.max_chars > 0
+    assert s.views.turn_matches == 3 and s.views.thread_history == 15
     assert s.scheduler.least_minutes_between_runs == 30
     # every group is read somewhere in the code, by name
     code = "\n".join(p.read_text() for p in PACKAGE.rglob("*.py") if p.name != "config.py")
-    for group in ("scheduler", "runs", "readers", "prepack", "conversations",
+    for group in ("scheduler", "runs", "readers", "conversations",
                   "workflows", "browser", "files", "calendar", "views", "accounts",
                   "watson", "checks"):
         assert re.search(rf"(?:settings|limits)\.{group}\.", code), group

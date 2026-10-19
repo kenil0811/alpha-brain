@@ -221,9 +221,9 @@ def test_a_deleted_row_never_breaks_the_list_of_removals(world: World) -> None:
                          data={"collection": "things", "record": "r_old",
                                "removed": {"id": "r_old", "title": "Data"}})
     assert world.journal.removals() == {}
-    from alpha.context import prepack
+    from alpha.context import layers
 
-    assert "Things" in prepack.build(world, "what did I remove")
+    assert "Things" in layers.given(world, "what did I remove")
 
 
 def test_a_deleted_file_leaves_search_by_itself(world: World, tmp_path: Path,

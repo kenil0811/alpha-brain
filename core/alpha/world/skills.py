@@ -229,7 +229,7 @@ class Skills:
         return sorted(out, key=lambda s: (s["kind"], s["site"] or "", s["name"]))
 
     def index(self) -> list[dict[str, Any]]:
-        """Every skill in one line's worth: what the pre-pack carries."""
+        """Every skill in one line's worth: what the start layer carries."""
         return [{k: s.get(k) for k in ("name", "kind", "site", "module", "description",
                                         "when_to_use", "effect", "health", "version",
                                         "last_run_at", "last_count", "form")}

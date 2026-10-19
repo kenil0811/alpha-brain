@@ -77,6 +77,9 @@ def test_a_session_made_before_the_layers_starts_fresh_once_carrying_its_checkpo
     """A session made while the world rode in the system prompt keeps that prompt (the SDK
     records a session's first one): it is not resumed once, a fresh one starts with the start
     layer and the conversation's checkpoint, and the next turn resumes the new one."""
+    from alpha.runtime.agents import watson
+
+    assert watson.carried in turn.CARRY_OVER  # Watson's checkpoint is what a fresh one carries
     seen: list[TurnRequest] = []
     gave: list[str] = []
 
@@ -97,8 +100,9 @@ def test_a_session_made_before_the_layers_starts_fresh_once_carrying_its_checkpo
     turn.ask(world, "what next?", thread=tid, runner=runner, conversation=True)
     fresh = [r for r in seen if r.kind == "turn"][-1]
     assert fresh.resume is None and "WHAT ALPHA HOLDS" in gave[-1]
-    assert fresh.sentence.startswith("What was going on here before this fresh session:")
-    assert "Track deals in a table" in fresh.sentence
+    assert fresh.sentence == "what next?"
+    assert "WHAT WAS GOING ON HERE BEFORE THIS FRESH SESSION" in gave[-1]
+    assert "Track deals in a table" in gave[-1]
     turn.ask(world, "and then?", thread=tid, runner=runner, conversation=True)
     again = [r for r in seen if r.kind == "turn"][-1]
     assert again.resume == fresh_id(seen, fresh) and "WHAT ALPHA HOLDS" not in gave[-1]
@@ -115,3 +119,18 @@ def test_an_open_session_is_sent_the_prompt_as_it_is_now(world: World) -> None:
                       resume="s1", persist=True)
     prompt = cast(dict[str, Any], engine.options_for(req).system_prompt)
     assert prompt["append"] == "the rules" and prompt["snapshot"] is False
+
+
+def test_codex_is_given_the_layers_in_its_instructions(world: World) -> None:
+    """Codex has no hooks: the layers go into its AGENTS.md, the start layer only when the run
+    is not resumed (Q32's route, section B)."""
+    from alpha.runtime import codex_cli
+
+    new = TurnRequest(sentence="hi", system="the rules", world_path=world.path, turn_id="j1",
+                      start_layer="WHO THE PERSON IS\n- x", turn_layer="NOW\n- y")
+    resumed = TurnRequest(sentence="hi", system="the rules", world_path=world.path, turn_id="j2",
+                          resume="s1", start_layer="WHO THE PERSON IS\n- x", turn_layer="NOW\n- y")
+    given = codex_cli.instructions(new)
+    assert "WHO THE PERSON IS" in given and "NOW" in given
+    assert "WHO THE PERSON IS" not in codex_cli.instructions(resumed)
+    assert "NOW" in codex_cli.instructions(resumed)

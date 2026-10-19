@@ -1,24 +1,24 @@
 """What the model is given besides its fixed system prompt, in two layers (section B, Q99).
 
 The system prompt is fixed (turn.md and the connectors' SKILL.md), so a session's cache holds
-from its second turn on. What changes rides on the person's message, never in the system prompt
-(19 Oct 2026: the SDK keeps a resumed session's first system prompt, so a pack there went stale
+from its second turn on, and it is sent as it is now to every open session. What changes rides
+on the person's message, never in the system prompt (19 Oct 2026: the SDK kept a resumed
+session's first system prompt, so the pre-pack that lived there, deleted with B5, went stale
 after a conversation's first turn):
 
 - the start layer, once when a session is made and again after each compaction: who the person
-  is and how they want things done, their goals, what Alpha holds (every table with its fields,
-  so a question about the data is one query, not a describe and then a query), what it can reach
-  and do, the wiki's index, the module's page, an agent's own thread, and what is open;
+  is; their standing instructions (ALPHA.md) and permissions, whole, never clipped; their goals;
+  a map of their modules and tables with row counts (the fields are one query away, in
+  world_query's `fields`); what Alpha can reach and do; the wiki's index; the module's NOTES.md,
+  whole; an agent's own thread; and every open card;
 - the turn layer, with every sentence, a few lines: the clock, what changed elsewhere since the
   last turn here, what is due today, the cards open here, the strongest matches for the sentence
-  with their ids, who it names, and in Home the roster of work items. Everything else the model
-  fetches itself through the tools; the conversation is in the session it resumes.
+  with their ids, who it names, and in Home the roster of work items.
 
-Deterministic and free: no model call; every line names where it came from. The start layer's
-sections keep their budgets until B2 rewrites them (step 2): one over keeps whole lines from its
-start (or its end, where the newest matter most) and says how many it left out, and the whole
-stays under MAX_CHARS by shrinking the largest section, never by a blind cut of the tail (found
-3 Oct). The turn layer is a few lines by its counts (`limits.toml [views]`).
+Everything else the model fetches through its tools; the conversation is in the session it
+resumes. Deterministic and free: no model call; every line names where it came from. No section
+has a budget and the whole has no cap (B5): what is long is long; a line that summarises
+something (a skill, a match, a page in the index) keeps the length it always had.
 """
 
 from __future__ import annotations
@@ -32,89 +32,23 @@ from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.world import grants
+from alpha.world.knowledge import GATED_NOTES, INSTRUCTIONS
 from alpha.world.store import local_midnight_utc
 from alpha.world.world import World
 
-# Raised from 12,000 on 3 Oct when every table's fields joined the pack: about 500 more tokens a
-# turn, measured on Kenil's world (13 tables), against one model step saved per data question.
-MAX_CHARS = settings.prepack.max_chars
-THREAD_HISTORY = settings.prepack.thread_history
-# Characters a section may take before it says what it left out; matched by the title's start.
-BUDGET = settings.prepack.budget
-DEFAULT_BUDGET = settings.prepack.default_budget
-# Sections where the newest lines matter most: they are cut from the front.
-KEEP_NEWEST = ("THIS THREAD",)
-# When the whole still runs over, sections give up room in this order: the index and the skills
-# first (both are reachable by a tool), what is open last.
-SHRINK_ORDER = ("WHAT ALPHA KNOWS", "WHAT ALPHA CAN DO", "THIS MODULE'S PAGE", "THIS THREAD",
-                "WHAT ALPHA HOLDS", "OPEN")
-FIELDS_LINE = settings.prepack.fields_line
+# An agent's own thread, given at its run's start: its history, the newest this many lines.
+THREAD_HISTORY = settings.views.thread_history
 # The turn layer's lines, counted, never measured in characters (B3).
 TURN_MATCHES = settings.views.turn_matches
 TURN_ELSEWHERE = settings.views.turn_elsewhere
 TURN_DUE = settings.views.turn_due
-
-
-def _budget(title: str) -> int:
-    return next((cap for key, cap in BUDGET.items() if title.startswith(key)), DEFAULT_BUDGET)
-
-
-def _fit(title: str, lines: list[str], cap: int) -> list[str]:
-    """The lines of a section within `cap` characters: whole lines, from the start (or the end
-    for the sections where the newest matter), and one line saying how many were left out."""
-    if len(title) + 1 + sum(len(line) + 1 for line in lines) <= cap:
-        return lines
-    newest = title.startswith(KEEP_NEWEST)
-    room = cap - len(title) - 60
-    kept: list[str] = []
-    used = 0
-    for line in (reversed(lines) if newest else lines):
-        if used + len(line) + 1 > room:
-            break
-        kept.append(line)
-        used += len(line) + 1
-    if newest:
-        kept.reverse()
-    left = len(lines) - len(kept)
-    note = (f"- … {left} {'earlier ' if newest else ''}line{'s' if left != 1 else ''}"
-            " left out for room")
-    return [note, *kept] if newest else [*kept, note]
-
-
-def _assemble(sections: list[tuple[str, list[str]]]) -> str:
-    """Every section within its budget, and the whole within MAX_CHARS: when it still runs
-    over, sections give up a third of their room in SHRINK_ORDER, round after round, until it
-    fits; a section down to two lines gives up no more."""
-    caps = [_budget(title) for title, _ in sections]
-    fitted = [(title, _fit(title, lines, cap)) for (title, lines), cap in zip(sections, caps,
-                                                                              strict=True)]
-
-    def join(parts: list[tuple[str, list[str]]]) -> str:
-        return "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in parts)
-
-    text = join(fitted)
-
-    def rank(i: int) -> int:
-        title = sections[i][0]
-        return next((n for n, key in enumerate(SHRINK_ORDER) if title.startswith(key)),
-                    len(SHRINK_ORDER))
-
-    while len(text) > MAX_CHARS:
-        sizes = [len(title) + sum(len(line) + 1 for line in lines) for title, lines in fitted]
-        shrinkable = [i for i, (_, lines) in enumerate(fitted) if len(lines) > 2
-                      and sizes[i] > 400 and rank(i) < len(SHRINK_ORDER)]
-        if not shrinkable:
-            break
-        i = min(shrinkable, key=lambda j: (rank(j), -sizes[j]))
-        caps[i] = int(sizes[i] * 0.66)
-        fitted[i] = (sections[i][0], _fit(sections[i][0], sections[i][1], caps[i]))
-        text = join(fitted)
-    return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(cut short)"
+# the person's notes only they change (ALPHA.md's and the permissions), given whole
+PERMISSIONS = GATED_NOTES[1]
 
 
 def _module_name(world: World, module: str | None) -> str:
     """A module's name for a line, or its id when the world has no such module (a skill's
-    folder copied from elsewhere): never a failed pre-pack over a stray file."""
+    folder copied from elsewhere): never a failed layer over a stray file."""
     if not module:
         return ""
     try:
@@ -123,39 +57,17 @@ def _module_name(world: World, module: str | None) -> str:
         return str(module)
 
 
-def table_line(world: World, table: dict[str, Any]) -> str:
-    """A table with its fields in one line: name kind unit[choices]->relation, so the model
-    queries it without a describe first (3 Oct: every data question paid that step)."""
-    desc = world.collections.describe(table["name"])
-    parts = []
-    for f in desc["fields"]:
-        bit = f["name"]
-        if f["kind"] != "text":
-            bit += f" {f['kind']}"
-        if f.get("unit"):
-            bit += f" {f['unit']}"
-        if f.get("choices"):
-            shown = [str(c)[:20] for c in f["choices"][:5]]
-            bit += "[" + "|".join(shown) + ("|…" if len(f["choices"]) > 5 else "") + "]"
-        if f.get("relation"):
-            bit += f"->{f['relation']}"
-        parts.append(bit)
-    rows = table["records"]
-    return "  " + _clip(f"{table['name']} ({rows} row{'s' if rows != 1 else ''}): "
-                        + ", ".join(parts), FIELDS_LINE - 2)
-
-
-def _clip(text: str, n: int) -> str:
+def one_line(text: str, n: int) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
-def section_of(context: str, title: str) -> str:
-    """One section of what a turn was given (`turn_contexts`), by the start of its title (a
-    title may carry a suffix: "THIS THREAD (its brief ...)"): its lines, without the title, or
-    "" when there is no such section. The journey suite's judge and Columbo read what the model
-    was given this way."""
-    m = re.search(rf"(?m)^{re.escape(title)}[^\n]*\n(.*?)(?=\n\n[A-Z]{{2}}|\Z)", context, re.S)
+def part_of(given: str, title: str) -> str:
+    """One part of what a turn was given (`turn_contexts`), by the start of its title (a title
+    may carry a suffix: "THIS THREAD (its brief ...)"): its lines, without the title, or "" when
+    there is no such part. The journey suite's judge and Columbo read what the model was given
+    this way."""
+    m = re.search(rf"(?m)^{re.escape(title)}[^\n]*\n(.*?)(?=\n\n[A-Z]{{2}}|\Z)", given, re.S)
     return m.group(1).strip() if m else ""
 
 
@@ -236,7 +148,7 @@ def entities_named(world: World, sentence: str) -> list[dict[str, Any]]:
 
 def start_layer(world: World, *, module: str | None = None, thread: str | None = None) -> str:
     """What a session is given once, when it is made and again after a compaction: the world as
-    it stands for this conversation, not for any one sentence."""
+    it stands for this conversation, not for any one sentence (B2)."""
     sections: list[tuple[str, list[str]]] = []
     k = world.knowledge
 
@@ -244,82 +156,49 @@ def start_layer(world: World, *, module: str | None = None, thread: str | None =
            for f in k.facts("person")]
     profile = k.find_note("person", "Profile")
     if profile and profile["body"].strip():
-        who.append(f"- Profile note ({profile['id']}): {_clip(profile['body'], 800)}")
+        who += [f"- Profile note ({profile['id']}):", *_indented(profile["body"])]
     sections.append(("WHO THE PERSON IS", who or ["- Nothing known yet."]))
 
+    # ALPHA.md is the standing instructions note, kept both ways by modfiles; both notes whole
     rules = []
-    for title in ("Standing instructions", "Permissions"):
+    for title, said in ((INSTRUCTIONS, "Standing instructions (ALPHA.md)"),
+                        (PERMISSIONS, "Permissions")):
         note = k.find_note("person", title)
         if note and note["body"].strip():
-            rules.append(f"- {title} ({note['id']}): {_clip(note['body'], 800)}")
+            rules += [f"- {said} ({note['id']}):", *_indented(note["body"])]
     sections.append(("THEIR INSTRUCTIONS", rules or ["- None given yet."]))
 
     goals = [f"- {g['text']} (goal {g['id']}{', module ' + g['module'] if g['module'] else ''})"
              for g in k.goals("active")]
     sections.append(("ACTIVE GOALS", goals or ["- None yet."]))
 
-    # the person's tables; the world's own (the tasks) are named in world_query
-    tables = [t for t in world.collections.overview() if not t.get("world")]
-    modules = world.modules.all()
-    by_module: dict[str | None, list[dict[str, Any]]] = {}
-    for t in tables:
-        by_module.setdefault(t["module"], []).append(t)
-    held = []
-    kids: dict[str | None, list[dict[str, Any]]] = {}
-    for m in modules:
-        kids.setdefault(m.get("parent"), []).append(m)
-    here = world.modules.get(module)["id"] if module else None
-    branch = set(world.modules.subtree(here)) if here else set()
-    root_of = {m["id"]: world.modules.path(m["id"])[0]["id"] for m in modules}
-    mine = root_of.get(here) if here else None
-
-    def walk(parent: str | None, depth: int) -> None:
-        for m in sorted(kids.get(parent, []),
-                        key=lambda m: (m["id"] != mine, m["id"] not in branch, m["name"])):
-            own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
-            goal = f" — {_clip(m['goal'], 140)}" if m["goal"] else ""
-            pad = "  " * depth
-            inside = f", holds {', '.join(c['name'] for c in kids.get(m['id'], []))}" \
-                if kids.get(m["id"]) else ""
-            held.append(f"{pad}- Module {m['name']} ({m['id']}){goal}{inside}"
-                        + ("" if own else ": no tables of its own"))
-            held.extend(pad + table_line(world, t) for t in own)
-            walk(m["id"], depth + 1)
-
-    walk(None, 0)
-    loose = [t for group in by_module.values() for t in group]
-    if loose:
-        held.append("- Tables in no module:")
-        held += [table_line(world, t) for t in loose]
-    sections.append(("WHAT ALPHA HOLDS (each table with its fields: query it straight away)",
-                     held or ["- Nothing yet: no modules, no tables."]))
+    sections.append(("WHAT ALPHA HOLDS (each module with its tables and their rows; a table's"
+                     " fields: world_query's `fields`)", _map(world, module)))
 
     reach = [
         f"- {c['connector']}: {c['target']} — {c['status']}"
         + (f", last read {c['last_sync'][:16]}Z" if c["last_sync"] else "")
-        + (f" (problem: {_clip(c['last_error'], 80)})" if c["last_error"] else "")
+        + (f" (problem: {one_line(c['last_error'], 80)})" if c["last_error"] else "")
         for c in Connections(world.store).all() if c["status"] != "off"
     ]
     reach += grants.describe(world, module)
     sections.append(("WHAT ALPHA CAN REACH", reach))
 
-    # Know-how: every skill, always, but compact (design §3.7 point 7): act and run skills one
-    # line each, read skills as a list by site; bodies and search by skill_find.
-    # Found 3 Oct: a line per skill with its description ate a third of the pack and cut the
-    # matches off; the cap is 12,000 characters for everything.
+    # Know-how: every skill, compact (design §3.7 point 7): act and run skills one line each,
+    # read skills as a list by site; bodies and search by skill_find.
     can_do = []
     reads = []
     for sk in world.skills.index()[:120]:
         where = sk["site"] or _module_name(world, sk["module"])
         mark = "" if sk["health"] == "ok" else f", {sk['health']}"
-        use = f" When: {_clip(sk['when_to_use'], 80)}" if sk["when_to_use"] else ""
+        use = f" When: {one_line(sk['when_to_use'], 80)}" if sk["when_to_use"] else ""
         if sk["kind"] == "read":
             rows = f", {sk['last_count']} rows" if sk["last_count"] else ""
             reads.append(f"{sk['name']} ({where}{rows}{mark}{use})")
         else:
             can_do.append(f"- [{sk['kind']}] {sk['name']} ({where}{mark}"
                           + (f", {sk['effect']}" if sk["effect"] else "")
-                          + f"): {_clip(sk['description'], 90)}{use}")
+                          + f"): {one_line(sk['description'], 90)}{use}")
     if reads:
         can_do.append("- [read] " + "; ".join(reads))
     if can_do:
@@ -327,20 +206,18 @@ def start_layer(world: World, *, module: str | None = None, thread: str | None =
                          " with words or a site to search; use one before writing another)",
                          can_do))
 
-    # The wiki's index: every page in one line, always; bodies on demand (note_read).
-    index = [f"- [{p['scope']}] {p['title']}: {_clip(p['summary'], 140)}"
+    # The wiki's index: every page in one line; bodies on demand (note_read).
+    index = [f"- [{p['scope']}] {p['title']}: {one_line(p['summary'], 140)}"
              for p in k.index() if not str(p["scope"]).startswith("conversation:")
-             and p["title"] not in ("Profile", "Standing instructions", "Permissions")][:200]
+             and p["title"] not in ("Profile", INSTRUCTIONS, PERMISSIONS)][:200]
     if index:
         sections.append(("WHAT ALPHA KNOWS (the index; note_read for a page)", index))
     if module:
         page = next((n for n in k.notes(f"module:{world.modules.get(module)['name']}")), None)
-        if page:
-            body = page["body"]
-            if len(body) > 1500:
-                body = body[:1500].rsplit("\n", 1)[0] + "\n  … (note_read for the rest)"
-            sections.append((f"THIS MODULE'S PAGE ({page['title']})",
-                             [f"  {line}" for line in body.splitlines()[:40]]))
+        if page and page["body"].strip():
+            # the module's NOTES.md, kept both ways by modfiles, whole
+            sections.append((f"THIS MODULE'S NOTES (NOTES.md, {page['title']})",
+                             _indented(page["body"])))
 
     # An agent's own item is a thread with a brief and a history; its runs are sessions of their
     # own (Q21), so they are given both at the start (B7 makes this the run's own start layer).
@@ -351,15 +228,68 @@ def start_layer(world: World, *, module: str | None = None, thread: str | None =
                  "- Brief: none yet. Keep one with agent_keep (its brief) when you learn how"
                  " this work should go."]
         history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
-        lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
+        lines += [f"- {when(e['at'])} {e['kind']}: {one_line(e['text'], 300)}" for e in history]
         sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
 
-    open_items = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
+    open_items = [f"- Asked the person ({a['id']}): {one_line(a['text'], 200)}"
                   for a in world.journal.open_asks()]
     if open_items:
         sections.append(("OPEN", open_items))
 
-    return _assemble(sections)
+    return _joined(sections)
+
+
+def carried_part(checkpoint: str) -> str:
+    """A fresh session's part of the start layer saying what was going on in the conversation
+    before it (A12's checkpoint, Q99 question 5)."""
+    return f"WHAT WAS GOING ON HERE BEFORE THIS FRESH SESSION\n{checkpoint.strip()}"
+
+
+def _map(world: World, module: str | None) -> list[str]:
+    """Every module with its tables and their rows, one line each, the module the turn is in
+    first; no fields (B2: they are one query away)."""
+    tables = [t for t in world.collections.overview() if not t.get("world")]
+    by_module: dict[str | None, list[dict[str, Any]]] = {}
+    for t in tables:
+        by_module.setdefault(t["module"], []).append(t)
+    modules = world.modules.all()
+    kids: dict[str | None, list[dict[str, Any]]] = {}
+    for m in modules:
+        kids.setdefault(m.get("parent"), []).append(m)
+    here = world.modules.get(module)["id"] if module else None
+    branch = set(world.modules.subtree(here)) if here else set()
+    root_of = {m["id"]: world.modules.path(m["id"])[0]["id"] for m in modules}
+    mine = root_of.get(here) if here else None
+    held: list[str] = []
+
+    def rows(t: dict[str, Any]) -> str:
+        n = t["records"]
+        return f"{t['name']} ({n} row{'s' if n != 1 else ''})"
+
+    def walk(parent: str | None, depth: int) -> None:
+        for m in sorted(kids.get(parent, []),
+                        key=lambda m: (m["id"] != mine, m["id"] not in branch, m["name"])):
+            own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
+            goal = f" — {one_line(m['goal'], 140)}" if m["goal"] else ""
+            inside = (f", holds {', '.join(c['name'] for c in kids.get(m['id'], []))}"
+                      if kids.get(m["id"]) else "")
+            held.append(f"{'  ' * depth}- Module {m['name']} ({m['id']}){goal}{inside}: "
+                        + (", ".join(rows(t) for t in own) if own else "no tables of its own"))
+            walk(m["id"], depth + 1)
+
+    walk(None, 0)
+    loose = [t for group in by_module.values() for t in group]
+    if loose:
+        held.append("- Tables in no module: " + ", ".join(rows(t) for t in loose))
+    return held or ["- Nothing yet: no modules, no tables."]
+
+
+def _indented(text: str) -> list[str]:
+    return [f"  {line}" for line in text.strip().splitlines()]
+
+
+def _joined(sections: list[tuple[str, list[str]]]) -> str:
+    return "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in sections)
 
 
 def turn_layer(world: World, sentence: str, *, module: str | None = None,
@@ -383,7 +313,7 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
             for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
                                                      "noticed"]):
                 if e["at"] > last_at and e["thread"] != chat["id"]:
-                    delta.append(f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 200)}")
+                    delta.append(f"- {when(e['at'])} {e['kind']}: {one_line(e['text'], 200)}")
         if delta:
             sections.append(("SINCE YOUR LAST TURN HERE (elsewhere, meanwhile)",
                              delta[-TURN_ELSEWHERE:]))
@@ -408,16 +338,16 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
             for e in today[:TURN_DUE]
         ]))
 
-    here = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
+    here = [f"- Asked the person ({a['id']}): {one_line(a['text'], 200)}"
             for a in world.journal.open_asks() if (a["thread"] or home["id"]) == chat["id"]]
     if here:
         sections.append(("OPEN HERE", here))
 
     # The strongest hits of each kind, taken in turn: a record, a document, a journal line.
     # A sentence that names a day looks in that day's journal first.
-    records = [f"- record {hit['id']} in {hit['collection']}: {_clip(hit['snippet'], 160)}"
+    records = [f"- record {hit['id']} in {hit['collection']}: {one_line(hit['snippet'], 160)}"
                for hit in world.collections.search(sentence, TURN_MATCHES)]
-    documents = [f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}"
+    documents = [f"- document {doc['id']} {doc['title']}: {one_line(doc['snippet'], 160)}"
                  for doc in Files(world).search(sentence, TURN_MATCHES)]
     window = day_named(sentence)
     lines = []
@@ -428,7 +358,7 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
             continue
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
         lines.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
-                     f" {_clip(hit['snippet'], 160)}{gone}")
+                     f" {one_line(hit['snippet'], 160)}{gone}")
     kinds = [records, documents, lines]
     matches: list[str] = []
     while len(matches) < TURN_MATCHES and any(kinds):
@@ -454,16 +384,16 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
                 continue
             lines.append(f"- {t['title']} ({t['id']}, {t['state'].replace('_', ' ')}"
                          + (f", {owner['name']}'s" if owner else "") + ")"
-                         + (f": {_clip(t['last_line'], 160)}" if t.get("last_line") else ""))
+                         + (f": {one_line(t['last_line'], 160)}" if t.get("last_line") else ""))
         sections.append(("WORK ITEMS (each has its own conversation and session; the person's"
                          " sentence that opens or continues one is routed there before you see"
                          " it; here, answer what can be answered now)",
                          lines or ["- None open."]))
 
-    return "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in sections)
+    return _joined(sections)
 
 
-def build(world: World, sentence: str, *, module: str | None = None,
+def given(world: World, sentence: str, *, module: str | None = None,
           thread: str | None = None) -> str:
     """Both layers, as a new session is given them with its first sentence."""
     return (start_layer(world, module=module, thread=thread) + "\n\n"
