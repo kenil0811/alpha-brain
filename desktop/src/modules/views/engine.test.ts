@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { activeRules, applyQuery, tintOf, toneOf, NO_COLOURS, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, footerValue, footersOf, withRule, type FilterRule } from "./engine";
+import { activeRules, applyQuery, isComplete, tintOf, toneOf, NO_COLOURS, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, footerValue, footersOf, withRule, type FilterRule } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -173,3 +173,22 @@ describe("a table's colours (section 4d)", () => {
     expect(toneOf(row("1", { t: "x" }), { name: "t", kind: "text" }, empties)).toBeNull();
   });
 });
+
+describe("days that move with the clock (P1)", () => {
+  const f = { name: "due", kind: "date" } as const;
+  const row = (due: string) => ({ id: due, revision: 1, created_at: "", updated_at: "", provenance: {}, values: { due } });
+  const now = new Date(2026, 9, 21, 12); // a Wednesday
+  it("today, this week, before today and the next days", () => {
+    expect(matchRule(row("2026-10-21"), { field: "due", op: "today", value: "" }, f, now)).toBe(true);
+    expect(matchRule(row("2026-10-22"), { field: "due", op: "today", value: "" }, f, now)).toBe(false);
+    expect(matchRule(row("2026-10-19"), { field: "due", op: "this_week", value: "" }, f, now)).toBe(true);
+    expect(matchRule(row("2026-10-25"), { field: "due", op: "this_week", value: "" }, f, now)).toBe(true);
+    expect(matchRule(row("2026-10-26"), { field: "due", op: "this_week", value: "" }, f, now)).toBe(false);
+    expect(matchRule(row("2026-10-20"), { field: "due", op: "before_today", value: "" }, f, now)).toBe(true);
+    expect(matchRule(row("2026-10-21"), { field: "due", op: "before_today", value: "" }, f, now)).toBe(false);
+    expect(matchRule(row("2026-10-24"), { field: "due", op: "next_days", value: "3" }, f, now)).toBe(true);
+    expect(matchRule(row("2026-10-25"), { field: "due", op: "next_days", value: "3" }, f, now)).toBe(false);
+    expect(isComplete({ field: "due", op: "today", value: "" })).toBe(true);
+  });
+});
+

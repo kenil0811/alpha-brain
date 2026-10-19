@@ -17,6 +17,8 @@ export interface Field {
   choices?: string[];
   done_choices?: string[];
   relation?: string;
+  /** A relation holding several (a task's About, P1). */
+  many?: boolean;
 }
 
 export interface TableDesc {
@@ -29,6 +31,8 @@ export interface TableDesc {
   created_at?: string;
   /** A program module's own table (Q38): read from its module.duckdb, never edited here. */
   readonly?: boolean;
+  /** A table the world keeps itself (the tasks, P1): its own page in the rail, its fields Alpha's. */
+  world?: boolean;
 }
 
 /** The map of Alpha's own work (`/api/graph`): what Intelligence lists, as nodes, and how
@@ -116,7 +120,7 @@ export interface SavedList {
   id: string;
   collection: string;
   title: string;
-  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; show_gone?: boolean; hidden?: string[]; footers?: Record<string, string>; sort?: { field: string; direction: "asc" | "desc" } | null; sorts?: { field: string; direction: "asc" | "desc" }[]; rules?: { match: "all" | "any"; rules: { field: string; op: "is" | "is_not" | "contains" | "not_contains" | "starts" | "ends" | "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "between" | "before" | "after" | "on_before" | "on_after" | "within" | "in" | "checked" | "unchecked" | "empty" | "not_empty"; value: string; value2?: string; values?: string[] }[] }; view?: string; group_by?: string; date_by?: string; measure?: string };
+  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; show_gone?: boolean; hidden?: string[]; footers?: Record<string, string>; sort?: { field: string; direction: "asc" | "desc" } | null; sorts?: { field: string; direction: "asc" | "desc" }[]; rules?: { match: "all" | "any"; rules: { field: string; op: "is" | "is_not" | "contains" | "not_contains" | "starts" | "ends" | "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "between" | "before" | "after" | "on_before" | "on_after" | "within" | "today" | "this_week" | "before_today" | "next_days" | "in" | "checked" | "unchecked" | "empty" | "not_empty"; value: string; value2?: string; values?: string[] }[] }; view?: string; group_by?: string; date_by?: string; measure?: string };
   is_default: boolean;
   source: string | null;
   created_at: string;
@@ -134,14 +138,16 @@ export interface RecordRow {
   seen_at?: string | null;
   gone_at?: string | null;
   entity?: string | null;
+  /** What the row's references are in words (the tasks' place, owner, maker, what it is about). */
+  words?: Record<string, unknown>;
 }
 
 export interface JournalEntry {
   id: string;
   at: string;
-  /** On a reply: what Watson kept from that turn (facts, commitments, decisions), the folded
-   *  line under it (harness 4b). */
-  kept?: { facts?: number; commitments?: number; decisions?: number };
+  /** On a reply: what Watson kept from that turn (facts, tasks, decisions), the folded line under
+   *  it (harness 4b). */
+  kept?: { facts?: number; tasks?: number; decisions?: number };
   kind: string;
   actor: string;
   text: string;
@@ -543,22 +549,58 @@ export interface Entity {
   summary?: string | null;
 }
 
-/** What the person promised or is owed (Q46; Watson files them), with its date. */
-export interface Commitment {
+/** A task (P1, 18 Oct 2026): a row of the tasks table as the core sends it, flat, with what it
+ *  points at in words. Commitments (Q46) grew into these. */
+export interface TaskItem {
   id: string;
-  /** "person" or "entity:<id>": who promised. */
-  who: string;
-  what: string;
-  to_whom: string | null;
-  due: string | null;
-  state: "open" | "done" | "lapsed";
-  source: string | null;
+  revision: number;
+  title: string;
+  state: "Open" | "Working" | "Blocked" | "Done" | "Dropped";
+  due?: string | null;
+  /** "person", an agent's id, or "entity:<id>" (what someone owes the person). */
+  owner?: string | null;
+  /** The address of the place it lives (a record, a field, a module, a page). */
+  anchor?: string | null;
+  about?: string[] | null;
+  by?: string | null;
+  suggested?: boolean;
+  remind_at?: string | null;
   created_at: string;
+  updated_at: string;
+  _words?: { anchor?: string; owner?: string; by?: string; about?: string[] };
+}
+
+/** One step of a task's place, widest first: what the task's page shows as "Where it lives". */
+export interface PlaceStep {
+  kind: "module" | "table" | "record" | "field" | "page";
+  words: string;
+  address: string;
+}
+
+export interface TaskBrief {
+  id: string;
+  title: string;
+  state: string;
+  due?: string | null;
+}
+
+/** What is around a task, nearest first (its page's "Around it"; the same a turn about it sees). */
+export interface TaskAround {
+  task: string;
+  where: PlaceStep[];
+  where_gone?: string;
+  place: { table: string; record: string; title: unknown; values: { field: string; label: string; value: unknown; source?: string | null; estimated: boolean; kind?: string; unit?: string }[] } | null;
+  parent: TaskBrief | null;
+  children: TaskBrief[];
+  blocked_by: TaskBrief[];
+  beside: TaskBrief[];
+  about: { ref: string; words: string }[];
+  notes: string | null;
 }
 
 export interface EntityDetail extends Entity {
   facts: Fact[];
-  commitments?: Commitment[];
+  tasks?: TaskItem[];
   timeline: JournalEntry[];
   maybe_same: Entity[];
   /** The entity's page of Alpha's wiki: who they are to the person, what is going on. */
@@ -718,7 +760,7 @@ export interface Intelligence {
   agents: Agent[];
   readers: Reader[];
   connections: Connection[];
-  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; commitments?: Commitment[]; permissions?: Permission[] };
+  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; tasks?: TaskItem[]; permissions?: Permission[] };
 }
 
 /** An agent (Q44, Q50): everything that works for the person on its own, in one shape. */
@@ -971,11 +1013,11 @@ export function say(e: unknown): string {
   return "Something went wrong here. Try again.";
 }
 
-type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
+type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string; _words?: Record<string, unknown> };
 
 export function toRow(raw: Raw): RecordRow {
-  const { id, revision, created_at, updated_at, _provenance, _seen_at, _gone_at, _entity, ...values } = raw;
-  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {}, seen_at: _seen_at ?? null, gone_at: _gone_at ?? null, entity: _entity ?? null };
+  const { id, revision, created_at, updated_at, _provenance, _seen_at, _gone_at, _entity, _words, ...values } = raw;
+  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {}, seen_at: _seen_at ?? null, gone_at: _gone_at ?? null, entity: _entity ?? null, ...(_words ? { words: _words } : {}) };
 }
 
 export class Client {
@@ -1052,6 +1094,17 @@ export class Client {
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
     toRow(await this.call<Raw>("PATCH", `/api/tables/${encodeURIComponent(table)}/records/${id}`, { values, revision }));
   deleteRecord = (table: string, id: string, revision: number) => this.call<{ removed: string }>("DELETE", `/api/tables/${encodeURIComponent(table)}/records/${id}?revision=${revision}`);
+
+  /** Tasks (P1): the ones living at a place and inside it; what is around one; one added by hand
+   *  (on a place, it lives there); a suggestion kept or dropped; a task moved to another place. */
+  tasksAt = (at: string, opts: { within?: boolean; done?: boolean } = {}) =>
+    this.call<{ at: string; place: string | null; table: string; tasks: TaskItem[] }>("GET", `/api/tasks?at=${encodeURIComponent(at)}${opts.within === false ? "&within=false" : ""}${opts.done ? "&done=true" : ""}`);
+  taskAround = (id: string) => this.call<TaskAround>("GET", `/api/tasks/${encodeURIComponent(id)}/around`);
+  addTask = (task: { title: string; anchor?: string | null; due?: string | null; owner?: string | null; parent?: string | null }) => this.call<TaskItem>("POST", "/api/tasks", task);
+  keepTask = (id: string) => this.call<TaskItem>("POST", `/api/tasks/${encodeURIComponent(id)}/keep`);
+  dropTask = (id: string) => this.call<TaskItem>("POST", `/api/tasks/${encodeURIComponent(id)}/drop`);
+  /** Where a task lives now: an address, or a place named (a module; a table's record and field); `{}` for none. */
+  placeTask = (id: string, place: { anchor?: string | null; module?: string; table?: string; record?: string; field?: string }) => this.call<TaskItem>("POST", `/api/tasks/${encodeURIComponent(id)}/place`, place);
 
   people = (q?: string) => this.call<Entity[]>("GET", `/api/people${q ? `?q=${encodeURIComponent(q)}` : ""}`);
   entity = (id: string) => this.call<EntityDetail>("GET", `/api/entities/${id}`);

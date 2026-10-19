@@ -13,6 +13,7 @@ The docstrings are the model's whole instruction for each hand.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from alpha.mcp.tools.acting import Acting
@@ -27,6 +28,7 @@ from alpha.mcp.tools.workflows import WorkflowTools
 from alpha.runtime import look
 from alpha.world import queries
 from alpha.world.store import Problem
+from alpha.world.tasks import TABLE as TASKS
 
 
 def _bad(out: Any) -> bool:
@@ -47,7 +49,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         title), `journal` (at, kind, actor, text, module, thread, data), `facts` (subject,
         predicate, value, valid_from, valid_to), `people` (id, kind, name, keys), `goals`,
         `notes`, `agents`, `runs`, `actions`, `documents`, `events` (the calendar), `modules`,
-        `threads`, `decisions`, `commitments`, `sources`, `record_versions`. Use it to answer
+        `threads`, `decisions`, `sources`, `record_versions`; the person's tasks are
+        `tasks` (title, state, due, owner, anchor: where each lives). Use it to answer
         from the data (count, sum, group, join; today's date is in NOW), to find a row's id and
         revision before changing it, and to look back (journal). At most `limit` rows come back
         and the result says when it cut: aggregate or narrow rather than paging. It cannot
@@ -270,13 +273,26 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                        body: str | None = None, id: str | None = None,
                        state: str | None = None, url: str | None = None,
                        module: str | None = None, status: str | None = None,
-                       detail: str | None = None, when: str | None = None) -> dict[str, Any]:
+                       detail: str | None = None, when: str | None = None,
+                       place: str | None = None, repeats: str | None = None,
+                       priority: str | None = None, parent: str | None = None
+                       ) -> dict[str, Any]:
         """Keep what should be remembered. kind "reminder": text (what, in the person's
         words) and when (a date and time, 2026-10-24T09:00, worked out from today's date; no
         time given means 09:00): the Reminders agent puts a card when the moment comes;
-        nothing else is made. kind "fact": about ("person", or "entity:<id>"),
-        predicate (snake_case: weight_kg, employer), value, stated (true when the person said
-        it; false makes it a suggestion), why. kind "person" (or "organisation", "place"):
+        nothing else is made. kind "task": something to be done, kept in the person's tasks:
+        text (in their words), place (where it lives: a row as table/id, one of its fields as
+        table/id/field, a module's page as page:<name> with module, or the module alone; left
+        out, the conversation's module), when (the day it is due; with a time, also a
+        reminder), about (whose it is: "person" by default, an agent's id, or entity:<id> for
+        what someone owes them), repeats ("weekly", "every Monday", "monthly on the 1st"),
+        priority (P0–P4), parent (the task it is part of); say in a line where you put it.
+        With id and state (Open, Working, Blocked, Done, Dropped) it changes one; with id
+        alone it gives what is around the task (its place's values and sources, its parent,
+        children and neighbours, the module's notes), as its page shows it. kind
+        "fact": about ("person", or "entity:<id>"), predicate (snake_case: weight_kg,
+        employer), value, stated (true when the person said it; false makes it a
+        suggestion), why. kind "person" (or "organisation", "place"):
         name and keys ({email, profile_url, domain}: hard keys, so the same person is one
         person) give the one entity these details identify, made when new. kind "goal": text
         the person stated, module; with id and state (done, dropped, active) it changes one.
@@ -319,18 +335,86 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         if kind == "reminder":
             if not (text and when):
                 return {"error": "a reminder needs text and when (a date and time)."}
-            row = self.world.commitments.remind(text, when, source=self.turn)
-            self._did("made", f"Reminder set: {row['what']}, {row['remind_at'][:16]}Z.",
-                      {"commitment": row["id"], "remind_at": row["remind_at"]})
-            return {"reminder": row["id"], "what": row["what"], "remind_at": row["remind_at"],
+            row = self.world.tasks.remind(text, when, source=self.turn)
+            self._did("made", f"Reminder set: {row['title']}, {row['remind_at'][:16]}Z.",
+                      {"task": row["id"], "remind_at": row["remind_at"]})
+            return {"reminder": row["id"], "what": row["title"], "remind_at": row["remind_at"],
                     "note": "The Reminders agent puts the card when the moment comes."}
+        if kind == "task":
+            return self._task(text=text, place=place, module=module, when=when, owner=about,
+                              repeats=repeats, priority=priority, parent=parent, id=id,
+                              state=state)
         if kind == "source":
             if not (title and url):
                 return {"error": "a source needs title and url."}
             return self.source_add(title, url, module=module, status=status or "not_built",
                                    detail=detail)
-        return {"error": "kind is one of reminder, fact, person, organisation, place, goal,"
-                         " note, instruction, source."}
+        return {"error": "kind is one of reminder, task, fact, person, organisation, place,"
+                         " goal, note, instruction, source."}
+
+    def _task(self, *, text: str | None, place: str | None, module: str | None,
+              when: str | None, owner: str | None, repeats: str | None, priority: str | None,
+              parent: str | None, id: str | None, state: str | None) -> dict[str, Any]:
+        """A task made where it belongs, or one changed (world_remember kind "task")."""
+        tasks = self.world.tasks
+        if id and not state and not text:
+            return {"task": id, "around": tasks.around_text(id)}
+        if id and state:
+            row = tasks.set_state(id, state, by=self.actor if self.actor != "person" else "alpha")
+            self._did("changed", f"{row['title']}: {row['state']}.", {"task": id})
+            return {"task": id, "state": row["state"]}
+        if not text:
+            return {"error": "a task needs text (what is to be done, in the person's words)."}
+        try:
+            anchor = self._task_place(place, module or self.module)
+        except Problem as e:
+            return {"error": str(e)}
+        due = remind = None
+        if when:
+            try:
+                moment = datetime.fromisoformat(when)
+            except ValueError:
+                return {"error": f"when is a day (2026-10-24) or a day and time, not {when!r}."}
+            due = moment.date().isoformat()
+            if "T" in when or " " in when.strip():
+                remind = (moment if moment.tzinfo else moment.astimezone()).astimezone(
+                    UTC).replace(microsecond=0).isoformat()
+        prov = self._provenance("stated", None)
+        values = {"title": text, "anchor": anchor, "due": due, "remind_at": remind,
+                  "owner": owner or "person", "repeats": repeats, "priority": priority,
+                  "parent": parent}
+        row = self.world.collections.add(
+            TASKS, {k: v for k, v in values.items() if v not in (None, "")}, prov)
+        where = tasks.place_words(row.get("anchor"))
+        self._did("made", f"Task kept: {row['title']}" + (f", on {where}" if where else "")
+                  + (", suggested for the person to keep" if row.get("suggested") else "")
+                  + ".", {"task": row["id"], "anchor": row.get("anchor")})
+        return {"task": row["id"], "title": row["title"], "placed": where or "nowhere yet",
+                "suggested": bool(row.get("suggested")),
+                "note": "Say in one line where it lives; the person changes it on the task's"
+                        " page." if where else "Say that it lives on no place yet."}
+
+    def _task_place(self, place: str | None, module: str | None) -> str | None:
+        tasks = self.world.tasks
+        if not place:
+            return tasks.address(module=module) if module else None
+        text = place.strip()
+        if text.startswith("#/"):
+            return tasks.check_anchor(text)
+        if text.startswith("page:"):
+            return tasks.address(module=module, page=text[5:].strip())
+        parts = [p for p in text.split("/") if p]
+        if len(parts) == 1 and not self._is_table(parts[0]):
+            return tasks.address(module=parts[0])
+        return tasks.address(table=parts[0], record=parts[1] if len(parts) > 1 else None,
+                             field=parts[2] if len(parts) > 2 else None)
+
+    def _is_table(self, name: str) -> bool:
+        try:
+            self.world.collections.describe(name)
+            return True
+        except Problem:
+            return False
 
     @hand
     def world_search(self, query: str, limit: int = 10, who: str | None = None,

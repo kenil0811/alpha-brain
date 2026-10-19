@@ -208,8 +208,15 @@ def relation_titles(world: World, desc: dict[str, Any],
         target = field.get("relation") if field.get("kind") == "relation" else None
         if not target or target in ("person", "organisation"):
             continue
-        ids = {str(r[field["name"]]) for r in records if r.get(field["name"])}
+        ids: set[str] = set()
+        for r in records:
+            held = r.get(field["name"])
+            ids.update(str(v) for v in (held if isinstance(held, list) else [held]) if v)
         if not ids:
+            continue
+        if target == "any":
+            # anyone or a row of any table (a task's About, P1): each in words
+            out[field["name"]] = {ref: world.tasks.who_words(ref) or ref for ref in ids}
             continue
         try:
             title_field = world.collections.describe(target).get("title_field")

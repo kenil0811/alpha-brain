@@ -44,7 +44,7 @@ DESCRIPTION = ("Watson keeps notes on what you say and what Alpha reads: facts a
                " people and companies in your life, things you've promised and are owed, and"
                " what each conversation decided. It files each note where it belongs, so you"
                " never have to repeat yourself. It never changes your tables or acts for you.")
-MAY = ["facts", "notes", "commitments", "decisions"]
+MAY = ["facts", "notes", "tasks", "decisions"]
 SMALL = {"yes", "no", "ok", "okay", "thanks", "thank you", "sure", "go", "go ahead", "not now",
          "nope", "yep", "fine", "great", "cool", "hi", "hello"}
 REFILED = "Refiled the facts kept before Watson"
@@ -83,8 +83,8 @@ def _known(world: World, named: list[dict[str, Any]], module: str | None) -> str
     lines = ["About the person:"]
     for f in world.knowledge.facts("person")[:40]:
         lines.append(f"- {f['predicate']} = {f['value']} ({f['state']})")
-    for c in world.commitments.of("person")[:10]:
-        lines.append(f"- commitment: {c['what']}" + (f" by {c['due']}" if c["due"] else ""))
+    for t in world.tasks.of("person")[:10]:
+        lines.append(f"- task: {t['title']}" + (f" by {t['due']}" if t.get("due") else ""))
     for e in named:
         lines.append(f"About {e['name']} ({e['kind']}):")
         page = world.knowledge.find_note(f"entity:{e['id']}", e["name"])
@@ -260,8 +260,9 @@ def apply(world: World, source: str, items: list[dict[str, Any]], *,
             owed = _side(world, item.get("to"), named, source, entity_ids)
             due = item.get("due")
             try:
-                c = world.commitments.record(maker, what, to_whom=owed,
-                                             due=str(due) if due else None, source=source)
+                c = world.tasks.record(maker, what, to_whom=owed,
+                                       due=str(due) if due else None, source=source,
+                                       by=actor)
             except Exception:
                 log.exception("watson: commitment %s", item)
                 continue
@@ -296,14 +297,14 @@ def apply(world: World, source: str, items: list[dict[str, Any]], *,
         parts.append(f"{who}: {f['predicate']} = {f['value']}"
                      f" ({'kept' if f['state'] == 'accepted' else 'to confirm'})")
     parts.extend(f"on the page of {p}" for p in pages)
-    parts.extend(f"commitment: {c['what']}" + (f" by {c['due']}" if c["due"] else "")
+    parts.extend(f"task: {c['title']}" + (f" by {c['due']}" if c.get("due") else "")
                  for c in commitments)
     parts.extend(f"decided: {d['what']}" for d in decisions)
     jid = world.journal.append(
         "noticed", "Noticed: " + "; ".join(parts)[:900] + ".", actor=actor,
         data={"turn": source.removeprefix("turn:") if source.startswith("turn:") else None,
               "source": source, "facts": [f["id"] for f in facts], "pages": pages,
-              "commitments": [c["id"] for c in commitments],
+              "tasks": [c["id"] for c in commitments],
               "decisions": [d["id"] for d in decisions]},
         module=module, thread=thread, entity_ids=sorted(entity_ids) or None)
     return {"kept": True, "facts": facts, "pages": pages, "commitments": commitments,
@@ -640,7 +641,7 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     offers = offer(world, agent, runner=runner) if about.get("exchanges") else []
     parts = [f"{n} {name}" for name, n in (
         ("facts", counts["facts"]), ("page lines", counts["pages"]),
-        ("commitments", counts["commitments"]), ("decisions", counts["decisions"])) if n]
+        ("tasks", counts["commitments"]), ("decisions", counts["decisions"])) if n]
     line = ("Kept " + ", ".join(parts) if parts else "Nothing new to keep")
     if counts["to_confirm"]:
         line += f"; {counts['to_confirm']} to confirm"

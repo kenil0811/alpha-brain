@@ -172,10 +172,11 @@ def test_a_commitment_and_a_decision_are_filed_by_type_and_the_rest_stays_in_the
          "value": "≥0.8 acres", "stated": True, "quote": "x"},
     ]))
     assert out["kept"] and len(out["commitments"]) == 1 and len(out["decisions"]) == 1
-    [c] = world.commitments.of("person")
-    assert (c["what"], c["to_whom"], c["due"], c["state"]) == (
-        "send the deck", f"entity:{vikas['id']}", "2026-10-17", "open")
-    assert world.commitments.of(f"entity:{vikas['id']}") == [c]  # owed to him: on his page too
+    [c] = world.tasks.of("person")
+    assert (c["title"], c["about"], c["due"], c["state"], c["suggested"]) == (
+        "send the deck", [f"entity:{vikas['id']}"], "2026-10-17", "Open", False)
+    assert c["_provenance"]["source"] == "from what you said"  # Q91: a task at once, marked
+    assert world.tasks.of(f"entity:{vikas['id']}") == [c]  # owed to him: on his page too
     [d] = world.decisions.about("module", mod["id"])
     assert d["by"] == "person" and d["state"] == "binding"
     assert d["what"] == "Start with the Austin list"
@@ -184,32 +185,32 @@ def test_a_commitment_and_a_decision_are_filed_by_type_and_the_rest_stays_in_the
     # the filing is code's; "other" is filed nowhere
     assert [f["predicate"] for f in world.knowledge.facts("person")] == ["car_wash_lot_size_gate"]
     trail = world.journal.recent(1, kinds=["noticed"])[0]
-    assert "commitment: send the deck by 2026-10-17" in trail["text"]
+    assert "task: send the deck by 2026-10-17" in trail["text"]
     assert "decided: Start with the Austin list" in trail["text"]
-    assert trail["data"]["commitments"] == [c["id"]] and trail["data"]["decisions"] == [d["id"]]
+    assert trail["data"]["tasks"] == [c["id"]] and trail["data"]["decisions"] == [d["id"]]
     # the same commitment twice is one
     watson.notice(world, sid, runner=answering([
         {"kind": "commitment", "who": "person", "what": "Send the deck", "to": "Vikas",
          "due": "2026-10-17", "quote": "x"}]))
-    assert len(world.commitments.of("person")) == 1
+    assert len(world.tasks.of("person")) == 1
 
 
-def test_commitments_due_within_a_week_reach_the_prepack(world: World) -> None:
+def test_tasks_due_within_a_week_reach_the_prepack(world: World) -> None:
     from datetime import date, timedelta
 
     from alpha.context import prepack
 
     soon = (date.today() + timedelta(days=3)).isoformat()
     later = (date.today() + timedelta(days=30)).isoformat()
-    world.commitments.record("person", "send the deck", due=soon, source="turn:x")
-    world.commitments.record("person", "renew the lease", due=later, source="turn:x")
-    world.commitments.record("person", "call mum", source="turn:x")  # no date: not "due"
+    world.tasks.record("person", "send the deck", due=soon, source="turn:x")
+    world.tasks.record("person", "renew the lease", due=later, source="turn:x")
+    world.tasks.record("person", "call mum", source="turn:x")  # no date: not "due"
     pack = prepack.build(world, "what's on this week?")
-    assert "COMMITMENTS DUE" in pack and "send the deck" in pack
+    assert "TASKS DUE" in pack and "send the deck" in pack
     assert "renew the lease" not in pack and "call mum" not in pack
-    assert [c["what"] for c in world.commitments.due_within(7)] == ["send the deck"]
-    done = world.commitments.set_state(world.commitments.of("person")[0]["id"], "done")
-    assert done["state"] == "done" and world.commitments.due_within(7) == []
+    assert [c["title"] for c in world.tasks.due_within(7)] == ["send the deck"]
+    done = world.tasks.set_state(world.tasks.of("person")[0]["id"], "done")
+    assert done["state"] == "Done" and world.tasks.due_within(7) == []
 
 
 def test_a_conversations_checkpoint_keeps_what_it_decided_and_what_is_open(world: World) -> None:
@@ -259,8 +260,8 @@ def test_a_document_alpha_read_is_noticed_for_the_people_in_it(world: World, tmp
     facts = world.knowledge.facts(f"entity:{priya['id']}")
     # never stated by the person themselves: suggested, whatever the document says
     assert [(f["predicate"], f["state"]) for f in facts] == [("works_at", "suggested")]
-    [c] = world.commitments.of(f"entity:{priya['id']}")
-    assert c["who"] == f"entity:{priya['id']}" and c["to_whom"] == "person"
+    [c] = world.tasks.of(f"entity:{priya['id']}")
+    assert c["owner"] == f"entity:{priya['id']}" and not c.get("about")
 
 
 def test_watson_is_made_once_and_works_from_the_journal_cursor(world: World) -> None:
@@ -270,7 +271,7 @@ def test_watson_is_made_once_and_works_from_the_journal_cursor(world: World) -> 
                          actor="person")
     made = next(a for a in builtin.ensure(world) if a["kind"] == "watson")
     assert made["kind"] == "watson" and made["name"] == "Watson" and made["on"]
-    assert made["may"] == ["facts", "notes", "commitments", "decisions"]
+    assert made["may"] == ["facts", "notes", "tasks", "decisions"]
     brief = world.knowledge.find_note(f"agent:{made['id']}", "Brief")
     assert brief and brief["body"].startswith("## What Watson files")
     assert builtin.ensure(world) == []  # once

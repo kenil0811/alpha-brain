@@ -11,11 +11,13 @@ import type { Client, Note, RecordRow, Relations, TableDesc } from "../core/clie
 import type { Surface } from "../shell/Rail";
 import { Button, Confirm } from "../ui";
 import { ArrowLeft } from "../ui/icons";
-import { coerce, titleFieldOf, type FieldInfo } from "./fields";
+import { coerce, fieldLabel, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
 import { RecordHistory, RecordNote } from "./RecordHistory";
 import { RecordFields } from "./views/RecordFields";
 import { say } from "../core/client";
+import { TASKS_TABLE } from "../shell/Rail";
+import { TaskParts, TaskSuggestion, TasksHere, addressOf } from "./Tasks";
 
 export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null } | null>(null);
@@ -41,8 +43,10 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
   const module = data?.table.module ?? null;
 
   const tableTitle = data ? humanize(data.table.title === data.table.name ? data.table.name : data.table.title) : humanize(table);
-  /** Back to the table it belongs to (the module's page opens on the table last seen), or where the person came from. */
-  const back = () => (module ? onGo({ kind: "module", id: module, table: data?.table.name ?? table }) : window.history.back());
+  const isTask = table === TASKS_TABLE;
+  /** Back to the table it belongs to (the module's page opens on the table last seen; a task's, the
+   *  Tasks page), or where the person came from. */
+  const back = () => (module ? onGo({ kind: "module", id: module, table: data?.table.name ?? table }) : isTask ? onGo({ kind: "tasks" }) : window.history.back());
   const backButton = (
     <Button size="sm" onClick={back}>
       <ArrowLeft size={14} aria-hidden="true" /> {tableTitle}
@@ -113,15 +117,18 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
         </div>
       </div>
       {message ? <p className={message.ok ? "notice notice--ok" : "notice"} role="status">{message.text}</p> : null}
+      {isTask ? <TaskSuggestion client={client} row={row} onChanged={() => { setTick((n) => n + 1); onChanged(); }} /> : null}
       <div className="section">
         <div className="section__head">
           <h2>Details</h2>
           <span className="faint">Each value says where it came from</span>
         </div>
         <div className="card card--pad">
-          <RecordFields page row={row} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
+          <RecordFields page row={row} fields={isTask ? fields.filter((f) => f.name !== "reminded_at" && f.name !== "suggested") : fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
         </div>
       </div>
+      {isTask ? <TaskParts client={client} row={row} version={version} onChanged={() => { setTick((n) => n + 1); onChanged(); }} onGo={onGo} /> : null}
+      {!isTask && !readonly ? <TasksHere client={client} at={addressOf(data.table.name, row.id, module)} version={version} onChanged={onChanged} onGo={onGo} fields={fields.filter((f) => f.name !== titleField).map((f) => ({ name: f.name, label: fieldLabel(f) }))} /> : null}
       <RecordHistory client={client} table={data.table.name} row={row} fields={fields} readonly={readonly} version={version} onUndone={(saved) => { setData({ ...data, record: saved }); onChanged(); }} />
       <RecordNote client={client} table={data.table.name} id={row.id} note={data.note} readonly={readonly} onSaved={() => { setTick((n) => n + 1); onChanged(); }} />
     </div>

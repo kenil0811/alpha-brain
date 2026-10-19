@@ -252,14 +252,15 @@ def build(world: World, sentence: str, *, module: str | None = None,
              for g in k.goals("active")]
     sections.append(("ACTIVE GOALS", goals or ["- None yet."]))
 
-    due = world.commitments.due_within(7)
+    due = world.tasks.due_within(7)
     if due:
-        sections.append(("COMMITMENTS DUE (within a week; Watson keeps them)", [
-            f"- {c['what']} (by {c['due']}; {'yours' if c['who'] == 'person' else c['who']}"
-            + (f", to {c['to_whom']}" if c["to_whom"] else "") + f"; commitment {c['id']})"
-            for c in due[:10]]))
+        sections.append(("TASKS DUE (within a week; all of them in world_query's tasks)", [
+            f"- {t['title']} (due {t['due']}; {world.tasks.who_words(t.get('owner')) or 'You'}"
+            + (f"; on {place}" if (place := world.tasks.place_words(t.get('anchor'))) else "")
+            + f"; task {t['id']})" for t in due[:10]]))
 
-    tables = world.collections.overview()
+    # the person's tables; the world's own (the tasks) are named in TASKS DUE and world_query
+    tables = [t for t in world.collections.overview() if not t.get("world")]
     modules = world.modules.all()
     by_module: dict[str | None, list[dict[str, Any]]] = {}
     for t in tables:

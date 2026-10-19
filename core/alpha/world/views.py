@@ -20,8 +20,10 @@ CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "show_gone", "hidden",
                "view", "group_by", "date_by", "measure", "footers"}
 # The ways the window can show a table (desktop/src/modules/views); a board groups rows by a
 # field, a calendar, a timeline and a chart lay them on a date field, a chart adds up a
-# numeric one (or counts).
-VIEW_KINDS = ("table", "list", "board", "gallery", "calendar", "timeline", "chart", "form")
+# numeric one (or counts); a tree (P1, 18 Oct 2026) nests rows under the row they are part of
+# (a relation to the same table) and folds them by a field (group_by: a task's place).
+VIEW_KINDS = ("table", "list", "board", "gallery", "calendar", "timeline", "chart", "form",
+              "tree")
 BY_DATE = ("calendar", "timeline", "chart")
 
 
@@ -110,7 +112,8 @@ class Views:
 
     def for_table(self, collection: str) -> list[dict[str, Any]]:
         return [_view(r) for r in self.store.all(
-            "SELECT * FROM views WHERE collection = ? ORDER BY created_at", (collection,))]
+            "SELECT * FROM views WHERE collection = ? ORDER BY created_at, rowid",
+            (collection,))]
 
     def update(self, vid: str, *, title: str | None = None,
                config: dict[str, Any] | None = None,

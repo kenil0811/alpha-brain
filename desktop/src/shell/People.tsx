@@ -82,7 +82,7 @@ function keysLine(e: Entity): string {
     .join(" · ");
 }
 
-export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: { client: Client; id: string; version: number; onBack: () => void; onOpen: (id: string) => void; onChanged: () => void }) {
+export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onOpenTask }: { client: Client; id: string; version: number; onBack: () => void; onOpen: (id: string) => void; onChanged: () => void; onOpenTask?: (id: string) => void }) {
   const [entity, setEntity] = useState<EntityDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -181,20 +181,20 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         </div>
       </div>
 
-      {entity.commitments?.length ? (
+      {entity.tasks?.length ? (
         <div className="section">
           <div className="section__head">
-            <h2>Commitments</h2>
-            <span className="faint">promised or owed; Watson keeps them</span>
+            <h2>Tasks</h2>
+            <span className="faint">what you promised them and what they owe you</span>
           </div>
-          <ul className="list list--plain">
-            {entity.commitments.map((c) => (
-              <li key={c.id}>
-                {c.what}
-                <span className="faint">{c.who === "person" ? " · you promised" : ` · ${entity.name.split(" ")[0]} promised`}{c.due ? ` · by ${c.due}` : ""}</span>
-              </li>
+          <div className="card list">
+            {entity.tasks.map((t) => (
+              <button key={t.id} type="button" className="list__row" onClick={() => onOpenTask?.(t.id)}>
+                <span>{t.title}</span>
+                <span className="faint">{t.owner === "person" ? "you promised" : `${entity.name.split(" ")[0]} owes you`}{t.due ? ` · by ${t.due}` : ""}</span>
+              </button>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
       <div className="section">

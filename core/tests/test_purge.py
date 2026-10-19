@@ -10,6 +10,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.files import Files
 from alpha.mcp.tools import Tools
 from alpha.world.purge import remove_connection, remove_document, remove_module
+from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World
 
 
@@ -57,7 +58,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert world.runs.of(auto["id"]) == []
     assert world.knowledge.find_note(f"agent:{auto['id']}", "Sync") is None
     assert out["agents"] == 1 and out["threads"] == 1 and out["goals"] == 1
-    assert world.collections.names() == ["food_log"]
+    assert world.collections.names() == [TASKS, "food_log"]
     assert world.readers.all() == [] and world.agents.all() == []
     assert world.modules.threads(None) == []
     # a row's note goes with its table; another module's row keeps its own

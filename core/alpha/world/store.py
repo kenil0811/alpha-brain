@@ -270,19 +270,8 @@ CREATE TABLE IF NOT EXISTS decisions (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS decisions_at ON decisions(at);
--- Commitments (Q46): what the person promised and is owed, with its date; Watson files them.
-CREATE TABLE IF NOT EXISTS commitments (
-    id TEXT PRIMARY KEY,
-    who TEXT NOT NULL,
-    what TEXT NOT NULL,
-    to_whom TEXT,
-    due TEXT,
-    state TEXT NOT NULL DEFAULT 'open',
-    source TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS commitments_who ON commitments(who, state);
+-- Commitments (Q46) grew into tasks (P1, 18 Oct 2026): a table the world keeps itself,
+-- `tasks` in `collections` (world/tasks.py); an older world's rows are moved once, on open.
 -- Every version of a skill before it was replaced (Q49, 16 Oct 2026): what a repair changed,
 -- and what "Undo this repair" restores. `by` is who saved the version that replaced it.
 
@@ -467,10 +456,6 @@ ADDED_COLUMNS = [
     # (harness slice 3, 18 Oct 2026: a session resumed on other tools called a name it lacked)
     ("threads", "last_line", "TEXT"),
     ("threads", "session_tools", "TEXT"),
-    # a commitment with a moment to be reminded at, and when the card was put (18 Oct 2026,
-    # Kenil: a reminder is a row the Reminders agent owns, never an agent of its own)
-    ("commitments", "remind_at", "TEXT"),
-    ("commitments", "reminded_at", "TEXT"),
 ]
 
 

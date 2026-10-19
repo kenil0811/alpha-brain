@@ -1,0 +1,28 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "I need to know what you ate before I can log it. Today's log only has the paneer and the protein yoghurt, and neither is marked as lunch. I've put the question on Home. Tell me what you had and how much, or pick one of your usual lunches (paneer wrap, dal rice with veg). I'll add it to today with the calories and macros.",
+    "steps": 3,
+    "seconds": 7.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": true,
+    "why": "\"What did you have for lunch today, and roughly how much?\" with ['Paneer wrap, 1 wrap', 'Dal rice with veg, 1 plate', 'Something else'] options (the model's own)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 7.7,
+  "error": null
+ }
+]

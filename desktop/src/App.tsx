@@ -26,6 +26,8 @@ import { currentHashSurface, pathFor, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
 import { RecordPage } from "./modules/RecordPage";
+import { TasksPage } from "./modules/Tasks";
+import { TASKS_TABLE } from "./shell/Rail";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
@@ -255,7 +257,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeModuleId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : undefined;
   const scopeModule = scopeModuleId ? (modules.find((m) => m.id === scopeModuleId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || (surface.kind === "record" && scopeModule) ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "record" ? "Record" : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" || surface.kind === "entry" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || (surface.kind === "record" && scopeModule) ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "record" ? "Record" : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" || surface.kind === "entry" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : surface.kind === "tasks" ? "Tasks" : "Intelligence";
 
   return (
     <div
@@ -326,8 +328,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} />
         ) : surface.kind === "people" ? (
           <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
+        ) : surface.kind === "tasks" ? (
+          <TasksPage client={runtime.client} version={versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} />
         ) : surface.kind === "entity" ? (
-          <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
+          <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onOpenTask={(id) => setSurface({ kind: "record", table: TASKS_TABLE, id })} />
         ) : surface.kind === "skill" ? (
           <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "agent" ? (

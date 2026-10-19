@@ -53,7 +53,8 @@ def routes(app: FastAPI, s: Served) -> None:
             "ran_today": ran["n"] if ran else 0,
             "failed_today": failed["n"] if failed else 0,
             "modules": [module_card(world, m) for m in world.modules.all()],
-            "loose_tables": [t for t in world.collections.overview() if t["module"] is None],
+            "loose_tables": [t for t in world.collections.overview()
+                             if t["module"] is None and not t.get("world")],
             "coming_up": events[:6],
             "threads": items_today(world),
             "picks": [p for p in scout.picks_of_day(world) if not p["decided"]],
@@ -81,18 +82,18 @@ def routes(app: FastAPI, s: Served) -> None:
             return {"answered": jid, "turn": taken}
         reminder = asked["data"].get("reminder")
         if reminder:
-            # the reminder's card: Done closes the commitment; Tomorrow moves its moment a day
-            # on, at the same time; neither starts a turn (the Reminders agent)
-            row = world.commitments.get(str(reminder))
+            # the reminder's card: Done closes the task; Tomorrow moves its moment a day on, at
+            # the same time; neither starts a turn (the Reminders agent)
+            row = world.tasks.get(str(reminder))
             if body.text.strip().lower().startswith("tomorrow"):
                 moment = datetime.fromisoformat(row["remind_at"]).astimezone() + timedelta(days=1)
-                world.commitments.snooze(row["id"], moment)
+                world.tasks.snooze(row["id"], moment)
                 world.journal.append("changed", f"Reminder moved to tomorrow, {moment:%H:%M}:"
-                                     f" {row['what']}.", actor="person",
-                                     data={"commitment": row["id"], "ask": ask_id},
+                                     f" {row['title']}.", actor="person",
+                                     data={"task": row["id"], "ask": ask_id},
                                      module=asked["module"], thread=asked["thread"])
             else:
-                world.commitments.set_state(row["id"], "done")
+                world.tasks.set_state(row["id"], "Done")
             return {"answered": jid, "turn": None, "reminder": reminder}
         decided = columbo.decide(world, asked, body.text)
         if decided:

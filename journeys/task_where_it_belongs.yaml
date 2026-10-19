@@ -1,0 +1,17 @@
+name: task_where_it_belongs
+title: "Tasks · a task asked for in words lives on the row it is about, and is found there"
+why: >
+  P1 of the tasks-and-cards proposal (18 Oct 2026, Q85, Q87, Q91). A task is a row of the
+  world's own tasks table, living on the place it concerns; Alpha picks that place from the
+  conversation and says it in a line, never asks; "what's open on it" answers from the tasks
+  living there.
+fresh: true
+steps:
+  - say: "keep a list of the deals I'm looking at: the firm's name and the asking price"
+  - say: "add Midwest HVAC, asking 900k"
+  - say: "add a task on Midwest HVAC: ask the broker for the last three years of P&L, due Friday"
+  - say: "what's open on Midwest HVAC?"
+checks:
+  - made_since: {tables: 1}
+  - task: {matches: "P&L|three years|3 years", on: "record"}
+  - reply: {matches: "P&L|three years|3 years"}

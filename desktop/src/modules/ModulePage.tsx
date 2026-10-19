@@ -16,6 +16,7 @@ import { ModuleGlyph } from "../shell/moduleIcons";
 import { RemoveModuleDialog } from "../shell/RemoveModule";
 import { FilesView } from "./FilesView";
 import { fieldLabel } from "./fields";
+import { ModuleTasks } from "./Tasks";
 
 type Section = "app" | "activity" | "settings";
 
@@ -207,13 +208,14 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         <>
           <Tabs
             label="Tables"
-            value={table || showFiles || tab === "notes" || tab === "know" || pageShown ? tab : "summary"}
+            value={table || showFiles || tab === "notes" || tab === "know" || tab === "~tasks" || pageShown ? tab : "summary"}
             onChange={setTab}
             items={[
               { id: "summary", label: "Overview" },
               ...tabPages.map((p) => ({ id: `page:${p.name}`, label: p.title })),
               { id: "notes", label: "Notes" },
               { id: "know", label: "Skills & agents" },
+              { id: "~tasks", label: "Tasks" },
               ...detail.tables.map((t) => ({
                 id: t.name,
                 label: (
@@ -237,6 +239,8 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             <ModuleNotes client={client} moduleId={moduleId} version={version} onChanged={onChanged} />
           ) : tab === "know" ? (
             <ModuleKnowHow client={client} moduleId={moduleId} agents={detail.agents} version={version} onChanged={onChanged} onGo={onGo} />
+          ) : tab === "~tasks" ? (
+            <ModuleTasks client={client} moduleId={moduleId} version={version} onChanged={onChanged} onGo={onGo} />
           ) : showFiles ? (
             <div className="stack stack--fill">
               <FilesView client={client} files={files} tableKey={`files_${detail.id}`} onChanged={onChanged} />

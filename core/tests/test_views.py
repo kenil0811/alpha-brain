@@ -10,6 +10,7 @@ from alpha.api.server import create_app
 from alpha.mcp.tools import Tools
 from alpha.world.purge import remove_module
 from alpha.world.store import Problem
+from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World
 
 
@@ -102,4 +103,5 @@ def test_removing_the_module_takes_its_lists(world: World) -> None:
     deals(world, module="Brokers")
     world.views.save("deals", "Active", {"filters": {"status": "Active"}})
     out = remove_module(world, "Brokers")
-    assert out["lists"] == 1 and world.store.one("SELECT 1 AS x FROM views") is None
+    assert out["lists"] == 1 and world.store.one(
+        "SELECT 1 AS x FROM views WHERE collection != ?", (TASKS,)) is None

@@ -271,6 +271,9 @@ def routes(app: FastAPI, s: Served) -> None:
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
                                   "size": row["size"], "kind": row["kind"],
                                   "added_at": row["indexed_at"]}
+        if desc.get("world"):
+            # the world's own table (the tasks, P1): what its rows point at, in words
+            records = [{**r, "_words": world.tasks.words(r)} for r in records]
         return {"table": desc, "records": records, "files": files,
                 "lists": world.views.for_table(name),
                 "relations": relation_titles(world, desc, records)}
@@ -284,6 +287,8 @@ def routes(app: FastAPI, s: Served) -> None:
                     "record": world.modtables.get(name, rid), "relations": {}}
         desc = world.collections.describe(name)
         row = world.collections.get(name, rid)
+        if desc.get("world"):
+            row = {**row, "_words": world.tasks.words(row)}
         return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row]),
                 "note": world.knowledge.find_note(f"record:{name}/{rid}", RECORD_NOTE)}
 

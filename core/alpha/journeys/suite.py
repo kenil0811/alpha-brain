@@ -60,6 +60,7 @@ from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
 from alpha.world.store import Problem, now
+from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World, default_world_path
 
 log = logging.getLogger(__name__)
@@ -300,9 +301,9 @@ class Run:
         elif "due_now" in spec:
             # the suite cannot wait until Friday: every open reminder's moment is now
             moved = 0
-            for c in self.world.commitments.all():
-                if c["state"] == "open" and c.get("remind_at"):
-                    self.world.commitments.snooze(c["id"], dt.now(UTC))
+            for c in self.world.tasks.all():
+                if c.get("state") not in ("Done", "Dropped") and c.get("remind_at"):
+                    self.world.tasks.snooze(c["id"], dt.now(UTC))
                     moved += 1
             record = {"due_now": moved, "ok": moved > 0,
                       "detail": f"{moved} reminder(s) brought to now"}
@@ -560,10 +561,12 @@ class Run:
         return total >= int(arg["at_least"]), f"{total} rows in {words}"
 
     def _tables_since(self) -> list[dict[str, Any]]:
-        """The person's tables made in this journey (a module's settings table is Alpha's)."""
+        """The person's tables made in this journey (a module's settings table is Alpha's, and
+        the world's own, the tasks, is no table the journey made)."""
         rows = self.world.store.all(
             "SELECT name, created_at FROM collections WHERE created_at >= ?"
-            " AND name != 'settings'", (self.mark.at,))
+            " AND name != 'settings' AND json_extract(schema, '$.world') IS NULL",
+            (self.mark.at,))
         return [dict(r) for r in rows]
 
     def check_no_new_tables(self, arg: dict[str, Any]) -> tuple[bool, str]:
@@ -696,6 +699,22 @@ class Run:
         except json.JSONDecodeError:
             verdict = {}
         return bool(verdict.get("pass")), str(verdict.get("why") or result.reply[:300])
+
+    def check_task(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A task the journey made (P1): its title matching `matches`, living on the kind of
+        place `on` names (record, field, module, page; "nowhere" for none)."""
+        rows = self._new_rows(TASKS)
+        pattern = re.compile(str(arg.get("matches") or "."), re.I)
+        hits = [r for r in rows if pattern.search(str(r.get("title") or ""))]
+        if not hits:
+            return False, (f"No task matching {arg.get('matches')!r}; made:"
+                           f" {[r.get('title') for r in rows] or 'none'}.")
+        task = hits[-1]
+        steps = self.world.tasks.place(task["anchor"]) if task.get("anchor") else []
+        kind = steps[-1]["kind"] if steps else "nowhere"
+        where = " › ".join(s["words"] for s in steps) or "no place"
+        want = arg.get("on")
+        return (want is None or kind == want), f"{task['title']}: on {where} ({kind})."
 
     def check_count(self, arg: dict[str, Any]) -> tuple[bool, str]:
         rows = self.world.collections.query(arg["collection"], limit=None)

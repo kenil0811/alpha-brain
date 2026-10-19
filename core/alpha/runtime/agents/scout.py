@@ -148,7 +148,7 @@ def packet(world: World, agent: dict[str, Any]) -> dict[str, Any]:
     """What Scout looks at, gathered by code: the five kinds' raw material, the goals, what
     the person declined before. The model judges; code made the list."""
     now = datetime.now(UTC)
-    commitments = world.commitments.due_within(7)
+    tasks = world.tasks.due_within(7)
     try:
         events = Calendar(world).between(now.isoformat(), (now + timedelta(hours=48)).isoformat())
     except Exception:
@@ -167,7 +167,7 @@ def packet(world: World, agent: dict[str, Any]) -> dict[str, Any]:
                       if p["id"] not in answered and p["at"] < stale
                       and not p["data"].get("scout") and not p["data"].get("plan")]
     goals = world.knowledge.goals("active")
-    return {"day": today(), "commitments": commitments, "events": events[:12],
+    return {"day": today(), "tasks": tasks, "events": events[:12],
             "summaries": summaries, "open_asks": open_asks[:10],
             "open_proposals": open_proposals[:10], "repeated": _repeated_asks(world),
             "goals": goals, "declined": declined_before(world), "sunk": sorted(sunk_kinds(world)),
@@ -176,10 +176,9 @@ def packet(world: World, agent: dict[str, Any]) -> dict[str, Any]:
 
 def _words(p: dict[str, Any]) -> str:
     lines = [f"Today: {p['day']}", ""]
-    lines.append("Commitments due within a week:")
-    lines += [f"- {c['id']}: {c['who']} — {c['what']}"
-              + (f" (to {c['to_whom']})" if c.get("to_whom") else "") + f", due {c['due']}"
-              for c in p["commitments"]] or ["- none"]
+    lines.append("Tasks due within a week:")
+    lines += [f"- {t['id']}: {t.get('owner') or 'person'} — {t['title']}, due {t['due']}"
+              for t in p["tasks"]] or ["- none"]
     lines += ["", "Calendar, next 48 hours:"]
     lines += [f"- {e.get('id', '')}: {e.get('starts_at', '')[:16]} {e.get('title', '')}"
               + (f" with {', '.join(e.get('people') or [])}" if e.get("people") else "")
@@ -234,8 +233,6 @@ def evidence_resolves(world: World, ref: str) -> bool:
                                (ref,)) is not None
     if ref.startswith("g_"):
         return world.store.one("SELECT 1 AS x FROM goals WHERE id = ?", (ref,)) is not None
-    if ref.startswith("c_"):
-        return world.store.one("SELECT 1 AS x FROM commitments WHERE id = ?", (ref,)) is not None
     if ref.startswith("f_"):
         return world.store.one("SELECT 1 AS x FROM facts WHERE id = ?", (ref,)) is not None
     if ref.startswith("e_"):

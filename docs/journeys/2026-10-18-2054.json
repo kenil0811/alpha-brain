@@ -1,0 +1,53 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** in a new Food module. Each entry has what you ate, when, the meal, the amount, calories, protein, carbs, fat and notes. There's also a \"Calories per day\" chart view.\n\nIt's empty so far. Tell me what you ate in plain words, like \"two eggs and toast for breakfast\" or \"chicken burrito for lunch\", and I'll add it. When you don't give numbers, I'll estimate calories and macros and mark them as estimates. If you give a time I'll use it. Otherwise I'll use roughly when you tell me.\n\nWant to start with what you've eaten today?",
+    "steps": 3,
+    "seconds": 12.3
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "Logged **2 large eggs** at 20:55 today: about 143 kcal, 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\nThese numbers are my estimate. I assumed large eggs cooked without oil or butter. I left the meal blank because you didn't say which one it was. If you used butter or a different egg size, tell me and I'll adjust the entry.",
+    "steps": 2,
+    "seconds": 5.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 17.9,
+  "error": null
+ }
+]

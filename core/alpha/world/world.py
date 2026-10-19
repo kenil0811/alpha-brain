@@ -8,7 +8,6 @@ from pathlib import Path
 from alpha.world.actions import Actions, Permissions, Procedures
 from alpha.world.agents import Agents
 from alpha.world.collections import Collections
-from alpha.world.commitments import Commitments
 from alpha.world.decisions import Decisions
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
@@ -24,6 +23,7 @@ from alpha.world.runs import Runs
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
 from alpha.world.store import Store
+from alpha.world.tasks import Tasks
 from alpha.world.views import Views
 from alpha.world.workflows import Workflows
 
@@ -48,7 +48,6 @@ class World:
         self.journal = Journal(self.store)
         self.entities = Entities(self.store)
         self.collections = Collections(self.store, self.entities)
-        self.commitments = Commitments(self.store)
         self.knowledge = Knowledge(self.store)
         self.modules = Modules(self.store)
         self.agents = Agents(self.store)
@@ -69,6 +68,9 @@ class World:
         self.files = ModuleFiles(self)
         self.pages = Pages(self)
         self.kits = Kits(self)
+        # The tasks (P1, 18 Oct 2026): a table the world keeps itself; commitments moved once.
+        self.tasks = Tasks(self)
+        self.tasks.ensure()
         self.files.sync()  # the modules' directories brought in line (slice 5)
 
     def close(self) -> None:

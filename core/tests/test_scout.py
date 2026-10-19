@@ -32,8 +32,8 @@ def material(world: World) -> dict[str, Any]:
     rec = Tools(world, turn="j_0").records_add("food_log", {"item": "Eggs", "kcal": 155},
                                                source="stated")
     goal = world.knowledge.set_goal("Eat 150 g of protein a day")
-    c = world.commitments.record("person", "send Sania the deck", to_whom=None,
-                                 due=scout.today(), source="turn:j_0")
+    c = world.tasks.record("person", "send Sania the deck", to_whom=None,
+                           due=scout.today(), source="turn:j_0")
     ask = world.journal.append("asked", "Which metro first?", data={"options": ["Austin"]})
     for _ in range(3):
         world.journal.append("said", "what did i eat today", actor="person")

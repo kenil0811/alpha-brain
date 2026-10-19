@@ -1,10 +1,10 @@
 """Reminders: the built-in agent that owns the rows with a time (18 October 2026).
 
 Kenil: "reminding to call Sara is not a separate agent; the agent would be a reminder agent,
-which can handle all such queries." A reminder is the person's commitment with a moment
-(`commitments.remind_at`); this agent looks on every tick for the ones whose moment has come
+which can handle all such queries." A reminder is the person's task with a moment (the tasks
+table's `remind_at`, P1); this agent looks on every tick for the ones whose moment has come
 and puts one card each ("Reminder: call Sara." · Done · Tomorrow, same time). Done closes the
-commitment; Tomorrow moves its moment a day on. Nothing else is made: no agent, no schedule.
+task; Tomorrow moves its moment a day on. Nothing else is made: no agent, no schedule.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ MAY = ["asks"]
 
 def look(world: World, agent: dict[str, Any]) -> Work | None:
     """A clock, not a cursor: the open reminders whose moment has come."""
-    due = world.commitments.due_now()
+    due = world.tasks.due_now()
     about: dict[str, Any] = {"due": [c["id"] for c in due]} if due else {}
     return Work(journal_rowid(world), about)
 
@@ -36,14 +36,14 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
         work = look(world, agent) or Work(journal_rowid(world))
     put = []
     for cid in work.about.get("due") or []:
-        c = world.commitments.get(cid)
+        c = world.tasks.get(cid)
         world.journal.append(
-            "asked", f"Reminder: {c['what']}.", actor=agent["id"],
+            "asked", f"Reminder: {c['title']}.", actor=agent["id"],
             data={"options": ["Done", "Tomorrow, same time"], "kind": "one",
-                  "reminder": cid, "words": c["what"], "agent": agent["id"], "turn": None},
+                  "reminder": cid, "words": c["title"], "agent": agent["id"], "turn": None},
             thread=agent.get("thread"), module=None)
-        world.commitments.reminded(cid)
-        put.append(c["what"])
+        world.tasks.reminded(cid)
+        put.append(c["title"])
     line = ("Reminded you: " + "; ".join(put) + "." if put else "Nothing due.")
     return Outcome("succeeded", None, line, upto=work.upto)
 

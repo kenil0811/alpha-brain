@@ -20,6 +20,8 @@ export type FilterOp =
   | "is" | "is_not" | "contains" | "not_contains" | "starts" | "ends"
   | "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "between"
   | "before" | "after" | "on_before" | "on_after" | "within"
+  /** Days that move with the clock (P1, 18 Oct 2026): a saved "Today" stays today tomorrow. */
+  | "today" | "this_week" | "before_today" | "next_days"
   | "in" | "checked" | "unchecked" | "empty" | "not_empty";
 
 export interface FilterRule {
@@ -43,6 +45,7 @@ export const OP_WORDS: Record<FilterOp, string> = {
   is: "is", is_not: "is not", contains: "contains", not_contains: "doesn't contain", starts: "starts with", ends: "ends with",
   eq: "=", ne: "≠", gt: "more than", lt: "less than", gte: "at least", lte: "at most", between: "between", in: "is one of",
   before: "before", after: "after", on_before: "on or before", on_after: "on or after", within: "in the last (days)",
+  today: "is today", this_week: "is this week", before_today: "is before today", next_days: "in the next (days)",
   checked: "is ticked", unchecked: "isn't ticked", empty: "is empty", not_empty: "isn't empty",
 };
 
@@ -50,14 +53,14 @@ export const OP_WORDS: Record<FilterOp, string> = {
 export function opsFor(kind: string): FilterOp[] {
   if (kind === "bool") return ["checked", "unchecked"];
   if (isNumeric(kind)) return ["eq", "ne", "gt", "lt", "between", "empty", "not_empty"];
-  if (kind === "date" || kind === "datetime") return ["before", "after", "between", "within", "empty", "not_empty"];
+  if (kind === "date" || kind === "datetime") return ["before", "after", "between", "today", "this_week", "before_today", "within", "next_days", "empty", "not_empty"];
   if (kind === "choice" || kind === "status") return ["in"];
   if (kind === "multichoice") return ["contains", "not_contains", "empty", "not_empty"];
   if (kind === "relation" || kind === "file") return ["empty", "not_empty"];
   return ["is", "is_not", "contains", "not_contains", "starts", "ends", "empty", "not_empty"];
 }
 
-export const needsValue = (op: FilterOp) => !["empty", "not_empty", "checked", "unchecked"].includes(op);
+export const needsValue = (op: FilterOp) => !["empty", "not_empty", "checked", "unchecked", "today", "this_week", "before_today"].includes(op);
 
 /** Whether a rule does anything: a condition without a value, or a ticklist with nothing taken
  *  out, narrows nothing. */
@@ -80,6 +83,19 @@ export function matchRule(row: RecordRow, rule: FilterRule, field: FieldInfo | u
   if (rule.op === "unchecked") return v !== true;
   if (rule.op === "in") return !Array.isArray(rule.values) || rule.values.includes(isEmpty(v) ? "" : String(v));
   const kind = field?.kind ?? "text";
+  if (rule.op === "today" || rule.op === "this_week" || rule.op === "before_today") {
+    if (isEmpty(v)) return false;
+    const day = String(v).slice(0, 10);
+    const today = dayOf(now);
+    if (rule.op === "today") return day === today;
+    if (rule.op === "before_today") return day < today;
+    // this week: Monday to Sunday, the Mac's own week
+    const monday = new Date(now);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    return day >= dayOf(monday) && day <= dayOf(sunday);
+  }
   if (rule.op === "between") {
     const lo = rule.value.trim();
     const hi = (rule.value2 ?? "").trim();
@@ -118,6 +134,13 @@ export function matchRule(row: RecordRow, rule: FilterRule, field: FieldInfo | u
       const from = new Date(now);
       from.setDate(from.getDate() - days);
       return day >= dayOf(from) && day <= dayOf(now);
+    }
+    if (rule.op === "next_days") {
+      const days = Number(q);
+      if (Number.isNaN(days)) return true;
+      const until = new Date(now);
+      until.setDate(until.getDate() + days);
+      return day >= dayOf(now) && day <= dayOf(until);
     }
     switch (rule.op) {
       case "before": return day < q;
@@ -384,6 +407,9 @@ export function groupRows(rows: RecordRow[], field: FieldInfo, relations: Relati
   const labelOf = (key: string): string => {
     if (kind === "bool") return key === "true" ? "Ticked" : "Not ticked";
     if (key === "") return "Empty";
+    // what the rows say the value is in words (a task's place, its owner, P1)
+    const said = byKey.get(key)?.[0]?.words?.[field.name];
+    if (typeof said === "string" && said) return said;
     if (kind === "date" || kind === "datetime") return MONTH(key);
     if (kind === "relation") return relations[field.name]?.[key] ?? key;
     if (kind === "choice" || kind === "status") return humanize(key);

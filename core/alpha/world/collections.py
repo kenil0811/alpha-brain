@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from alpha.world.names import check_name
 from alpha.world.store import Problem, Store, dumps, fts_query, loads, new_id, now
@@ -82,10 +83,14 @@ def normalise_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
             target = raw.get("relation")
             if not target:
                 raise Problem(
-                    f"The relation field '{name}' needs 'relation': a collection name or"
-                    " 'entity:person' / 'entity:organisation'."
+                    f"The relation field '{name}' needs 'relation': a collection name,"
+                    " 'entity:person' / 'entity:organisation', or 'any' (a row of any table or"
+                    " anyone, as table/id or entity:id)."
                 )
             field["relation"] = str(target)
+            if raw.get("many"):
+                # several at once (a task's references, 18 Oct 2026, P1): a list of the same
+                field["many"] = True
         out.append(field)
     return out
 
@@ -95,6 +100,10 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
     if value is None:
         return None
     try:
+        if kind == "relation" and field.get("many"):
+            items = value if isinstance(value, list) else [value]
+            refs = [" ".join(str(v).split()) for v in items if v is not None]
+            return [r for i, r in enumerate(refs) if r and r not in refs[:i]]
         if kind in {"text", "long_text", "url", "relation", "file"}:
             text = str(value)
             if kind == "url" and not re.match(r"^https?://", text):
@@ -153,6 +162,22 @@ def _search_text(values: dict[str, Any]) -> str:
 ROWS_ARE = {"person", "organisation"}
 
 
+class TableHook(Protocol):
+    """A table the world itself keeps (the tasks, 18 Oct 2026, P1) shapes its rows on every
+    write and follows what a write changed, inside the write's own transaction, so what code
+    owes the row (a default, a check, the next of a repeating task) never lags behind it."""
+
+    def shape(self, values: dict[str, Any], before: dict[str, Any] | None,
+              provenance: dict[str, Any]) -> dict[str, Any]: ...
+
+    def changed(self, db: sqlite3.Connection, rid: str, before: dict[str, Any] | None,
+                after: dict[str, Any]) -> None: ...
+
+
+# A record removed, inside the removal's transaction: what lives on it goes with it.
+RemovalListener = Callable[[sqlite3.Connection, str, str], None]
+
+
 def _check_identity(identity: dict[str, str], names: list[str]) -> dict[str, str]:
     rows_are, field = identity.get("rows_are"), identity.get("field")
     if rows_are not in ROWS_ARE:
@@ -198,6 +223,8 @@ class Collections:
     def __init__(self, store: Store, entities: Any = None) -> None:
         self.store = store
         self.entities = entities
+        self.hooks: dict[str, TableHook] = {}
+        self.on_remove: list[RemovalListener] = []
 
     # ---- tables ----
 
@@ -224,7 +251,10 @@ class Collections:
         module: str | None = None,
         title_field: str | None = None,
         identity: dict[str, str] | None = None,
+        world_own: bool = False,
     ) -> dict[str, Any]:
+        """A table. `world_own` marks one the world keeps itself (the tasks, P1): never a
+        module's, never listed among the person's loose tables, its fields Alpha's."""
         _check_name(name, "table")
         if self.store.one("SELECT 1 FROM collections WHERE name = ?", (name,)):
             raise Problem(f"A table named '{name}' exists already; describe it or add fields.")
@@ -239,6 +269,8 @@ class Collections:
             raise Problem(f"The title field '{title_field}' is not one of the fields {names}.")
         if identity:
             schema["identity"] = _check_identity(identity, names)
+        if world_own:
+            schema["world"] = True
         stamp = now()
         with self.store.tx() as db:
             db.execute(
@@ -434,6 +466,7 @@ class Collections:
             "fields": loads(row["schema"])["fields"],
             **({"identity": loads(row["schema"])["identity"]}
                if "identity" in loads(row["schema"]) else {}),
+            **({"world": True} if loads(row["schema"]).get("world") else {}),
             "records": count["n"] if count else 0,
             "created_at": row["created_at"],
         }
@@ -443,14 +476,16 @@ class Collections:
 
     def overview(self, module: str | None = None) -> list[dict[str, Any]]:
         rows = self.store.all(
-            "SELECT c.name, c.title, c.module, COUNT(r.id) AS n FROM collections c"
+            "SELECT c.name, c.title, c.module, json_extract(c.schema, '$.world') AS own,"
+            " COUNT(r.id) AS n FROM collections c"
             " LEFT JOIN records r ON r.collection = c.name AND r.deleted_at IS NULL"
             + (" WHERE c.module = ?" if module is not None else "")
             + " GROUP BY c.name ORDER BY c.module, c.name",
             (module,) if module is not None else (),
         )
         return [
-            {"name": r["name"], "title": r["title"], "module": r["module"], "records": r["n"]}
+            {"name": r["name"], "title": r["title"], "module": r["module"], "records": r["n"],
+             **({"world": True} if r["own"] else {})}
             for r in rows
         ]
 
@@ -485,6 +520,9 @@ class Collections:
         self, name: str, values: dict[str, Any], provenance: dict[str, Any]
     ) -> dict[str, Any]:
         clean = self._validate(name, values, partial=False)
+        hook = self.hooks.get(name)
+        if hook is not None:
+            clean = hook.shape(clean, None, provenance)
         rid = new_id("r")
         stamp = now()
         with self.store.tx() as db:
@@ -497,6 +535,8 @@ class Collections:
                 "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                 (name, rid, _search_text(clean)),
             )
+            if hook is not None:
+                hook.changed(db, rid, None, clean)
         self._link(name, rid, clean)
         return self.get(name, rid)
 
@@ -515,6 +555,7 @@ class Collections:
         ids touched."""
         schema = self._schema(name)
         identity = schema.get("identity")
+        hook = self.hooks.get(name)
         fields = {f["name"] for f in schema["fields"]}
         if key not in fields:
             raise Problem(f"'{name}' has no field '{key}' to match records on.")
@@ -547,6 +588,8 @@ class Collections:
                 # One bad row never sinks the batch: it is set aside and reported.
                 try:
                     clean = self._validate(name, raw, partial=prior is not None)
+                    if hook is not None and prior is None:
+                        clean = hook.shape(clean, None, provenance)
                 except Problem as e:
                     counts["invalid"] += 1
                     if len(problems) < 5:
@@ -565,6 +608,8 @@ class Collections:
                         "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                         (name, rid, _search_text(clean)),
                     )
+                    if hook is not None:
+                        hook.changed(db, rid, None, clean)
                     counts["added"] += 1
                     touched.append(rid)
                     seen_ids.append(rid)
@@ -576,6 +621,15 @@ class Collections:
                     if fill_only and k in fill_only and current.get(k) not in (None, "", []):
                         continue
                     merged[k] = v
+                if hook is not None and merged != current:
+                    try:
+                        merged = hook.shape(merged, current, provenance)
+                    except Problem as e:
+                        counts["invalid"] += 1
+                        if len(problems) < 5:
+                            problems.append(f"{match}: {e}")
+                        seen_ids.append(prior["id"])
+                        continue
                 seen_ids.append(prior["id"])
                 if merged == current:
                     counts["unchanged"] += 1
@@ -596,6 +650,8 @@ class Collections:
                     "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                     (name, prior["id"], _search_text(merged)),
                 )
+                if hook is not None:
+                    hook.changed(db, prior["id"], current, merged)
                 counts["updated"] += 1
                 touched.append(prior["id"])
                 to_link.append((prior["id"], merged))
@@ -680,7 +736,11 @@ class Collections:
         merged = {k: v for k, v in current.items() if k not in SYSTEM_FIELDS | {"revision",
                                                                                 "_provenance"}}
         merged = {k: v for k, v in merged.items() if not k.startswith("_")}
+        before = dict(merged)
         merged.update(clean)
+        hook = self.hooks.get(name)
+        if hook is not None:
+            merged = hook.shape(merged, before, provenance)
         with self.store.tx() as db:
             self._keep(db, name, rid)
             cur = db.execute(
@@ -700,6 +760,8 @@ class Collections:
                 "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                 (name, rid, _search_text(merged)),
             )
+            if hook is not None:
+                hook.changed(db, rid, before, merged)
         self._link(name, rid, merged)
         return self.get(name, rid)
 
@@ -742,6 +804,8 @@ class Collections:
             db.execute(
                 "DELETE FROM records_fts WHERE collection = ? AND record_id = ?", (name, rid)
             )
+            for listener in self.on_remove:
+                listener(db, name, rid)
 
     # ---- reading ----
 

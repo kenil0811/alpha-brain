@@ -1,0 +1,68 @@
+[
+ {
+  "name": "task_where_it_belongs",
+  "title": "Tasks · a task asked for in words lives on the row it is about, and is found there",
+  "steps": [
+   {
+    "say": "keep a list of the deals I'm looking at: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I've made an empty list called \"Deals I'm looking at\" in a new Deals module. It has two fields: the firm's name and the asking price.\n\nI assumed the price is in dollars. Tell me if it's another currency and I'll change it.\n\nSend me the deals, such as \"Acme Corp, $2.5M\", and I'll add them.",
+    "steps": 3,
+    "seconds": 13.7
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I added Midwest HVAC to your deals list with an asking price of $900,000.",
+    "steps": 2,
+    "seconds": 7.3
+   },
+   {
+    "say": "add a task on Midwest HVAC: ask the broker for the last three years of P&L, due Friday",
+    "ok": true,
+    "reply": "I added the task \"Ask the broker for the last three years of P&L\" to Midwest HVAC in your Deals list, due Friday 23 October.",
+    "steps": 2,
+    "seconds": 9.2
+   },
+   {
+    "say": "what's open on Midwest HVAC?",
+    "ok": true,
+    "reply": "There's one open item on Midwest HVAC:\n\n- **Ask the broker for the last three years of P&L**, due Friday 23 October.",
+    "steps": 2,
+    "seconds": 6.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 2 tables, 0 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "task",
+    "arg": {
+     "matches": "P&L|three years|3 years",
+     "true": "record"
+    },
+    "ok": true,
+    "why": "Ask the broker for the last three years of P&L: on Deals › Deals I'm looking at › Midwest HVAC (record).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "P&L|three years|3 years"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 36.8,
+  "error": null
+ }
+]

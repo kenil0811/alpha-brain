@@ -67,6 +67,8 @@ def work_graph(world: World, agents: list[dict[str, Any]]) -> dict[str, Any]:
             edge(f"module:{m['id']}", f"module:{m['parent']}", "in")
 
     for t in world.collections.overview():
+        if t.get("world"):
+            continue  # the world's own tables (the tasks) are not work Alpha made
         node(f"table:{t['name']}", "table", t["title"], subtitle=f"{t['records']:,} rows",
              module=t["module"], rows=t["records"])
         if t["module"]:
@@ -200,6 +202,8 @@ def world_graph(world: World) -> dict[str, Any]:
         if m.get("parent"):
             edge(f"module:{m['id']}", f"module:{m['parent']}", "in")
     for t in world.collections.overview():
+        if t.get("world"):
+            continue  # the world's own tables (the tasks) are not work Alpha made
         node(f"table:{t['name']}", "table", t["title"], subtitle=f"{t['records']:,} rows",
              module=t["module"], rows=t["records"])
         if t["module"]:

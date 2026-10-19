@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
 from alpha.world.store import Problem
+from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World
 
 
@@ -87,7 +88,7 @@ def test_delete_for_good_says_first_what_goes_then_takes_it(world: World) -> Non
     plan = c.get(f"/api/modules/{ids['avilo']['id']}/removal").json()
     assert plan["what"] == "1 table (1 row) and 1 agent, with Deal Tracker inside it"
     c.delete(f"/api/modules/{ids['avilo']['id']}")
-    assert world.modules.all() == [] and world.collections.names() == []
+    assert world.modules.all() == [] and world.collections.names() == [TASKS]
     assert world.journal.recent(1)[0]["text"].startswith("Removed Avilo")  # the journal keeps it
 
 

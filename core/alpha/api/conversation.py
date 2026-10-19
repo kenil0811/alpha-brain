@@ -32,6 +32,7 @@ from alpha.runtime import conversations
 from alpha.runtime.running import LIVE
 from alpha.world.purge import conversation_removal, remove_conversation
 from alpha.world.store import Problem
+from alpha.world.tasks import TABLE as TASKS
 
 
 def routes(app: FastAPI, s: Served) -> None:
@@ -134,7 +135,8 @@ def routes(app: FastAPI, s: Served) -> None:
         counts = {}
         for name, sql in (
                 ("facts", "SELECT COUNT(*) AS n FROM facts WHERE source = ?"),
-                ("commitments", "SELECT COUNT(*) AS n FROM commitments WHERE source = ?"),
+                ("tasks", f"SELECT COUNT(*) AS n FROM records WHERE collection = '{TASKS}'"
+                          " AND json_extract(provenance, '$.turn') = ?"),
                 ("decisions", "SELECT COUNT(*) AS n FROM decisions WHERE json_extract(evidence,"
                               " '$.source') = ?")):
             try:

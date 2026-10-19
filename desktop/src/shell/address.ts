@@ -2,7 +2,7 @@
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/activity`, `#/activity/<entry>`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/m/<id>/<table>` (a module on one of its tables), `#/m/<id>/<table>/<record>` (a record's own page; `#/records/<table>/<record>` for a table that
+ * `#/tasks` (the tasks, P1), `#/m/<id>/<table>` (a module on one of its tables), `#/m/<id>/<table>/<record>` (a record's own page; `#/records/<table>/<record>` for a table that
  * belongs to no module), `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`, `#/intelligence/goals/<goal>`,
  * `#/settings`. Nothing
  * else is in the address: what is open inside a
@@ -18,6 +18,8 @@ export function pathFor(surface: Surface): string {
       return "/activity";
     case "people":
       return "/people";
+    case "tasks":
+      return "/tasks";
     case "entity":
       return `/people/${encodeURIComponent(surface.id)}`;
     case "module":
@@ -46,7 +48,7 @@ export function surfaceFromPath(path: string): Surface | null {
   const parts = path.replace(/^#?\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const [head, rest, third] = [parts[0], parts[1], parts[2]];
   if (!head) return null;
-  if (head === "home" || head === "activity" || head === "people" || head === "settings") {
+  if (head === "home" || head === "activity" || head === "people" || head === "settings" || head === "tasks") {
     if (head === "people" && rest) return { kind: "entity", id: rest };
     if (head === "activity" && rest) return { kind: "entry", id: rest };
     return knownSurface({ kind: head });

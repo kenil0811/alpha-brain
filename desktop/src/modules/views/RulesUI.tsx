@@ -51,7 +51,7 @@ function Condition({ field, rule, onRule }: { field: FieldInfo; rule?: FilterRul
   const ops = opsFor(field.kind);
   const current: FilterRule = rule ?? { field: field.name, op: ops[0], value: "" };
   const set = (next: FilterRule) => onRule(next);
-  const type = current.op === "within" || isNumeric(field.kind) ? "number" : field.kind === "date" || field.kind === "datetime" ? "date" : "text";
+  const type = current.op === "within" || current.op === "next_days" || isNumeric(field.kind) ? "number" : field.kind === "date" || field.kind === "datetime" ? "date" : "text";
   return (
     <div className="colmenu__cond">
       <select className="btn btn--sm" value={current.op} onChange={(e) => set({ ...current, op: e.target.value as FilterRule["op"], value: "", value2: "" })} aria-label="Condition">
@@ -72,7 +72,7 @@ function Condition({ field, rule, onRule }: { field: FieldInfo; rule?: FilterRul
         </select>
       ) : needsValue(current.op) ? (
         <span className="colmenu__values">
-          <input className="textfield colmenu__input" type={type} value={current.value} onChange={(e) => set({ ...current, value: e.target.value })} aria-label={current.op === "between" ? "From" : "Value"} placeholder={current.op === "within" ? "days" : current.op === "between" ? "from" : "value"} />
+          <input className="textfield colmenu__input" type={type} value={current.value} onChange={(e) => set({ ...current, value: e.target.value })} aria-label={current.op === "between" ? "From" : "Value"} placeholder={current.op === "within" || current.op === "next_days" ? "days" : current.op === "between" ? "from" : "value"} />
           {current.op === "between" ? <input className="textfield colmenu__input" type={type} value={current.value2 ?? ""} onChange={(e) => set({ ...current, value2: e.target.value })} aria-label="To" placeholder="to" /> : null}
         </span>
       ) : null}

@@ -13,6 +13,8 @@ export interface FieldInfo {
   choices?: string[] | null;
   done_choices?: string[] | null;
   relation?: string;
+  /** A relation holding several (a task's About, P1). */
+  many?: boolean;
 }
 
 /** A field's name for the eye: its own label (a rename sets it, slice 2 B2), else its name in

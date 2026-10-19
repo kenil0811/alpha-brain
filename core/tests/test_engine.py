@@ -285,6 +285,8 @@ def test_removing_a_row_waits_for_the_persons_yes_on_a_card(tmp_path: Path) -> N
     world = World(tmp_path / "w.sqlite")
     world.collections.create("food_log", "Food log", [{"name": "item", "kind": "text"}])
     row = world.collections.add("food_log", {"item": "eggs"}, {"by": "person"})
+    world.tasks.make("Weigh the eggs",
+                     anchor=world.tasks.address(table="food_log", record=row["id"]))
     req = request(tmp_path, kind="turn", turn_id="j_9", thread_id="t_9")
     can_use = engine.permission_for(req, world)
 
@@ -312,6 +314,7 @@ def test_removing_a_row_waits_for_the_persons_yes_on_a_card(tmp_path: Path) -> N
     assert isinstance(out, PermissionResultAllow)
     card = world.journal.recent(3, kinds=["asked"])[-1]
     assert card["text"].startswith('Remove "eggs" from Food log?') and card["thread"] == "t_9"
+    assert card["text"].endswith("1 open task on it goes too.")  # what lives on it (P1)
     assert card["data"]["options"] == ["Yes, remove it", "No, keep it"]
     threading.Thread(target=answer_when_asked, args=("No, keep it",), daemon=True).start()
     out = asyncio.run(ask_to_remove())

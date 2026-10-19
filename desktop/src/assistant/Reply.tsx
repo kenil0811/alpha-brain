@@ -22,7 +22,7 @@ interface Step {
  *  journal id, which the reply's entry carries as `data.turn`. */
 /** "Watson kept 1 fact · 2 decisions": what a turn led him to file (harness 4b, 18 Oct). */
 export function keptWords(kept: NonNullable<JournalEntry["kept"]>): string {
-  const parts = (["facts", "commitments", "decisions"] as const)
+  const parts = (["facts", "tasks", "decisions"] as const)
     .filter((k) => (kept[k] ?? 0) > 0)
     .map((k) => `${kept[k]} ${kept[k] === 1 ? k.slice(0, -1) : k}`);
   return parts.length ? `Watson kept ${parts.join(" · ")}` : "";

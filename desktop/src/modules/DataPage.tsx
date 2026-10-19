@@ -26,9 +26,10 @@ import { ChartView } from "./views/ChartView";
 import { ListView } from "./views/ListView";
 import { FormView } from "./views/FormView";
 import { TableView } from "./views/TableView";
+import { TreeView } from "./views/TreeView";
 import { say } from "../core/client";
 
-export type PageView = "table" | "board" | "list" | "gallery" | "calendar" | "timeline" | "chart" | "form";
+export type PageView = "table" | "board" | "list" | "gallery" | "calendar" | "timeline" | "chart" | "form" | "tree";
 const VIEWS: { id: PageView; label: string }[] = [
   { id: "table", label: "Table" },
   { id: "board", label: "Board" },
@@ -38,6 +39,7 @@ const VIEWS: { id: PageView; label: string }[] = [
   { id: "calendar", label: "Calendar" },
   { id: "timeline", label: "Timeline" },
   { id: "chart", label: "Chart" },
+  { id: "tree", label: "Tree" },
 ];
 /** Rows per page: by default as many as fit the window; the person can pick a fixed size, and
  * that choice becomes their default for every table. */
@@ -147,12 +149,21 @@ export interface HeldRows {
   icon?: (row: RecordRow) => ReactNode;
 }
 
+/** Part of a table the page shows (P1: a module's tasks, a record's): the rows it keeps, and
+ *  the values a row added here starts with (its place). */
+export interface Scope {
+  /** Names the part, so its view, filters and lists in use are its own (a module's tasks). */
+  id: string;
+  keep: (row: RecordRow) => boolean;
+  values: Record<string, unknown>;
+}
+
 /** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
  *  from a cell); without it a row opens nothing. */
-export function DataPage({ client, table, held, version, onChanged, onSay, onOpenRecord }: { client: Client; table: TableDesc; held?: HeldRows; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void }) {
+export function DataPage({ client, table, held, scope, version, onChanged, onSay, onOpenRecord, onOpenAddress }: { client: Client; table: TableDesc; held?: HeldRows; scope?: Scope; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void; /** Opens a window address a row holds (a task's place, from the tree). */ onOpenAddress?: (address: string) => void }) {
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
-  const key = `alpha.page.${table.name}`;
+  const key = `alpha.page.${table.name}${scope ? `.${scope.id}` : ""}`;
   const [restored] = useState(() => readWorking(`${key}.working`));
   const titleField = titleFieldOf(fields, table.title_field);
   const statusField = useMemo(() => fields.find((f) => f.kind === "status"), [fields]);
@@ -166,6 +177,8 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   const groupField = useMemo(() => choiceFields.find((f) => f.name === groupBy) ?? choiceFields[0], [choiceFields, groupBy]);
   const dateField = useMemo(() => dateFields.find((f) => f.name === dateBy) ?? dateFields[0], [dateFields, dateBy]);
   const numericField = useMemo(() => firstOfKind(fields, new Set(["number"])), [fields]);
+  // a tree nests rows under the row they are part of: a table with a relation to itself (P1)
+  const treeable = useMemo(() => fields.some((f) => f.kind === "relation" && !f.many && f.relation === table.name), [fields, table.name]);
 
   const [view, setView] = useState<PageView>(() => remembered<PageView>(`${key}.view`, "table"));
   const [files, setFiles] = useState<Record<string, FileInfo>>({});
@@ -260,6 +273,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   const searchable = useMemo(() => fields.filter((f) => f.kind === "text" || f.kind === "long_text" || f.kind === "url").map((f) => f.name), [fields]);
 
   const heldLoad = held?.load;
+  const scopeKeep = scope?.keep;
   const load = useCallback(() => {
     if (heldLoad) {
       heldLoad()
@@ -273,7 +287,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
     client
       .table(table.name)
       .then(async (result) => {
-        setAll(result.records);
+        setAll(scopeKeep ? result.records.filter(scopeKeep) : result.records);
         setFiles(result.files ?? {});
         setRelations(result.relations ?? {});
         setError(null);
@@ -297,7 +311,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         setLists(kept);
       })
       .catch((e: unknown) => setError(say(e)));
-  }, [client, table.name, key, heldLoad]);
+  }, [client, table.name, key, heldLoad, scopeKeep]);
   useEffect(load, [load, version]);
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters: NO_FILTERS, rules, byName, hideDone, statusField, showGone, sorts }) : null), [all, search, searchable, rules, byName, hideDone, showGone, statusField, sorts]);
@@ -600,7 +614,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
    *  to it after, so a file can be chosen before the row exists. */
   async function addRow(values: Record<string, unknown>, files: Record<string, File>): Promise<boolean> {
     return run(async () => {
-      const saved = await client.addRecord(table.name, values);
+      const saved = await client.addRecord(table.name, { ...scope?.values, ...values });
       for (const [field, file] of Object.entries(files)) await client.addFiles([file], { table: table.name, record: saved.id, field });
     }, "Couldn't add it");
   }
@@ -637,7 +651,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${table.title.toLowerCase()}`} aria-label="Search" />
             </div>
           ) : null}
-          <ViewPicker value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
+          <ViewPicker value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField) || (v.id === "tree" && treeable))} />
           {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
             <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
               {dateFields.map((f) => (
@@ -662,7 +676,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
           )}
           <ViewState
             board={view === "board"}
-            groupedBy={view === "board" ? (groupField ? labelOf(groupField) : null) : view === "table" && tableGroupField ? labelOf(tableGroupField) : null}
+            groupedBy={view === "board" ? (groupField ? labelOf(groupField) : null) : (view === "table" || view === "tree") && tableGroupField ? labelOf(tableGroupField) : null}
             groupValue={view === "board" ? (groupField?.name ?? null) : (tableGroupField?.name ?? null)}
             groupOptions={(view === "board" ? choiceFields : fields.filter((f) => groupable(f.kind))).map((f) => ({ name: f.name, label: labelOf(f) }))}
             count={filterCount}
@@ -791,7 +805,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               rowIcon={held?.icon}
               onCommit={commit}
               readonly={readonly}
-              empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}
+              empty={rows && !rows.length ? (filtered && all?.length ? "Nothing matches." : emptyWords) : null}
               files={files}
               onFile={(row, field, file) => void addFile(row, field, file)}
               selected={selected}
@@ -802,13 +816,14 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               onOpenRelated={onOpenRecord}
             />
           ) : null}
-          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={onOpenRecord} empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
+          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={onOpenRecord} empty={rows && !rows.length ? (filtered && all?.length ? "Nothing matches." : emptyWords) : null} /> : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={openRow} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={openRow} /> : null}
           {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={openRow} /> : null}
           {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={openRow} /> : null}
           {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={openRow} /> : null}
           {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} wanted={measureBy} /> : null}
+          {view === "tree" ? <TreeView table={table.name} rows={rows ?? []} fields={fields} titleField={titleField} groupField={tableGroupField ?? undefined} onOpen={openRow} onOpenAddress={onOpenAddress} /> : null}
         </div>
         {view !== "form" ? (
         <div className="pager">

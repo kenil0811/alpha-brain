@@ -94,7 +94,7 @@ def test_removing_a_module_takes_what_it_holds(world: World) -> None:
     out = remove_module(world, "Job")
     assert [i["module"] for i in out["inside"]] == ["Resume", "Search"]
     assert world.modules.all() == []
-    assert world.collections.overview() == []
+    assert [t for t in world.collections.overview() if not t.get("world")] == []
 
 
 def test_the_person_makes_a_parent_in_the_window_and_moves_modules_into_it(world: World) -> None:

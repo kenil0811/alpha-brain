@@ -298,15 +298,26 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
                 table = str(desc.get("title") or table)
             except Exception:  # the operation itself says what is wrong with the rows
                 pass
+            # what lives on the rows goes with them (P1): the card says so
+            living = 0
+            for rid in ids:
+                try:
+                    living += world.tasks.counted_at(world.tasks.address(
+                        table=str(input_data.get("table") or ""), record=rid))
+                except Exception:  # a row the operation itself will say is not there
+                    continue
+            with_tasks = (f" {living} open task{'s' if living != 1 else ''} on"
+                          f" {'them' if len(ids) > 1 else 'it'}"
+                          f" {'go' if living != 1 else 'goes'} too." if living else "")
             if len(ids) > 1:
                 # several rows the person asked to remove: one card for all of them
                 shown = ", ".join(f"\"{t}\"" for t in titles[:3]) + (
                     f" and {len(ids) - 3} more" if len(ids) > 3 else "")
                 text = (f"Remove {len(ids)} rows from {table}? {shown}. They leave the table;"
-                        " Activity keeps that they were here.")
+                        f" Activity keeps that they were here.{with_tasks}")
             else:
                 text = (f"Remove \"{titles[0] if titles else ''}\" from {table}? It leaves the"
-                        " table; Activity keeps that it was here.")
+                        f" table; Activity keeps that it was here.{with_tasks}")
             ask = world.journal.append(
                 "asked", text,
                 data={"options": ["Yes, remove it", "No, keep it"], "kind": "one",

@@ -83,7 +83,7 @@ def provenance_words(prov: dict[str, Any]) -> str:
 # wrapper refuses a write outside the list before the tool runs. Reads carry none.
 WRITES = ("records", "notes", "facts", "goals", "asks", "proposals", "instructions", "skills",
           "agents", "modules", "threads", "files", "workflows", "actions", "connections",
-          "decisions", "commitments")
+          "decisions", "tasks")
 
 
 class _Decorator(Protocol):
@@ -226,7 +226,10 @@ class Base:
         return owner is None or owner in self.world.modules.subtree(module)
 
     def _provenance(self, source: str, assumed: str | None) -> dict[str, Any]:
-        return provenance_of(source, assumed, turn=self.turn)
+        prov = provenance_of(source, assumed, turn=self.turn)
+        if self.actor not in ("alpha", "person"):
+            prov["agent"] = self.actor  # an agent's run: what it makes is its own (Q91)
+        return prov
 
     def _said_contains(self, quote: str) -> bool:
         """Whether a short reply ("continue", "go on") is in the person's message this turn."""

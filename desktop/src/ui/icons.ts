@@ -6,6 +6,7 @@ export {
   Home as HomeIcon,
   Clock as ActivityIcon,
   Users as PeopleIcon,
+  ListTodo as TasksIcon,
   Table2 as ModuleIcon,
   Table2,
   Sparkles as IntelligenceIcon,

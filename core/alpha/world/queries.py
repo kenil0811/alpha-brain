@@ -5,8 +5,8 @@
 the database, not by a check of ours) with a view per table of the person's (`rows_<table>`,
 its JSON values as columns) and a view per kind of thing the world keeps (`journal`, `facts`,
 `people`, `goals`, `notes`, `agents`, `runs`, `actions`, `documents`, `events`, `modules`,
-`threads`, `decisions`, `commitments`, `sources`, `tables`). Rows are capped and long queries
-are stopped, both said in the result, never silently.
+`threads`, `decisions`, `sources`, `tables`; the person's tasks as `tasks`). Rows are
+capped and long queries are stopped, both said in the result, never silently.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from typing import Any
 
 from alpha.config import settings
 from alpha.world.store import Problem, loads
+from alpha.world.tasks import TABLE as TASKS
 
 MOST_ROWS = settings.views.query_rows
 MOST_STEPS = settings.views.query_steps
@@ -31,7 +32,7 @@ SHOWN = {
     "facts": "*", "entities": None, "goals": "*", "notes": "*", "agents": "*", "runs": "*",
     "actions": "*", "documents": "id, module, path, name, title, size, kind, origin,"
                                  " created_at, updated_at, deleted_at",
-    "events": "*", "modules": "*", "threads": "*", "decisions": "*", "commitments": "*",
+    "events": "*", "modules": "*", "threads": "*", "decisions": "*",
     "sources": "*", "collections": "name, module, title, title_field, created_at, updated_at",
     "connections": "*", "record_versions": "*", "preferences": "*", "skill_state": "*",
 }
@@ -69,13 +70,18 @@ def _views(db: sqlite3.Connection) -> list[str]:
         view = f"rows_{row[0]}"
         if not re.fullmatch(r"[a-z][a-z0-9_]*", str(row[0])):
             continue
-        picks = ", ".join(f"json_extract(\"values\", '$.{f}') AS {f}" for f in fields)
+        # quoted, so a field named like a word of SQL ("order", "group") still reads
+        picks = ", ".join(f"json_extract(\"values\", '$.{f}') AS \"{f}\"" for f in fields)
         db.execute(
             f"CREATE TEMP VIEW {view} AS SELECT id{', ' + picks if picks else ''}, revision,"
             f" created_at, updated_at, reader, seen_at, gone_at, provenance FROM records"
             f" WHERE collection = '{row[0]}' AND deleted_at IS NULL")
         made.append(f"{view}(id, {', '.join(fields)}, revision, created_at, updated_at,"
                     " reader, seen_at, gone_at, provenance)")
+        if row[0] == TASKS:
+            # the person's tasks read as `tasks`, whatever tables they keep themselves
+            db.execute(f"CREATE TEMP VIEW tasks AS SELECT * FROM {view}")
+            made.append(f"tasks(id, {', '.join(fields)}, created_at, updated_at): the tasks")
     return made
 
 

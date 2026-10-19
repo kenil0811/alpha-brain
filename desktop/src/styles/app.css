@@ -423,6 +423,33 @@ body.avatar-window #root { height: 100vh; }
 .board__card:hover { border-color: var(--primary); }
 .list__row { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); background: none; font-size: var(--text-md); }
 .list__row:hover { background: var(--hover); }
+/* A tree (P1): places folded, rows nested under the row they are part of. */
+.tree, .tree__list { list-style: none; margin: 0; padding: 0; }
+.tree { padding: 4px 0; }
+.tree__place, .tree__row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding-right: 12px; border-bottom: 1px solid var(--line); font-size: var(--text-md); }
+.tree__place b { font-weight: 600; }
+.tree__row:hover, .tree__place:hover { background: var(--hover); }
+.tree__fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex: none; border: 0; background: none; padding: 0; color: var(--text-3); border-radius: 4px; }
+button.tree__fold:hover { background: var(--hover); color: var(--text); }
+.tree__title { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree__row > .pill, .tree__row > .faint, .tree__place > .faint { flex: none; white-space: nowrap; }
+.tree__title:hover { text-decoration: underline; }
+.tree__placename { font-weight: 600; }
+/* Tasks (P1): Add task on a place, where a task lives, what is around it. */
+.tasks__add { display: flex; gap: 8px; align-items: center; padding: 10px 12px; flex-wrap: wrap; }
+.tasks__add .textfield { flex: 1 1 240px; }
+.tasks__where { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.tasks__path { font-size: var(--text-md); }
+.tasks__suggested { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.tasks__values { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 4px 16px; margin: 6px 0 0; font-size: var(--text-md); }
+.tasks__values > div { display: contents; }
+.tasks__values dt { color: var(--text-2); }
+.tasks__values dd { margin: 0; }
+.tasks__notes { white-space: pre-wrap; font-size: var(--text-md); color: var(--text-2); margin: 4px 0 0; }
+.tasks__picker { display: flex; flex-direction: column; min-width: 280px; max-width: 380px; padding: 6px; }
+.tasks__picker .textfield { margin-bottom: 6px; }
+/* Several values in one cell (a relation holding many): side by side, clipped by the cell. */
+.pills { display: inline-flex; gap: 4px; flex-wrap: nowrap; max-width: 100%; overflow: hidden; }
 .calendar { padding: 12px; }
 .calendar__head { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; }
 .calendar__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }

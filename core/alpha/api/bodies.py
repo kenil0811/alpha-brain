@@ -168,3 +168,23 @@ class GoalBody(BaseModel):
 
 class SkillTextBody(BaseModel):
     text: str
+
+
+class TaskBody(BaseModel):
+    """A task the person adds by hand (P1): only the title is needed; made on a place, it lives
+    there."""
+    title: str
+    anchor: str | None = None
+    due: str | None = None
+    owner: str | None = None
+    parent: str | None = None
+
+
+class PlaceBody(BaseModel):
+    """Where a task lives now (its page's Change): an address, or a place named as the window
+    finds it (a module; a table's record, and one of its fields); nothing for no place."""
+    anchor: str | None = None
+    module: str | None = None
+    table: str | None = None
+    record: str | None = None
+    field: str | None = None

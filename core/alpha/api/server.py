@@ -44,6 +44,7 @@ from alpha.api import (
     people,
     settings,
     tables,
+    tasks,
 )
 from alpha.api.bodies import AskBody
 from alpha.api.served import Served
@@ -158,6 +159,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     changes.routes(app, served)
     home.routes(app, served)
     tables.routes(app, served)
+    tasks.routes(app, served)
     people.routes(app, served)
     intelligence.routes(app, served)
     actions.routes(app, served)

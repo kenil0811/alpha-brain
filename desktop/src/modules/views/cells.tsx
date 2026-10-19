@@ -23,20 +23,25 @@ export function SeenCell({ row }: { row: RecordRow }) {
  *  or a company: a pill that opens it, with a way back (the drawer's stack). */
 export function RelationCell({ row, field, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
   const value = row.values[field.name];
-  if (!value) return <td><span className="faint">—</span></td>;
-  const id = String(value);
-  const title = relations?.[field.name]?.[id] ?? id;
-  const target = field.relation;
-  const opens = Boolean(onOpenRelated && target && target !== "person" && target !== "organisation");
+  // one, or several (a relation that holds many, P1); "any" points at table/id or at someone
+  const ids = (Array.isArray(value) ? value : value ? [value] : []).map(String).filter(Boolean);
+  if (!ids.length) return <td><span className="faint">—</span></td>;
   return (
     <td>
-      {opens ? (
-        <button type="button" className="linkbtn" onClick={(e) => { e.stopPropagation(); onOpenRelated!(target!, id); }} title={`Open ${title}`}>
-          <Badge tone="info">{title}</Badge>
-        </button>
-      ) : (
-        <Badge tone="info">{title}</Badge>
-      )}
+      <span className="pills">
+        {ids.map((id) => {
+          const title = relations?.[field.name]?.[id] ?? id;
+          const [target, rid] = field.relation === "any" ? (id.includes("/") && !id.startsWith("entity:") ? id.split("/", 2) : [null, null]) : [field.relation, id];
+          const opens = Boolean(onOpenRelated && target && rid && target !== "person" && target !== "organisation");
+          return opens ? (
+            <button key={id} type="button" className="linkbtn" onClick={(e) => { e.stopPropagation(); onOpenRelated!(target!, rid!); }} title={`Open ${title}`}>
+              <Badge tone="info">{title}</Badge>
+            </button>
+          ) : (
+            <Badge key={id} tone="info">{title}</Badge>
+          );
+        })}
+      </span>
     </td>
   );
 }
@@ -61,6 +66,10 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
   if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} />;
   const value = row.values[field.name];
+  // a value the row says in words (a task's place, its owner, who made it; P1): shown so, and
+  // changed where it is chosen (the task's page), never typed as an address
+  const said = row.words?.[field.name];
+  if (typeof said === "string" && said) return <td title={said}>{said}</td>;
   const numeric = isNumeric(field.kind);
   const estimate = Boolean(row.provenance?.estimated) && numeric;
   const assumed = row.provenance?.assumed;

@@ -33,14 +33,14 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
   `limits.toml` (the named judgements and timings, each with its why); `config.py` reads them.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines; files beside the world since 17 Oct, their state in the world),
-  agents, decisions, commitments), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
+  agents, decisions, and the tasks, a table the world keeps itself (`tasks.py`, P1)), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
   the engine (the Claude Agent SDK, `engine.py`; `running.py` holds what every run shares), the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson the noticer, Doc the healer, Columbo the checker, Sherlock the researcher, Scout the recommender)), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
 - `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright driver: reads are read-only by mechanism; acting, downloads and uploads run only inside an approved action), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
 - `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
-  pages, People & Companies, the Assistant page, Intelligence, Activity, Settings), the
+  pages, People & Companies, Tasks, the Assistant page, Intelligence, Activity, Settings), the
   conversation panel, and the companion window. The debug app starts the core from this
   repository's `.venv`; a shipped one from the runtime inside it.
 - `journeys/` — the real journeys the suite runs after a change (`just journeys`); reports land in

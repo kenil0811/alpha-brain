@@ -70,7 +70,7 @@ describe("one timeline", () => {
 describe("Watson's folded line under a reply", () => {
   it("names what he kept, singular and plural, and nothing when nothing", () => {
     expect(keptWords({ facts: 1, decisions: 2 })).toBe("Watson kept 1 fact · 2 decisions");
-    expect(keptWords({ commitments: 1 })).toBe("Watson kept 1 commitment");
+    expect(keptWords({ tasks: 1 })).toBe("Watson kept 1 task");
     expect(keptWords({})).toBe("");
   });
 });

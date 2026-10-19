@@ -35,12 +35,12 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
 from alpha.connectors.files import Files
 from alpha.world import workspaces
-from alpha.world.commitments import Commitments
 from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
 from alpha.world.skills import Skills
 from alpha.world.store import Problem, dumps, now
+from alpha.world.tasks import Tasks
 from alpha.world.views import Views
 from alpha.world.world import World, alpha_home
 
@@ -83,7 +83,7 @@ def _forget_entities(db: Any, ids: list[str]) -> None:
     clause, args = _in("subject", [f"entity:{i}" for i in ids])
     db.execute(f"DELETE FROM facts WHERE {clause}", args)
     for i in ids:
-        Commitments.remove_who(db, f"entity:{i}")  # what they promised and were owed (Q46)
+        Tasks.remove_who(db, f"entity:{i}")  # what they promised and were owed (Q46, P1)
     clause, args = _in("scope", [f"entity:{i}" for i in ids])
     db.execute(f"DELETE FROM notes WHERE {clause}", args)
     clause, args = _in("id", ids)
@@ -153,12 +153,15 @@ def removal_plan(world: World, ref: str) -> dict[str, Any]:
         readers |= set(_readers_of(store, mid, names, autos))
         files += _count(store, "SELECT COUNT(*) AS n FROM documents WHERE module = ?", (mid,))
     inside = [world.modules.get(i)["name"] for i in ids[1:]]
+    tasks = sum(world.tasks.counted_at(f"#/m/{i}") for i in ids)
     what = [plural(tables, "table") + (f" ({plural(rows, 'row')})" if rows else "")]
     what += [plural(files, "file")] if files else []
+    what += [plural(tasks, "open task")] if tasks else []
     what += [plural(len(readers), "reader")] if readers else []
     what += [plural(agents, "agent")] if agents else []
     words = and_join(what) + (f", with {and_join(inside)} inside it" if inside else "")
     return {"module": module["name"], "tables": tables, "rows": rows, "files": files,
+            "tasks": tasks,
             "readers": sorted(readers), "agents": agents, "inside": inside,
             "what": words}
 
@@ -209,6 +212,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["notes"] = db.execute(
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
+        # the tasks living in it, on its tables, rows and pages (P1): for good, as its rows go
+        counts["tasks"] = Tasks.remove_at(db, f"#/m/{mid}", for_good=True)
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
         docs = db.execute("SELECT id, path, entity_id FROM documents WHERE module = ?",

@@ -13,10 +13,12 @@ import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type M
 import { say, type Client, type ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { Button, IconButton, Popover } from "../ui";
-import { HomeIcon, ActivityIcon, PeopleIcon, AssistantIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight, ChevronRight, Check, HideIcon, X } from "../ui/icons";
+import { HomeIcon, ActivityIcon, PeopleIcon, TasksIcon, AssistantIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight, ChevronRight, Check, HideIcon, X } from "../ui/icons";
 import { iconFor, iconFromName, MODULE_ICONS, useModuleIcons } from "./moduleIcons";
 import { RemoveModuleDialog } from "./RemoveModule";
 import { dropZone, existing, isInside, siblingsOf, treeOf, withPlace, type DropZone, type ModuleBranch } from "./sidebarOrder";
+/** The table the tasks live in (core/alpha/world/tasks.py): the world's own, never a person's. */
+export const TASKS_TABLE = "alpha_tasks";
 
 export type Surface =
   | { kind: "home" }
@@ -25,6 +27,8 @@ export type Surface =
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
   | { kind: "people" }
+  /** The tasks (P1): the person's list, every task on the place it concerns. */
+  | { kind: "tasks" }
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
   | { kind: "agent"; id: string }
@@ -43,6 +47,7 @@ export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "activity" && a.kind === "entry") return true; // an entry's page is inside Activity
   if (b.kind === "assistant" && a.kind === "assistant") return true; // any conversation open on the page
   if (a.kind === "record" && b.kind === "module") return a.module === b.id; // a record's page is inside its module
+  if (a.kind === "record" && b.kind === "tasks") return a.table === TASKS_TABLE; // a task's page is inside Tasks
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -62,7 +67,7 @@ function readFolded(): Set<string> {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "agent" || s.kind === "entry" || s.kind === "goal") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "tasks" || ((s.kind === "module" || s.kind === "entity" || s.kind === "agent" || s.kind === "entry" || s.kind === "goal") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -409,6 +414,7 @@ export function Rail({
       {item({ kind: "home" }, <HomeIcon />, "Home", needs)}
       {item({ kind: "activity" }, <ActivityIcon />, "Activity")}
       {item({ kind: "people" }, <PeopleIcon />, "People & Companies")}
+      {item({ kind: "tasks" }, <TasksIcon />, "Tasks")}
       <div className="rail__scroll">
         <div className="rail__group">Your modules</div>
         {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}

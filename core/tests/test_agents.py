@@ -731,9 +731,9 @@ def test_a_time_that_comes_once_runs_once(world: World) -> None:
 
 
 def test_a_reminder_is_a_row_the_reminders_agent_turns_into_a_card(world: World) -> None:
-    """18 Oct (Kenil): a reminder is never an agent of its own. It is the person's commitment
-    with a moment; the Reminders agent puts one card when the moment comes; Done closes it,
-    Tomorrow moves it a day; no agent, no schedule is made."""
+    """18 Oct (Kenil): a reminder is never an agent of its own. It is the person's task with
+    a moment (P1: a row of the tasks table); the Reminders agent puts one card when the moment
+    comes; Done closes it, Tomorrow moves it a day; no agent, no schedule is made."""
     from datetime import UTC, datetime, timedelta
 
     from fastapi.testclient import TestClient
@@ -746,12 +746,12 @@ def test_a_reminder_is_a_row_the_reminders_agent_turns_into_a_card(world: World)
     out = Tools(world, turn="j_1").world_remember("reminder", text="call Sara",
                                                   when="2026-10-23T09:00")
     assert out["reminder"] and len(world.agents.all()) == before  # no agent was made
-    row = world.commitments.get(out["reminder"])
-    assert row["who"] == "person" and row["due"] == "2026-10-23" and row["remind_at"]
+    row = world.tasks.get(out["reminder"])
+    assert row["owner"] == "person" and row["due"] == "2026-10-23" and row["remind_at"]
     assert world.journal.recent(1, kinds=["made"])[-1]["text"].startswith("Reminder set: call Sara")
     # not yet due: the agent has nothing; due: one card
     assert look_and_run(world, "reminders") is None
-    world.commitments.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
+    world.tasks.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
     ran = look_and_run(world, "reminders")
     assert ran and ran["last_result"] == "Reminded you: call Sara."
     card = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == row["id"])
@@ -762,16 +762,16 @@ def test_a_reminder_is_a_row_the_reminders_agent_turns_into_a_card(world: World)
     c = TestClient(create_app(world, live=False))
     answered = c.post(f"/api/asks/{card['id']}/answer", json={"text": "Tomorrow, same time"}).json()
     assert answered["turn"] is None
-    again = world.commitments.get(row["id"])
-    assert again["state"] == "open" and again["reminded_at"] is None
+    again = world.tasks.get(row["id"])
+    assert again["state"] == "Open" and again.get("reminded_at") is None
     assert datetime.fromisoformat(again["remind_at"]) > datetime.now(UTC)
     assert world.journal.open_asks() == []
-    # Done: the commitment closed
-    world.commitments.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
+    # Done: the task closed
+    world.tasks.snooze(row["id"], datetime.now(UTC) - timedelta(minutes=1))
     look_and_run(world, "reminders")
     card2 = next(a for a in world.journal.open_asks() if a["data"].get("reminder") == row["id"])
     c.post(f"/api/asks/{card2['id']}/answer", json={"text": "Done"})
-    assert world.commitments.get(row["id"])["state"] == "done"
+    assert world.tasks.get(row["id"])["state"] == "Done"
     assert world.journal.open_asks() == []
 
 
