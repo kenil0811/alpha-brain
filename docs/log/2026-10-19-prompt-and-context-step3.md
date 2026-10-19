@@ -144,3 +144,14 @@ Committed on that word: `779c0d5`, all checks clean.
 - 70 tools; 51 journeys defined.
 - Core 29,063 lines, tests 11,320.
 - 299 commits before this one.
+
+## The last step-3 journeys, after the commit
+
+- `watch_from_words` passed.
+- `remove_asks` passed with its widened wording check (`2026-10-20-0009.md`).
+- `memory_follow_up` broke before its second sentence: through Home's router, "tell me more
+  about the second one" was asked "new item or answer here?", and the suite takes a routing
+  question as a failure. That is routing (section C), not B.
+  - The journey's follow-up is now typed in the same conversation's box, as the person does
+    (a step option `here: true`: no routing, the turn in the last sentence's thread).
+  - Committed with step 4's entry.

@@ -6,7 +6,8 @@ why: >
   19 Oct the journey brings its own, on a fresh world, so it can run before and after section B
   (B3: the conversation is no longer in the prompt, the resumed session holds it). Since 19 Oct
   night its sentences go through Home as the app's do: as one-off turns with no session, the
-  second had nothing to point back to.
+  second had nothing to point back to. The follow-up is typed in the same conversation's box
+  (`here`), as the person does: through Home's router it was once asked "new item or here?".
 fresh: true
 steps:
   - seed:
@@ -30,6 +31,6 @@ steps:
   - say: "list the three deals with the highest asking price in the deal tracker, numbered"
     home: true
   - say: "tell me more about the second one"
-    home: true
+    here: true
 checks:
   - judge: {rubric: "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.", history: 1}

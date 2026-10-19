@@ -27,7 +27,10 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - the compaction one and B7's proofs (`reminder_fires`, `memory_noticing`) pass;
     - stale journeys: `agent_verdict`, `automation_self_converts`, `doc_repairs_a_reader` and `attachment_in` name things the 18 Oct wipe removed; `eta_daily` uses a step kind the suite no longer has; `sherlock_looks_into_it` checks the workflow page removed on 17–18 Oct; and `question_card` meets today's guessed lunch;
     - `branded_food` failed its independent check (an unstated assumption), on and off since 14 Oct.
-  - **Next:** step 4 (the "after" run against the before table, B8), then engine reach S2–S5. Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
+  - **Step 4 (B8), measuring** ([`log/2026-10-20-prompt-and-context-step4.md`](log/2026-10-20-prompt-and-context-step4.md)):
+    - his own turns: a warm session's next turn writes 1,500–3,300 tokens to the cache, a fresh one 13,000–25,000;
+    - two of the seven journeys are done, and the rest run on a frozen copy.
+  - **Next:** engine reach S2 (A2 subagents with its spike first, A4, A3), started 20 Oct on his word ("lets commit and start with s2 for now"). Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.

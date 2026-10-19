@@ -1,0 +1,51 @@
+[
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's back-end jobs for you. It checks every morning at 08:00 and tells you which roles are new and which have been taken down. The first check is at 08:00 today, or whenever your Mac next wakes after that.\n\nThe five roles listed right now are in **Job listings**, in a new **Job Search** area:\n\n| Role | Company | Can work from | Posted |\n|---|---|---|---|\n| Senior Backend Developer (Python) | Proxify AB | Anywhere | ~19–20 Oct |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | Anywhere | ~19–20 Oct |\n| Staff Software Engineer, Revenue Systems | Square",
+    "steps": 11,
+    "tokens_input": 18,
+    "tokens_cache_read": 344463,
+    "tokens_cache_made": 36171,
+    "tokens_out": 4470,
+    "first_text_ms": 10177,
+    "seconds": 62.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "5 rows in job_listings (5)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 62.7,
+  "error": null
+ }
+]

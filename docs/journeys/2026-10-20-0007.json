@@ -1,0 +1,30 @@
+[
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "seed": "table deals with 5 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "These are the three deals in your tracker with the highest asking prices:\n\n1. **Greenline Landscaping** (Bristol): asking 1,200,000, revenue 900,000\n2. **Harbour Car Wash** (Leeds): asking 850,000, revenue 410,000\n3. **Bright Smile Dental Lab** (Bath): asking 640,000, revenue 380,000",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 65244,
+    "tokens_cache_made": 13791,
+    "tokens_out": 322,
+    "first_text_ms": 5308,
+    "routed": "Home",
+    "routed_by": "judge: A one-turn lookup and numbered list from the deal tracker leaves nothing standing, and no open item exists to continue.",
+    "seconds": 11.6
+   }
+  ],
+  "checks": [],
+  "seconds": 14.7,
+  "error": "Problem: Alpha asked which this is about instead of routing it: ['new item', 'answer here']"
+ }
+]

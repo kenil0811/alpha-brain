@@ -226,7 +226,12 @@ class Run:
                              daemon=True).start()
             routed: dict[str, Any] | None = None
             try:
-                if spec.get("home"):
+                if spec.get("here") and self.last_thread:
+                    # typed in the same conversation's own box, as the person does with a
+                    # follow-up: no routing, the turn in that thread and its session
+                    outcome = turn.ask(self.world, spec["say"], thread=self.last_thread,
+                                       runner=self.runner, conversation=True)
+                elif spec.get("home"):
                     # Typed in Home (harness §7): routed first, by structure or the
                     # judgement, then the turn in the thread it went to, as the app does.
                     routed = conversations.route(self.world, spec["say"],
