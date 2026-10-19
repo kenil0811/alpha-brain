@@ -18,7 +18,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - the checkpoint rides in a fresh session's start layer;
     - `context/prepack.py` and its limits are deleted for `context/layers.py`.
     - His word after the restart: "ok looks good". Journeys: the three new ones passed (instructions whole, a day's journal, fields from the view); `remove_asks` failed only on its reply's wording.
-  - **Step 3 (B6, B7) and Q102, accepted and committed** ([`log/2026-10-19-prompt-and-context-step3.md`](log/2026-10-19-prompt-and-context-step3.md)):
+  - **Step 3 (B6, B7) and Q102, accepted and committed as `779c0d5`** ([`log/2026-10-19-prompt-and-context-step3.md`](log/2026-10-19-prompt-and-context-step3.md)):
     - a compaction is told what to keep, and Watson writes the checkpoint afresh;
     - agent_run.md is the brief's frame plus paragraphs 2–5 (128 words, from 506).
     - Q102: an @mention typed in Home is said there and the window moves to the agent's item, which is titled with its name.
@@ -98,7 +98,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 - 434 core tests, 238 desktop tests; lint and types clean.
 - 70 tools; 51 journeys defined.
 - Core 29,063 lines, tests 11,320, desktop 21,476.
-- 299 commits before step 3.
+- 300 commits.
 
 ## What is built, against the design's order of work
 

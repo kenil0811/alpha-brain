@@ -136,7 +136,7 @@ Rebuilt and restarted on his yes ("rebuild and restart my app on step 3"): the c
 ## Kenil's word, and the commit
 
 "The mention works in my app. Commit step 3 and the mention fix with their docs to main."
-Committed on that word.
+Committed on that word: `779c0d5`, all checks clean.
 
 ## Numbers (`just stats`)
 
