@@ -1,0 +1,46 @@
+[
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's back-end category for you. There are **5 open roles** on it right now, all full-time, and I've saved them in a new **Back-end jobs** table under Job Search:\n\n| Role | Company | Posted |\n|---|---|---|\n| Senior Backend Developer (Python, Django) | Proxify AB | 19 Oct |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | 19 Oct |\n| Staff Software Engineer, Revenue Systems | Squarespace | 18 Oct |\n| AI Experience Engineer (Conversational AI) | Upgrade | 15 Oct |\n| Senior Java Developer (Java, Spring, PostgreSQL) | Twikey | 17 Sep |\n\n- **Every morning a",
+    "steps": 12,
+    "seconds": 52.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "5 rows in remote_backend_jobs (5)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 52.0,
+  "error": null
+ }
+]

@@ -361,6 +361,14 @@ def checkpoint(world: World, cid: str, *, runner: turn.Runner = route.run,
     out = apply(world, f"conversation:{cid}", items, named=[], module=module, thread=cid,
                 at=now_iso(), actor=actor)
     open_line = " ".join(str(data.get("open") or "").split())
+    # the checkpoint kept with the conversation (A12): what a fresh session there is told
+    decided = [str(d.get("what") or d.get("text") or "") for d in data.get("decisions") or []
+               if isinstance(d, dict)]
+    body = "\n".join([f"Decided: {d}" for d in decided if d]
+                      + ([f"Open: {open_line}"] if open_line else []))
+    if body:
+        world.knowledge.write_note(f"conversation:{cid}", CHECKPOINT,
+                                   f"As of {now_iso()}:\n{body}", source=cid)
     if open_line:
         day = datetime.now().astimezone().strftime("%-d %b %Y")
         if module:
@@ -373,6 +381,22 @@ def checkpoint(world: World, cid: str, *, runner: turn.Runner = route.run,
         out["open"] = open_line
         out["kept"] = True
     return out
+
+
+CHECKPOINT = "Checkpoint"
+
+
+def carried(world: World, cid: str, *, runner: turn.Runner = route.run) -> str | None:
+    """What was going on in a conversation, for a session that starts afresh there (A12): its
+    latest checkpoint, written now only when it has none (Q98: one model call, rarely)."""
+    note = world.knowledge.find_note(f"conversation:{cid}", CHECKPOINT)
+    if note is None:
+        checkpoint(world, cid, runner=runner)
+        note = world.knowledge.find_note(f"conversation:{cid}", CHECKPOINT)
+    return str(note["body"]) if note and str(note.get("body") or "").strip() else None
+
+
+turn.CARRY_OVER.append(carried)
 
 
 def now_iso() -> str:

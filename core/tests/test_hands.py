@@ -55,12 +55,25 @@ def test_shape_write_query_change_round_trip(world: World) -> None:
     assert h.world_query("SELECT COUNT(*) AS n FROM rows_food_log")["rows"][0]["n"] == 1
 
 
-def test_a_query_is_cut_at_the_limit_and_says_so(world: World) -> None:
+def test_a_query_names_its_total_and_pages_by_offset(world: World) -> None:
+    """A5 (Q98): the model can tell a whole answer from a page of one; 1,000 rows by default,
+    no cap on what it asks for."""
     h = hands(world)
     h.world_shape(table="things", title="Things", fields=[{"name": "n", "kind": "number"}])
-    h.world_write("things", [{"n": i} for i in range(12)], source="stated")
-    out = h.world_query("SELECT n FROM rows_things", limit=5)
-    assert out["count"] == 5 and "only the first 5 rows" in out["cut"]
+    with world.store.tx() as db:
+        for i in range(1553):
+            db.execute('INSERT INTO records (collection, id, revision, "values", provenance,'
+                       " created_at, updated_at) VALUES ('things', ?, 1, ?, '{}', '2026',"
+                       " '2026')", (f"r_{i:05d}", f'{{"n": {i}}}'))
+    out = h.world_query("SELECT n FROM rows_things ORDER BY n")
+    assert (out["count"], out["total"], out["offset"]) == (1000, 1553, 0)
+    assert out["more"] == "553 more; ask again with offset 1000 for the rest"
+    rest = h.world_query("SELECT n FROM rows_things ORDER BY n", offset=1000)
+    assert rest["count"] == 553 and rest["rows"][0]["n"] == 1000 and "more" not in rest
+    whole = h.world_query("SELECT n FROM rows_things", limit=2000)
+    assert whole["count"] == 1553
+    counted = h.world_query("WITH t AS (SELECT n FROM rows_things) SELECT COUNT(*) AS c FROM t")
+    assert counted["rows"] == [{"c": 1553}] and counted["total"] == 1
 
 
 def test_shape_adds_fields_identifies_people_and_keeps_a_list(world: World) -> None:

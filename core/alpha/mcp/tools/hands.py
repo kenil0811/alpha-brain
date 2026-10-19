@@ -41,7 +41,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
     # ---- the world ----
 
     @hand
-    def world_query(self, sql: str, limit: int = 200) -> dict[str, Any]:
+    def world_query(self, sql: str, limit: int = 1000, offset: int = 0) -> dict[str, Any]:
         """Read anything in the person's world with one SELECT, across tables. Each of their
         tables is a view `rows_<table>` with its fields as columns plus id, revision,
         created_at, updated_at, reader, seen_at, gone_at (rows a reader stopped finding) and
@@ -55,10 +55,10 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         `threads`, `decisions`, `sources`, `record_versions`; the person's tasks are
         `tasks` (title, state, due, owner, anchor: where each lives). Use it to answer
         from the data (count, sum, group, join; today's date is in NOW), to find a row's id and
-        revision before changing it, and to look back (journal). At most `limit` rows come back
-        and the result says when it cut: aggregate or narrow rather than paging. It cannot
-        write: use world_write, world_change, world_shape."""
-        return queries.query(self.world.path, sql, limit=limit)
+        revision before changing it, and to look back (journal). The result names its total;
+        ask again with offset for the rest. It cannot write: use world_write, world_change,
+        world_shape."""
+        return queries.query(self.world.path, sql, limit=limit, offset=offset)
 
     @hand(writes="records")
     def world_write(self, table: str, rows: list[dict[str, Any]], source: str,

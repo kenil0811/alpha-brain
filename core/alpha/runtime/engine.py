@@ -82,7 +82,10 @@ ClientFactory = Callable[[ClaudeAgentOptions], Any]
 def environment(req: TurnRequest) -> dict[str, str]:
     """What the session's process gets on top of the core's own environment (the SDK merges it
     over `os.environ`)."""
-    return {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "false"}
+    # tool search on (A8, Q98): the hands' schemas load when the model looks for them, not on
+    # every turn (the spike of 19 Oct: the hands still found and called; input 6% and 32% lower
+    # on track_then_log's two turns, one step more each)
+    return {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "true"}
 
 
 def sessions_dir(world_path: Path) -> Path:
@@ -174,8 +177,8 @@ class Served:
 ServerBuilder = Callable[[TurnRequest, ThreadPoolExecutor], Awaitable[Served]]
 server_builder: ServerBuilder | None = None
 NO_TOOLS = "Alpha's tools are not wired into this process, so the turn did not run."
-# The fingerprint of the hands this process serves (their names and signatures), set with the
-# server builder: a kept session is resumed only when it was made with the same tools (18 Oct
+# The fingerprint of the hands this process serves (their names, A12), set with the server
+# builder: a kept session is resumed only when it was made with the same tool names (18 Oct
 # 2026: a conversation's session made on the 72 old names, resumed on the 17 hands, called a
 # tool the run did not have).
 tools_fingerprint: str = ""
@@ -461,7 +464,8 @@ def result_data(final: ResultMessage) -> dict[str, Any]:
     """The result message in the shape `parse_result` reads (the CLI's result event)."""
     return {"subtype": final.subtype, "is_error": final.is_error, "result": final.result or "",
             "session_id": final.session_id, "num_turns": final.num_turns,
-            "duration_ms": final.duration_ms, "total_cost_usd": final.total_cost_usd}
+            "duration_ms": final.duration_ms, "total_cost_usd": final.total_cost_usd,
+            "usage": dict(final.usage or {})}
 
 
 def _hooks(req: TurnRequest) -> dict[str, list[HookMatcher]]:

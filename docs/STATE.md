@@ -5,6 +5,17 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
 **As of 19 October 2026, evening.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
+- **Engine reach (A1–A12; Q98), S1 built** ([`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md); uncommitted).
+  - Kenil's spec of 19 Oct night, which parked P4/P10, was agreed with "A7 - let it talk to network, others are good". The proposal is [`design/engine-reach-proposal.md`](design/engine-reach-proposal.md), with his spec word for word.
+  - **A12:** a session survives everything but a change of hand names. A fresh session after one starts with the conversation's checkpoint (Watson's, now kept as a note).
+  - **A5:** `world_query` names its total, pages by offset, and returns 1,000 rows by default.
+  - **A8:** tool search is on. The spike showed input tokens per turn 6% and 32% lower, the hands still found and called.
+  - Every reply now records its tokens.
+  - Kenil restarted his app on S1 and looked: "ok its fine". Committed on his word ("commit S1 first").
+- **The prompt and the context (B1–B8; Q99), agreed** ([`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md), his spec word for word; all nine questions as recommended).
+  - A spike on the pinned SDK found that a resumed session keeps its first turn's system prompt (the preset's `snapshot`, on since the SDK engine of 17 Oct). So every turn after a conversation's first has had the first turn's pre-pack.
+  - It also found that UserPromptSubmit's context reaches the model every turn, that SessionStart fires through the SDK only after a compaction, and that PreCompact's text becomes the summary's instructions.
+  - **Next:** S1 committed (his word), then step 0 (B8's split and the "before" run), then B1 + B3. His three "feels dumb" sentences come separately.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
   - **A table's rows are people** by any of their keys.

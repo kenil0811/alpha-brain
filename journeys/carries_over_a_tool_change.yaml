@@ -1,0 +1,16 @@
+name: carries_over_a_tool_change
+title: "Sessions · a conversation carries on when Alpha's hands change between two turns"
+why: >
+  A12 of the engine-reach proposal (19 Oct 2026, Q98). A conversation's session is resumed only
+  on the same tool names; when they change (an update adds a hand), the fresh session starts
+  with the conversation's checkpoint in front of the sentence, so the next turn knows what the
+  first did and decided. Before, every added optional parameter reset every conversation.
+fresh: true
+steps:
+  - say: "I'm reading Dune and Piranesi. Let's keep my books in a table called books with title and status; both are reading."
+    home: true
+  - tools_change: {}
+  - say: "which books did I tell you about, and what did we decide to keep them in?"
+    home: true
+checks:
+  - judge: "Does the answer name Dune and Piranesi and say they are kept in a table called books (or Books), without asking the person to repeat themselves?"

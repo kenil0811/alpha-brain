@@ -328,6 +328,11 @@ class Run:
                         woke.append(agent["name"])
             record = {"wake_agents": woke, "ok": True,
                       "detail": f"woke {', '.join(woke)}" if woke else "nothing woke"}
+        elif "tools_change" in spec:
+            # Alpha's hands change between two turns, as an update would (A12): open sessions
+            # start afresh, carrying what was going on
+            engine.tools_fingerprint = f"{engine.tools_fingerprint}+{new_id('t')}"
+            record = {"tools_change": True, "ok": True}
         elif "connect_contacts" in spec:
             from alpha.connectors.contacts import MacContacts
 

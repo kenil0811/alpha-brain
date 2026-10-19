@@ -183,9 +183,11 @@ def views_text(world_path: Path | str) -> str:
         db.close()
 
 
-def query(world_path: Path | str, sql: str, *, limit: int = MOST_ROWS) -> dict[str, Any]:
-    """Run one read over the world; the columns, the rows (at most `limit`, said when cut), and
-    the views the query could use when it names none that exists."""
+def query(world_path: Path | str, sql: str, *, limit: int = MOST_ROWS,
+          offset: int = 0) -> dict[str, Any]:
+    """Run one read over the world; the columns, the rows from `offset` (at most `limit`), the
+    `total` the query has (A5: the model can tell a whole answer from a page of one), and the
+    views the query could use when it names none that exists."""
     text = (sql or "").strip().rstrip(";")
     if not READS.match(text) or WRITES.search(re.sub(r"'[^']*'", "''", text)):
         raise Problem("world_query reads: one SELECT (or WITH … SELECT); it cannot change the"
@@ -201,9 +203,11 @@ def query(world_path: Path | str, sql: str, *, limit: int = MOST_ROWS) -> dict[s
     db.set_progress_handler(watch, 10_000)
     try:
         views = _views(db)
+        start = max(0, int(offset))
         try:
-            cur = db.execute(text)
-            rows = cur.fetchmany(int(limit) + 1)
+            cur = db.execute(f"SELECT * FROM ({text}) LIMIT ? OFFSET ?", (int(limit), start))
+            rows = cur.fetchall()
+            total = int(db.execute(f"SELECT COUNT(*) FROM ({text})").fetchone()[0])
         except sqlite3.OperationalError as e:
             words = str(e)
             if "no such table" in words or "no such column" in words:
@@ -212,10 +216,11 @@ def query(world_path: Path | str, sql: str, *, limit: int = MOST_ROWS) -> dict[s
                 words = "the query took too long and was stopped; narrow it"
             raise Problem(f"That query didn't run: {words}") from e
         columns = [d[0] for d in cur.description or []]
-        cut = len(rows) > int(limit)
-        out = [dict(zip(columns, tuple(r), strict=False)) for r in rows[:int(limit)]]
-        return {"columns": columns, "rows": out, "count": len(out),
-                **({"cut": f"only the first {limit} rows are shown; narrow the query or"
-                           " aggregate"} if cut else {})}
+        out = [dict(zip(columns, tuple(r), strict=False)) for r in rows]
+        rest = total - start - len(out)
+        return {"columns": columns, "rows": out, "count": len(out), "total": total,
+                "offset": start,
+                **({"more": f"{rest} more; ask again with offset {start + len(out)} for the"
+                            " rest"} if rest > 0 else {})}
     finally:
         db.close()

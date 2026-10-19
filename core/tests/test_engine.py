@@ -114,7 +114,7 @@ def test_options_carry_the_route_walls(tmp_path: Path) -> None:
     assert "Bash" in opts.disallowed_tools and "WebSearch" not in opts.disallowed_tools
     assert dict(opts.system_prompt or {})["append"] == "RULES"  # type: ignore[arg-type]
     assert opts.extra_args == {"permission-prompts": "none"}  # a live conversation persists
-    assert opts.env["USER"] and opts.env["ENABLE_TOOL_SEARCH"] == "false"
+    assert opts.env["USER"] and opts.env["ENABLE_TOOL_SEARCH"] == "true"
     assert opts.cwd == str(tmp_path / "sessions") and Path(opts.cwd).is_dir()
 
 

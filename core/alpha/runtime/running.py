@@ -227,6 +227,8 @@ def tools_allowed(req: TurnRequest) -> list[str]:
 
 
 TOOL_WORDS = {
+    # the SDK's own look-up of a hand's full description (tool search, A8)
+    "ToolSearch": "Finding the right tool",
     # the hands (harness 2b)
     "world_query": "Reading the tables", "world_write": "Writing rows",
     "world_change": "Changing a row", "world_shape": "Shaping a table",

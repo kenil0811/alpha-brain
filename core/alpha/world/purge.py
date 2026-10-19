@@ -406,6 +406,7 @@ def remove_conversation(world: World, cid: str) -> dict[str, Any]:
         Staged.remove_in(db, thread=cid)
         db.execute("UPDATE workflows SET conversation = NULL WHERE conversation = ?", (cid,))
         db.execute("UPDATE agents SET thread = NULL WHERE thread = ?", (cid,))
+        db.execute("DELETE FROM notes WHERE scope = ?", (f"conversation:{cid}",))  # A12
         db.execute("DELETE FROM threads WHERE id = ?", (cid,))
     # the companion's focus on it reads as none once the thread is gone (conversations.focus)
     _record_removal(world, "conversation", cid, f"the conversation \"{thread['title']}\"",

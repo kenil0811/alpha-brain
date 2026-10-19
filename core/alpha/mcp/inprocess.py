@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import inspect
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -72,9 +71,15 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
 
 def install(tools_cls: type[Any]) -> None:
     """Make the engine serve `tools_cls` (the world's `Tools`) to every turn it runs, and
-    tell it the fingerprint of those hands (their names and signatures)."""
+    tell it the fingerprint of those hands: their names only (A12, Q98), so a docstring edited
+    or an optional parameter added keeps every open session; only a hand added, renamed or
+    gone starts a fresh one (P5, P7 and P8 each reset every conversation by a parameter)."""
     engine.server_builder = partial(alpha_server, tools_cls)
+    engine.tools_fingerprint = fingerprint_of(tools_cls)
+
+
+def fingerprint_of(tools_cls: type[Any]) -> str:
+    """The served hands' names, sorted, hashed (A12)."""
     served = sorted(name for name in dir(tools_cls)
                     if getattr(getattr(tools_cls, name, None), "served", False))
-    signed = "\n".join(f"{n}{inspect.signature(getattr(tools_cls, n))}" for n in served)
-    engine.tools_fingerprint = hashlib.sha256(signed.encode()).hexdigest()[:12]
+    return hashlib.sha256("\n".join(served).encode()).hexdigest()[:12]

@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -28,6 +29,8 @@ from alpha.runtime.running import NO_ANSWER, STALLED, RunResult, TurnRequest
 from alpha.world.journal import RUN
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
+
+log = logging.getLogger("alpha.turn")
 
 
 @dataclass
@@ -140,6 +143,32 @@ def threads_opened_by(world: World, turn_id: str) -> list[str]:
     return [str(r["t"]) for r in rows]
 
 
+def tokens_of(result: RunResult) -> dict[str, int]:
+    usage = (result.raw or {}).get("usage") or {}
+    if not isinstance(usage, dict) or not usage:
+        return {}
+    read = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_read_input_tokens",
+                                                 "cache_creation_input_tokens"))
+    return {"tokens_in": read, "tokens_out": int(usage.get("output_tokens") or 0)}
+
+
+# What was going on in a conversation, for a fresh session (A12): Watson's checkpoint, which
+# registers itself here (it imports this module, so it cannot be imported back).
+CARRY_OVER: list[Callable[..., str | None]] = []
+
+
+def carry_over(world: World, thread: str, runner: Runner) -> str | None:
+    for find in CARRY_OVER:
+        try:
+            found = find(world, thread, runner=runner)
+        except Exception:
+            log.exception("what was going on in %s", thread)
+            continue
+        if found:
+            return found
+    return None
+
+
 def ask(
     world: World,
     sentence: str,
@@ -180,17 +209,23 @@ def ask(
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
+    asked = sentence
     if (resume and thread_row and thread_row.get("session_tools") != engine.fingerprint()
             and not answers_a_deferral(world, thread)):
-        # A session made with other tools would have the model call names this run lacks
-        # (18 Oct 2026); a fresh one starts, with this conversation in the pre-pack.
+        # A session made with other tool names would have the model call names this run lacks
+        # (18 Oct 2026): a fresh one starts, with this conversation in the pre-pack and, in
+        # front of the sentence, what was going on (A12: the conversation's checkpoint)
         resume = None
+        carried = carry_over(world, thread, runner)
+        if carried:
+            asked = f"What was going on before the tools changed:\n{carried}\n\n{sentence}"
         world.journal.append("did", "Starting a fresh session here: Alpha's tools changed"
-                             " since the last turn.", actor="alpha", thread=thread,
+                             " since the last turn" + (", carrying what was going on." if carried
+                                                       else "."), actor="alpha", thread=thread,
                              module=module_id, data={"turn": said, "fresh_session": True})
     replier = agent or "alpha"
     request = TurnRequest(
-        sentence=sentence,
+        sentence=asked,
         system=f"{fixed}\n\n{context}",
         world_path=world.path,
         turn_id=said,
@@ -219,6 +254,9 @@ def ask(
         "duration_ms": result.duration_ms,
         "cost_estimate": result.cost_estimate,
         "first_text_ms": getattr(result, "first_text_ms", None),
+        # what the turn read and wrote, in tokens (A8 is measured by it): its input with the
+        # cache read and written, and its output
+        **tokens_of(result),
     }
     if result.ok:
         replied = world.journal.append(

@@ -68,8 +68,10 @@ class Knowledge:
         came from; `summary` is its one line in the always-loaded index (the first line of
         the body when not given)."""
         kind, _, ref = scope.partition(":")
+        # `conversation:<thread id>`: a conversation's checkpoint, what a fresh session there
+        # is told (A12); written by Watson, never listed in the index
         if not (scope == "person" or (kind in ("module", "topic", "entity", "skill", "agent",
-                                                "record") and ref.strip())):
+                                                "record", "conversation") and ref.strip())):
             raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>',"
                           " 'entity:<id>', 'skill:<name>', 'agent:<agent id>' or"
                           " 'record:<table>/<record id>'.")

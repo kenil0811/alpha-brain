@@ -1,0 +1,42 @@
+[
+ {
+  "name": "carries_over_a_tool_change",
+  "title": "Sessions · a conversation carries on when Alpha's hands change between two turns",
+  "steps": [
+   {
+    "say": "I'm reading Dune and Piranesi. Let's keep my books in a table called books with title and status; both are reading.",
+    "ok": true,
+    "reply": "I made a **Books** table with a title and a status for each book, and added both of yours:\n\n| Title | Status |\n|---|---|\n| Dune | reading |\n| Piranesi | reading |\n\nThe status can be \"to read\", \"reading\" or \"finished\". The table sits in a section called **Reading**, because I couldn't name the section \"Books\" as well. When you finish one or start another, just tell me and I'll update it.",
+    "steps": 5,
+    "routed": "a new item",
+    "routed_by": "judge: A table called books kept with title and status is standing work that persists beyond this turn, and no open item covers it.",
+    "seconds": 19.3
+   },
+   {
+    "tools_change": true,
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "which books did I tell you about, and what did we decide to keep them in?",
+    "ok": true,
+    "reply": "You told me about two books, **Dune** and **Piranesi**, and said you're reading both.\n\nWe agreed to keep them in a table called **Books** with a title and a status for each book. Both are marked \"reading\" there right now. The table is in the **Reading** section.",
+    "steps": 3,
+    "routed": "I'm reading Dune and Piranesi. Let's keep my books in a…",
+    "routed_by": "judge: The question asks about the books and the table decided on in the focused item, so it follows on from that item's subject.",
+    "seconds": 31.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Does the answer name Dune and Piranesi and say they are kept in a table called books (or Books), without asking the person to repeat themselves?",
+    "ok": true,
+    "why": "The answer names Dune and Piranesi and says they are kept in a table called Books, without asking the person to repeat anything; the 'Reading section' detail isn't in the visible evidence, but the rubric doesn't cover it.",
+    "seconds": 5.9
+   }
+  ],
+  "seconds": 56.8,
+  "error": null
+ }
+]

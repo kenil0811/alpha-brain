@@ -344,8 +344,8 @@ def build(world: World, sentence: str, *, module: str | None = None,
 
     # The wiki's index: every page in one line, always; bodies on demand (note_read).
     index = [f"- [{p['scope']}] {p['title']}: {_clip(p['summary'], 140)}"
-             for p in k.index() if p["title"] not in ("Profile", "Standing instructions",
-                                                      "Permissions")][:200]
+             for p in k.index() if not str(p["scope"]).startswith("conversation:")
+             and p["title"] not in ("Profile", "Standing instructions", "Permissions")][:200]
     if index:
         sections.append(("WHAT ALPHA KNOWS (the index; note_read for a page)", index))
     if module:

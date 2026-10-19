@@ -74,7 +74,7 @@ def test_server_exposes_every_tool(world: World) -> None:
     assert {f.__name__ for f in Tools(world).all()} == names
     assert len(names) >= 20  # the hands (harness 2b): few and generic
     q: Any = next(x for x in tools if x.name == "world_query")
-    assert set(q.parameters["properties"]) == {"sql", "limit"}
+    assert set(q.parameters["properties"]) == {"sql", "limit", "offset"}
     assert "self" not in q.parameters["properties"]
 
 
