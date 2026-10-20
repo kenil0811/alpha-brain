@@ -33,10 +33,14 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - a session's later turns write far less to the cache (median 14,124 → 4,999);
     - but more is read from it (61,622 → 85,626) and first words come later (6.8 s → 10.3 s), as the model looks up what the pre-pack used to hand it.
     - B's gain is that what is cached is true, not fewer tokens. Ways to win back speed are in the log, as proposals.
-  - **Engine reach S2, A2 and A4 committed** ([`log/2026-10-20-engine-reach-s2.md`](log/2026-10-20-engine-reach-s2.md)):
+  - **Engine reach S2 (A2, A4, A3), accepted and committed** ([`log/2026-10-20-engine-reach-s2.md`](log/2026-10-20-engine-reach-s2.md)):
     - A2: subagents allowed. A subagent's removal asks on the callback's card, since a deferral never resumes a subagent; a helper runs in the foreground, since a turn's process ends with the turn.
     - A4: writes follow the grants, never under `.claude`.
-    - Their journeys pass, and his try in the app: "both works, lets move on to the next". Committed; A3 (network for scripts by allowlist) is next. Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
+    - Their journeys pass, and his try in the app: "both works, lets move on to the next". Committed as `34db654`.
+    - A3 (Q103), accepted and committed:
+      - each module carries the hosts its scripts may reach (module.yaml both ways, kits), and the world has a list on Settings' "Folders and network" card;
+      - any other host asks on a card, and a yes lists it;
+      - both its journeys pass, and his try in the app: "ok looks good, lets move on". Committed. S3 (A6, A9) is next. Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
@@ -102,12 +106,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, section B step 3 built)
+## Numbers (`just stats`, 20 Oct, engine reach S2 built)
 
-- 434 core tests, 238 desktop tests; lint and types clean.
-- 70 tools; 51 journeys defined.
-- Core 29,063 lines, tests 11,320, desktop 21,476.
-- 300 commits.
+- 439 core tests, 239 desktop tests; lint and types clean.
+- 70 tools; 55 journeys defined.
+- Core 29,306 lines, tests 11,459, desktop 21,513.
+- 303 commits before S2's A3.
 
 ## What is built, against the design's order of work
 

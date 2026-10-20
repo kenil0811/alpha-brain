@@ -5,6 +5,7 @@ served in-process. No model, no network: a scripted client stands in for the SDK
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, cast
@@ -438,8 +439,6 @@ def test_the_models_own_files_and_shell_are_gated_by_place(tmp_path: Path) -> No
     settings = decide("Write", {"file_path": str(granted / ".claude" / "settings.json"),
                                 "content": "{}"})
     assert isinstance(settings, PermissionResultDeny) and ".claude" in settings.message
-    net = decide("SandboxNetworkAccess", {"host": "example.com"})
-    assert isinstance(net, PermissionResultDeny) and "act_outward" in net.message
     # the whole Mac switched on: reads and writes anywhere, still never under .claude
     grants.set_whole_mac(world, True)
     assert isinstance(decide("Read", {"file_path": "/etc/hosts"}), PermissionResultAllow)
@@ -559,3 +558,79 @@ def test_a_subagent_runs_in_the_turn_not_in_the_background() -> None:
                                           cast(Any, None))) == {}
     hooks = engine._hooks(request(Path("/tmp"), kind="turn"))
     assert hooks["PreToolUse"][0].matcher == "Agent|Task"
+
+
+def test_a_scripts_host_is_listed_or_asked_on_a_card(tmp_path: Path) -> None:
+    """A3 (Q98, 20 Oct 2026): a host on the module's list or the world's is the sandbox's own
+    allow; any other asks the person on a card, a yes puts it on the module's list (and in its
+    module.yaml), a no refuses and names the Settings card."""
+    import threading
+
+    from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
+
+    from alpha.world import grants
+    from alpha.world.world import World
+
+    world = World(tmp_path / "w.sqlite")
+    module = world.modules.create("Prices")["id"]
+    req = request(tmp_path, kind="turn", turn_id="j_7", thread_id=None)
+    req.module_id = module
+    can_use: Any = engine.permission_for(req, world)
+    grants.set_world_hosts(world, ["https://data.gov.uk/path"])
+    assert grants.world_hosts(world) == ["data.gov.uk"]
+
+    def ask(host: str, answer: str | None) -> Any:
+        if answer is not None:
+            def reply() -> None:
+                end = time.time() + 5
+                while time.time() < end:
+                    asked = [a for a in world.journal.recent(5, kinds=["asked"])
+                             if a["data"].get("host") == host]
+                    if asked and engine.answer_permission(asked[-1]["id"], answer):
+                        return
+                    time.sleep(0.02)
+            threading.Thread(target=reply, daemon=True).start()
+        return asyncio.run(can_use("SandboxNetworkAccess", {"host": host}, None))
+
+    assert isinstance(ask("data.gov.uk", None), PermissionResultAllow)  # listed: no card
+    assert isinstance(ask("api.example.com", "Yes, always for Prices"), PermissionResultAllow)
+    assert grants.module_hosts(world, module) == ["api.example.com"]
+    card = [a for a in world.journal.recent(5, kinds=["asked"])][-1]
+    assert card["text"].startswith("Let scripts in Prices reach api.example.com?")
+    refused = ask("tracker.example.net", "No")
+    assert isinstance(refused, PermissionResultDeny) and "Folders and network" in refused.message
+    assert "tracker.example.net" not in grants.hosts(world, module)
+    # the run's sandbox lists both
+    opts = engine.options_for(req, None, hands=["world_query"], can_use=can_use,
+                              hosts=grants.hosts(world, module))
+    assert opts.sandbox and opts.sandbox["network"]["allowedDomains"] == [
+        "api.example.com", "data.gov.uk"]
+    # the module's list is in its module.yaml, and goes both ways
+    world.files.sync_module(world.modules.get(module))
+    path = world.files.dir_of(module) / "module.yaml"
+    assert "api.example.com" in path.read_text()
+
+
+def test_a_modules_hosts_edited_in_its_module_yaml_are_read_back(tmp_path: Path) -> None:
+    """A3: the module's list goes both ways, as NOTES.md does: a host added in module.yaml
+    after the world wrote it is read into the world, journaled, and given to the sandbox."""
+    import os
+
+    import yaml
+
+    from alpha.world import grants
+    from alpha.world.world import World
+
+    world = World(tmp_path / "w.sqlite")
+    module = world.modules.create("Prices")
+    world.files.sync_module(world.modules.get(module["id"]))
+    path = world.files.dir_of(module["id"]) / "module.yaml"
+    shape = yaml.safe_load(path.read_text())
+    shape["network"] = ["api.coingecko.com"]
+    path.write_text(yaml.safe_dump(shape, sort_keys=False))
+    later = time.time() + 5
+    os.utime(path, (later, later))
+    world.files.sync_module(world.modules.get(module["id"]))
+    assert grants.module_hosts(world, module["id"]) == ["api.coingecko.com"]
+    said = world.journal.recent(1, kinds=["changed"])[-1]["text"]
+    assert said == "Scripts in Prices may reach: api.coingecko.com (from module.yaml)"

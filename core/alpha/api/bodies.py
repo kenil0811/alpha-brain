@@ -49,6 +49,10 @@ class WholeMacBody(BaseModel):
     on: bool
 
 
+class HostsBody(BaseModel):
+    hosts: list[str]
+
+
 class TextBody(BaseModel):
     text: str
 

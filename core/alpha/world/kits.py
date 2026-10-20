@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from alpha.world import grants
 from alpha.world.modfiles import split_front
 from alpha.world.skills import _ensure_repo, _git, slug
 from alpha.world.store import Problem, dumps, loads
@@ -237,7 +238,12 @@ class Kits:
         made["skills"] = self._skills(m, folder)
         made["agents"] = self._agents(m, folder)
         made["pages"] = self._pages(m, folder)
-        world.files.sync_module(m)
+        listed = shape.get("network") or []
+        if isinstance(listed, list) and listed:
+            # the hosts its scripts read from travel with the module (A3)
+            grants.set_module_hosts(world, m["id"], [str(h) for h in listed], actor="alpha",
+                                    why=f"from the kit {head['kit']}")
+        world.files.sync_module(world.modules.get(m["id"]))
         # what was installed, as this world wrote it (its own ids in module.yaml and the
         # agents' files): "unchanged since the install" is measured against this
         hashes = _hashes(world.files.dir_of(m["id"]))

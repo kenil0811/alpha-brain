@@ -1,0 +1,22 @@
+name: script_asks_for_a_host
+title: "A script reaching an unlisted host asks first, and the yes lands it on the module's list"
+why: >
+  Engine reach A3 (Q98, 20 Oct 2026): a host on no list asks the person on a card ("Let scripts
+  in <module> reach <host>?"); the suite answers yes as the app does; the host goes on the
+  module's list and into its module.yaml, and the fetch succeeds in the same turn.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: todos
+      title: Todos
+      module: Lists
+      fields:
+        - {name: title, kind: text}
+      title_field: title
+  - say: "In the shell, with a short Python script (not WebFetch), read https://jsonplaceholder.typicode.com/todos/1 and tell me its title."
+    module: Lists
+checks:
+  - journal: {kind: asked, contains: "reach jsonplaceholder.typicode.com"}
+  - hosts: {module: Lists, includes: jsonplaceholder.typicode.com}
+  - reply: {matches: "delectus"}

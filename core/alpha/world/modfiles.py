@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from alpha.world import grants
 from alpha.world.agents import kept_lines
 from alpha.world.knowledge import INSTRUCTIONS
 from alpha.world.skills import slug
@@ -93,6 +94,7 @@ class ModuleFiles:
         counts = counts if counts is not None else {"written": 0, "read": 0}
         folder = self.dir_of(m["id"])
         folder.mkdir(parents=True, exist_ok=True)
+        self._read_network(m, folder / "module.yaml", counts)
         self._write_if_changed(folder / "module.yaml", self.module_yaml(m), counts)
         self._sync_notes(m, folder, counts)
         self._sync_agents(m, folder, counts)
@@ -128,7 +130,27 @@ class ModuleFiles:
         pages = world.pages.names(m["id"])
         if pages:
             data["pages"] = pages
+        network = grants.module_hosts(world, m["id"])
+        if network:
+            data["network"] = network
         return _dump(data)
+
+    def _read_network(self, m: dict[str, Any], path: Path, counts: dict[str, int]) -> None:
+        """The hosts the module's scripts may reach, read from module.yaml when the file was
+        changed after the world (A3: the list goes both ways, as NOTES.md does)."""
+        if not path.exists() or _stamp(path) <= str(m.get("updated_at") or ""):
+            return
+        try:
+            listed = (yaml.safe_load(path.read_text()) or {}).get("network") or []
+        except yaml.YAMLError:
+            return
+        if not isinstance(listed, list):
+            return
+        before = grants.module_hosts(self.world, m["id"])
+        after = grants.set_module_hosts(self.world, m["id"], [str(h) for h in listed],
+                                        actor="person", why="from module.yaml")
+        if after != before:
+            counts["read"] += 1
 
     # ---- NOTES.md ----
 

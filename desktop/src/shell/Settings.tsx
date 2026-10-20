@@ -434,7 +434,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
             </div>
           </SetCard>
 
-          <SetCard title="Folders" about="Where Alpha's own files and shell may read; it writes only inside each module's own folder">
+          <SetCard title="Folders and network" about="Where Alpha's own files and shell may read and write, and the hosts its scripts may read from">
             <FoldersCard client={client} />
           </SetCard>
           <SetCard title="Kits" about="A module made elsewhere, installed here with its tables empty and its agents paused">
@@ -468,10 +468,13 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   );
 }
 
-/** The folders Alpha may read (harness slice 6): the ones you connected, and one switch for
- *  the whole Mac. Adding or removing a folder is done where folders are connected. */
-function FoldersCard({ client }: { client: Client }) {
-  const [state, setState] = useState<{ folders: string[]; whole_mac: boolean } | null>(null);
+/** The folders Alpha may read and write (slice 6; A4): the ones you connected, and one switch
+ *  for the whole Mac; adding or removing a folder is done where folders are connected. And the
+ *  hosts every module's scripts may read from (A3); a module's own list grows by your yes on a
+ *  card. */
+export function FoldersCard({ client }: { client: Client }) {
+  const [state, setState] = useState<{ folders: string[]; whole_mac: boolean; hosts: string[] } | null>(null);
+  const [host, setHost] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -495,8 +498,25 @@ function FoldersCard({ client }: { client: Client }) {
       )}
       <label className="row" style={{ gap: 8, alignItems: "center" }}>
         <input type="checkbox" checked={state.whole_mac} onChange={(e) => { const on = e.target.checked; setState({ ...state, whole_mac: on }); void client.setWholeMac(on).catch((err: unknown) => setProblem(say(err))); }} />
-        <span>The whole Mac: Alpha may read any folder (it never writes outside its own)</span>
+        <span>The whole Mac: Alpha may read and write any folder (never a .claude folder)</span>
       </label>
+      <div className="item__sub" style={{ margin: "12px 0 6px" }}>Hosts every module&apos;s scripts may read from; any other host asks you first.</div>
+      {state.hosts.length ? (
+        <ul className="plain" style={{ margin: "0 0 8px" }}>
+          {state.hosts.map((h) => (
+            <li key={h} className="row" style={{ gap: 8, alignItems: "center" }}>
+              <span className="num" style={{ fontSize: "var(--text-sm)" }}>{h}</span>
+              <Button size="sm" variant="ghost" aria-label={`Remove ${h}`} onClick={() => { void client.setHosts(state.hosts.filter((x) => x !== h)).then((out) => setState({ ...state, hosts: out.hosts })).catch((err: unknown) => setProblem(say(err))); }}>Remove</Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="faint" style={{ marginBottom: 8 }}>No host listed for every module yet.</p>
+      )}
+      <form className="row" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); if (!host.trim()) return; void client.setHosts([...state.hosts, host.trim()]).then((out) => { setState({ ...state, hosts: out.hosts }); setHost(""); }).catch((err: unknown) => setProblem(say(err))); }}>
+        <input className="input" value={host} onChange={(e) => setHost(e.target.value)} placeholder="api.example.com" aria-label="A host to add" />
+        <Button size="sm" type="submit">Add</Button>
+      </form>
     </>
   );
 }

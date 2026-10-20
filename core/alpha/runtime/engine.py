@@ -113,7 +113,8 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
                 hooks: dict[str, list[HookMatcher]] | None = None,
                 hands: list[str] | None = None,
                 can_use: Callable[..., Awaitable[Any]] | None = None,
-                cwd: Path | None = None, add_dirs: list[Path] | None = None) -> ClaudeAgentOptions:
+                cwd: Path | None = None, add_dirs: list[Path] | None = None,
+                hosts: list[str] | None = None) -> ClaudeAgentOptions:
     """The SDK's options for a request: the same tools, walls and session rules the CLI route
     passed as flags. With `hands` (the served tools' names) and `can_use`, a turn runs in the
     default mode: every hand but the gated ones is allowed outright, the gated ones reach the
@@ -162,6 +163,9 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         kw["can_use_tool"] = can_use
     if hands is not None and req.kind == "turn":
         kw["sandbox"] = dict(SANDBOX)
+        # A3 (Q98): the hosts on the module's list and the world's, reached without a word;
+        # any other is the callback's card
+        kw["sandbox"]["network"] = {"allowedDomains": list(hosts or [])}
         kw["add_dirs"] = [str(d) for d in (add_dirs or [])]
     return ClaudeAgentOptions(**kw)
 
@@ -328,6 +332,25 @@ def removal_card(world: World, req: TurnRequest, input_data: dict[str, Any],
     return ask, text
 
 
+def network_card(world: World, req: TurnRequest, host: str) -> tuple[str, str]:
+    """A script's reach to a host on no list (A3): a card asks the person, and the turn waits
+    for the answer in memory. A host is reached by the sandbox's own request, never a tool
+    call, so there is no call to defer as a removal's is (the spike's read of the CLI, 20 Oct
+    2026); a restart while it waits asks again the next time."""
+    where = world.modules.get(req.module_id)["name"] if req.module_id else None
+    text = (f"Let scripts in {where} reach {host}?" if where else
+            f"Let Alpha's scripts reach {host}?") + " Reading from it only: anything sent still" \
+        " asks you first."
+    ask = world.journal.append(
+        "asked", text,
+        data={"options": ["Yes, always" + (f" for {where}" if where else ""), "No"],
+              "kind": "one", "turn": req.turn_id, "permission": "network", "host": host},
+        module=req.module_id, thread=req.thread_id)
+    LIVE.note(_keys(req), doing=WAITING)
+    _line(world, req.thread_id, "needs_you", f"Waiting for your yes: {text[:150]}")
+    return ask, text
+
+
 def removal_hook(req: TurnRequest,
                  world: World) -> Callable[..., Coroutine[Any, Any, SyncHookJSONOutput]]:
     """A conversation's removal waits on its card without holding the turn (P3 item 7, 19 Oct
@@ -388,10 +411,30 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
     async def can_use(tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
         name = tool_name.removeprefix("mcp__alpha__")
         if name == "SandboxNetworkAccess":
-            # the shell has no network: what leaves the world goes through act_outward
-            return PermissionResultDeny(message="No network from the shell: anything that"
-                                                " leaves the person's world goes through"
-                                                " act_outward and their yes.")
+            # A3 (Q98): a listed host is the sandbox's own allow; any other asks on a card,
+            # and a yes puts it on the module's list. What leaves the world (a message, a
+            # post, a form) still goes only through act_outward.
+            host = grants.host_of(str(input_data.get("host") or ""))
+            if not host:
+                return PermissionResultDeny(message="A script reached for a host with no name.")
+            if host in grants.hosts(world, req.module_id):
+                return PermissionResultAllow()
+            ask, _ = network_card(world, req, host)
+            loop = asyncio.get_running_loop()
+            waiting: asyncio.Future[str] = loop.create_future()
+            PENDING.add(ask, loop, waiting)
+            try:
+                answer = await waiting
+            except asyncio.CancelledError:
+                _line(world, req.thread_id, "working", "The wait for your yes was stopped.")
+                return PermissionResultDeny(message="The wait for your yes was stopped.")
+            if yes(answer):
+                grants.allow_host(world, req.module_id, host, actor="person")
+                _line(world, req.thread_id, "working", "Carrying on after your yes.")
+                return PermissionResultAllow()
+            _line(world, req.thread_id, "working", "Carrying on after your no.")
+            return PermissionResultDeny(message=f"The person said no to {host}. They can list"
+                                                " a host in Settings › Folders and network.")
         if name in ("Read", "Glob", "Grep", "Write", "Edit", "NotebookEdit"):
             own = grants.module_dir(world, req.module_id)
             path = str(input_data.get("file_path") or input_data.get("path")
@@ -613,7 +656,8 @@ async def run_async(req: TurnRequest, *,
                                    HookMatcher(matcher="mcp__alpha__world_change",
                                                hooks=[removal_hook(req, world)])]
         options = options_for(req, server, hooks, hands=hands, can_use=can_use,
-                              cwd=cwd, add_dirs=add_dirs)
+                              cwd=cwd, add_dirs=add_dirs,
+                              hosts=grants.hosts(world, req.module_id) if world else [])
         async with client_factory(options) as c:
             client = c
             await c.query(req.sentence)

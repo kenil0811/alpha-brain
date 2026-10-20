@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from alpha.api.bodies import (
     FolderBody,
+    HostsBody,
     SiteBody,
     WholeMacBody,
 )
@@ -31,11 +32,17 @@ def routes(app: FastAPI, s: Served) -> None:
         """Where the model's own files and shell may read (slice 6): the connected folders,
         and whether the whole Mac is open to reading."""
         return {"folders": [str(f) for f in grants.folders(world)],
-                "whole_mac": grants.whole_mac(world)}
+                "whole_mac": grants.whole_mac(world), "hosts": grants.world_hosts(world)}
 
     @app.post("/api/folders/whole_mac", dependencies=[api])
     def set_whole_mac(body: WholeMacBody) -> dict[str, Any]:
         return grants.set_whole_mac(world, body.on)
+
+    @app.post("/api/network", dependencies=[api])
+    def set_network(body: HostsBody) -> dict[str, Any]:
+        """The hosts every module's scripts may reach (A3); a module's own list grows by the
+        person's yes on a card, or in its module.yaml."""
+        return {"hosts": grants.set_world_hosts(world, body.hosts, actor="person")}
 
     @app.post("/api/connections/folder", dependencies=[api])
     def connect_folder(body: FolderBody) -> dict[str, Any]:

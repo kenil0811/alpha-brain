@@ -83,7 +83,9 @@ def key_of(kind: str, actor: str, text: str, data: dict[str, Any], module: str |
     removal's yes is its turn's own (two turns may each wait on theirs)."""
     target, content = thread or module or "home", _words(text)
     if kind == "permission":
-        target, content = str(data.get("turn") or ""), dumps(sorted(data.get("records") or []))
+        # a removal is its rows; a host for scripts (A3) is its host
+        target, content = str(data.get("turn") or ""), dumps(sorted(data.get("records") or [])) \
+            + (f"|{data['host']}" if data.get("host") else "")
     elif kind == "reminder":
         target, content = str(data.get("reminder")), ""
     elif kind == "check":

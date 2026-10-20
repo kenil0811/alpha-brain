@@ -71,8 +71,8 @@ from alpha.runtime import (
 )
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
+from alpha.world import grants, purge
 from alpha.world import people as people_world
-from alpha.world import purge
 from alpha.world.store import Problem, new_id, now
 from alpha.world.tasks import TABLE as TASKS
 from alpha.world.world import World, default_world_path
@@ -468,6 +468,14 @@ class Run:
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            elif seed.get("kind") == "network":
+                # hosts scripts may reach (A3): a module's list, or the world's
+                if seed.get("module"):
+                    mid = self.world.modules.get(seed["module"])["id"]
+                    grants.set_module_hosts(self.world, mid, list(seed["hosts"]), actor="person")
+                else:
+                    grants.set_world_hosts(self.world, list(seed["hosts"]))
+                record = {"seed": f"network {', '.join(seed['hosts'])}", "ok": True}
             elif seed.get("kind") == "note":
                 # a note the person wrote (their standing instructions are ALPHA.md's), whole
                 self.world.knowledge.write_note(seed.get("scope", "person"), seed["title"],
@@ -1284,6 +1292,16 @@ class Run:
         noun = "entry" if len(entries) == 1 else "entries"
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
+
+    def check_hosts(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A host a module's scripts may reach (A3): on its list and in its module.yaml."""
+        m = self.world.modules.get(arg["module"])
+        listed = grants.module_hosts(self.world, m["id"])
+        self.world.files.sync_module(self.world.modules.get(m["id"]))
+        in_file = arg["includes"] in (self.world.files.dir_of(m["id"]) / "module.yaml").read_text()
+        ok = arg["includes"] in listed and in_file
+        return ok, (f"{m['name']} may reach {', '.join(listed) or 'no host'}"
+                    + ("; module.yaml says so" if in_file else "; module.yaml does not"))
 
     def check_file_in_folder(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A file Alpha wrote in a folder the person granted (A4): its name matches, and it

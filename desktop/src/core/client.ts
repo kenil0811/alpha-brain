@@ -1477,7 +1477,8 @@ export class Client {
   exportKit = (ref: string) => this.call<{ kit: string; name: string; version: number; files: number; crosses: string[] }>("POST", `/api/modules/${encodeURIComponent(ref)}/kit`, {});
   installKit = (path: string) => this.call<{ module: string; name: string; version: number; words: string; kept: string[] }>("POST", "/api/kits/install", { path });
   /** Where the model's own files and shell may read (slice 6). */
-  folders = () => this.call<{ folders: string[]; whole_mac: boolean }>("GET", "/api/folders");
+  folders = () => this.call<{ folders: string[]; whole_mac: boolean; hosts: string[] }>("GET", "/api/folders");
+  setHosts = (hosts: string[]) => this.call<{ hosts: string[] }>("POST", "/api/network", { hosts });
   setWholeMac = (on: boolean) => this.call<{ whole_mac: boolean }>("POST", "/api/folders/whole_mac", { on });
   agents = () => this.call<Agent[]>("GET", "/api/agents");
   agentPage = (id: string) => this.call<AgentDetail>("GET", `/api/agents/${encodeURIComponent(id)}`);

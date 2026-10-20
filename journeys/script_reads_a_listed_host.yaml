@@ -1,0 +1,23 @@
+name: script_reads_a_listed_host
+title: "A script reads a public JSON endpoint on the module's list"
+why: >
+  Engine reach A3 (Q98, 20 Oct 2026): a module carries the hosts its scripts may reach;
+  fetching a JSON endpoint is reading, and the gate for what leaves the world stays act_outward.
+  Before, the shell had no network at all (Q80, reversed).
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: users
+      title: Users
+      module: Directory
+      fields:
+        - {name: name, kind: text}
+        - {name: email, kind: text}
+      title_field: name
+  - seed: {kind: network, module: Directory, hosts: [jsonplaceholder.typicode.com]}
+  - say: "In the shell, with a short Python script (not WebFetch), read https://jsonplaceholder.typicode.com/users and put each user's name and email into my Users table, with that URL as the source."
+    module: Directory
+checks:
+  - row: {collection: users}
+  - rows_since: {at_least: 10}

@@ -465,7 +465,7 @@ def test_the_folders_alpha_may_read_and_the_whole_mac_switch(world: World, tmp_p
     from alpha.connectors.base import Connections
 
     c = client(world)
-    assert c.get("/api/folders").json() == {"folders": [], "whole_mac": False}
+    assert c.get("/api/folders").json() == {"folders": [], "whole_mac": False, "hosts": []}
     folder = tmp_path / "docs"
     folder.mkdir()
     Connections(world.store).upsert("files", str(folder))
@@ -473,7 +473,11 @@ def test_the_folders_alpha_may_read_and_the_whole_mac_switch(world: World, tmp_p
     assert c.post("/api/folders/whole_mac", json={"on": True}).json() == {"whole_mac": True}
     assert c.get("/api/folders").json()["whole_mac"] is True
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == (
-        "Alpha may read any folder on this Mac.")
+        "Alpha may read and write any folder on this Mac.")
+    # the hosts every module's scripts may reach (A3), kept as hosts
+    out = c.post("/api/network", json={"hosts": ["https://api.example.com/v1", "Data.gov.uk"]})
+    assert out.json() == {"hosts": ["api.example.com", "data.gov.uk"]}
+    assert c.get("/api/folders").json()["hosts"] == ["api.example.com", "data.gov.uk"]
 
 
 def test_an_agents_file_and_a_modules_notes_are_text_both_ways(world: World) -> None:

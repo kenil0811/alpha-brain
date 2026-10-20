@@ -536,6 +536,8 @@ ADDED_COLUMNS = [
     ("permissions", "agent", "TEXT"),
     ("permissions", "destination", "TEXT"),
     ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
+    # the hosts a module's scripts may reach, a JSON list (A3, Q98, 20 Oct 2026)
+    ("modules", "network", "TEXT"),
     # Removed with its data kept (13 Oct, slice 2 A4): out of sight, its automations stopped,
     # restorable from Settings; `removed_with` is the module the removal was asked of, the same
     # on everything removed together.

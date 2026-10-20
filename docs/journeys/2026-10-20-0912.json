@@ -1,0 +1,52 @@
+[
+ {
+  "name": "script_reads_a_listed_host",
+  "title": "A script reads a public JSON endpoint on the module's list",
+  "steps": [
+   {
+    "seed": "table users with 0 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "network jsonplaceholder.typicode.com",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the shell, with a short Python script (not WebFetch), read https://jsonplaceholder.typicode.com/users and put each user's name and email into my Users table, with that URL as the source.",
+    "ok": true,
+    "reply": "I added all 10 users to your Users table with their names and emails. I read them with a short Python script in the shell, and each row has https://jsonplaceholder.typicode.com/users as its source. Rows are matched on email, so running this again will update them rather than add copies.",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 71712,
+    "tokens_cache_made": 15395,
+    "tokens_out": 865,
+    "first_text_ms": 12752,
+    "seconds": 16.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "users"
+    },
+    "ok": true,
+    "why": "10 row(s) added; source: https://jsonplaceholder.typicode.com/users.",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 10
+    },
+    "ok": true,
+    "why": "10 rows in users (10)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 16.1,
+  "error": null
+ }
+]
