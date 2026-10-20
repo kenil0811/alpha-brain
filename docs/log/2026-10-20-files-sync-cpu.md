@@ -2,8 +2,8 @@
 
 Kenil, after the C5 restart: "why are all pages/modules stuck in loading state". The cause and
 a three-part fix went to him in writing first. His word: "Yes, build the three files sync
-changes as written, then restart the core and give me the test steps in chat." Nothing here is
-committed.
+changes as written, then restart the core and give me the test steps in chat." His look:
+"ok it looks good". Committed as `1116ff1`.
 
 ## The cause
 
@@ -68,7 +68,7 @@ A 3 s `sample` of the core showed Python running, the GIL contended (`__psynch_m
   - this log file, written at 17:15:37, was read by 17:15:40, one sync about 3 s after the
     write;
   - the core afterwards at 0.1% CPU.
-- **Not yet:** Kenil's look in the window.
+- **His look:** the pages loaded. "ok it looks good".
 
 ## Open
 
