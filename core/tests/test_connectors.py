@@ -164,6 +164,84 @@ def test_a_file_another_folder_reads_stays_with_it(world: World, tmp_path: Path,
         assert Connections(world.store).get(conn["id"])["status"] == "connected"
 
 
+def test_a_skipped_folder_is_passed_by_not_entered(world: World, tmp_path: Path,
+                                                   monkeypatch: pytest.MonkeyPatch) -> None:
+    """His ~/Desktop/dev: each sync went into node_modules, .venv and .git only to drop what
+    it found there, 9.4 s a sync (20 Oct 2026). A skipped folder is now never listed."""
+    import os
+
+    import alpha.connectors.files as files_module
+
+    folder = tmp_path / "dev"
+    for sub in ("node_modules/pkg", ".venv/lib", ".git/objects", "app/.data/browser", "app/docs"):
+        (folder / sub).mkdir(parents=True)
+        (folder / sub / "README.md").write_text("inside " + sub)
+    entered: list[str] = []
+    walk = os.walk
+
+    def listing(top: Any, *args: Any, **kwargs: Any) -> Any:
+        for here, dirs, names in walk(top, *args, **kwargs):
+            entered.append(os.path.relpath(here, folder))
+            yield here, dirs, names
+
+    monkeypatch.setattr(os, "walk", listing)
+    found = files_module._walk(folder)
+    assert [p.relative_to(folder).as_posix() for p in found] == ["app/docs/README.md"]
+    assert sorted(entered) == [".", "app", "app/docs"]
+
+
+def test_a_change_no_sync_would_see_starts_none() -> None:
+    from alpha.connectors.files import _seen_by_sync
+
+    root = "/Users/someone/dev"
+    assert _seen_by_sync(root, f"{root}/alpha/docs/STATE.md")
+    assert _seen_by_sync(root, f"{root}/notes.txt")
+    for path in (f"{root}/alpha/node_modules/pkg/README.md",  # a skipped folder
+                 f"{root}/alpha-v2/.data/browser/Preferences.json",  # a hidden one
+                 f"{root}/alpha/world.sqlite-wal",  # a file no sync reads
+                 f"{root}/alpha/.DS_Store", root):
+        assert not _seen_by_sync(root, path), path
+    assert _seen_by_sync(root, "/elsewhere/odd.md")  # can't place it: the sync judges
+
+
+def test_a_change_during_a_sync_makes_one_more_after_it() -> None:
+    """Overlapping syncs of one folder kept his core at 200% CPU (20 Oct 2026): while one
+    runs, any number of changes make exactly one more after it, never one alongside."""
+    import threading
+
+    from alpha.connectors.files import Syncs
+
+    started, release = threading.Event(), threading.Event()
+    calls: list[str] = []
+    now: dict[str, int] = {}
+    most: dict[str, int] = {}
+
+    def sync(folder: str) -> None:
+        now[folder] = now.get(folder, 0) + 1
+        most[folder] = max(most.get(folder, 0), now[folder])
+        calls.append(folder)
+        if len(calls) == 1:
+            started.set()
+            assert release.wait(5)
+        now[folder] -= 1
+        if len(calls) == 2:
+            raise RuntimeError("a failed sync still lets the next one run")
+
+    syncs = Syncs(sync)
+    first = threading.Thread(target=syncs.run, args=("/dev",))
+    first.start()
+    assert started.wait(5)
+    for _ in range(3):
+        syncs.run("/dev")  # returns at once: noted for after
+    syncs.run("/other")  # another folder is its own
+    release.set()
+    first.join(5)
+    assert calls == ["/dev", "/other", "/dev"] and most["/dev"] == 1
+    assert not syncs.running and not syncs.again
+    syncs.run("/dev")
+    assert calls[-1] == "/dev" and len(calls) == 4
+
+
 def test_watch_refuses_home_and_missing(world: World) -> None:
     with pytest.raises(Problem, match="home folder"):
         Files(world).watch("~")

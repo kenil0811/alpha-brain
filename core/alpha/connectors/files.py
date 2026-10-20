@@ -4,7 +4,8 @@ A watched folder is a connection. Syncing walks it, reads every new or changed d
 the world (text extracted; the file itself is never changed), makes each one a `document`
 entity keyed by its path, and journals what it saw. A file that disappears is marked removed.
 A file another watched folder already reads stays that folder's document.
-While the core runs, FSEvents (through watchdog) triggers the same sync for the folder.
+While the core runs, FSEvents (through watchdog) triggers the same sync for the folder, one at
+a time, and only for a change a sync would see.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import shutil
 import sqlite3
@@ -233,15 +235,35 @@ def readable(path: Path) -> bool:
     )
 
 
+def _skipped(name: str) -> bool:
+    """A folder no sync reads: tools' and caches' folders, and hidden ones."""
+    return name in SKIP_DIRS or name.startswith(".")
+
+
 def _walk(root: Path) -> list[Path]:
+    """Every readable document under root. A skipped folder is passed by, never entered:
+    entering his ~/Desktop/dev's node_modules, .venv and .git only to drop what was there took
+    9.4 s of every sync (245,134 entries for 3,965 documents, 20 Oct 2026); passing them by
+    takes 0.4 s."""
     out = []
-    for p in root.rglob("*"):
-        folders = p.relative_to(root).parts[:-1]
-        if any(part in SKIP_DIRS or part.startswith(".") for part in folders):
-            continue
-        if p.is_file() and readable(p):
-            out.append(p)
+    for folder, dirs, names in os.walk(root):
+        dirs[:] = [d for d in dirs if not _skipped(d)]
+        for name in names:
+            path = Path(folder, name)
+            if readable(path) and path.is_file():
+                out.append(path)
     return out
+
+
+def _seen_by_sync(root: str, path: str) -> bool:
+    """Whether a change at path is one a sync of root would see: a readable document outside
+    every skipped folder. A path the folder can't place is let through, for the sync to judge."""
+    try:
+        parts = Path(path).relative_to(root).parts
+    except ValueError:
+        return True
+    return (bool(parts) and not any(_skipped(p) for p in parts[:-1])
+            and readable(Path(parts[-1])))
 
 
 def _mtime(path: Path) -> str:
@@ -675,16 +697,12 @@ class Files:
         from watchdog.events import FileSystemEvent, FileSystemEventHandler
         from watchdog.observers import Observer
 
-        timers: dict[str, threading.Timer] = {}
-        lock = threading.Lock()
+        def sync(folder: str) -> None:
+            result = self.sync(folder)
+            if on_change and any(result[k] for k in ("added", "changed", "removed")):
+                on_change({"folder": folder, **result})
 
-        def run(folder: str) -> None:
-            try:
-                result = self.sync(folder)
-                if on_change and any(result[k] for k in ("added", "changed", "removed")):
-                    on_change({"folder": folder, **result})
-            except Exception:
-                log.exception("live sync of %s failed", folder)
+        syncs = Syncs(sync)
 
         class Handler(FileSystemEventHandler):
             def __init__(self, folder: str) -> None:
@@ -693,14 +711,14 @@ class Files:
             def on_any_event(self, event: FileSystemEvent) -> None:
                 if event.is_directory:
                     return
-                with lock:
-                    old = timers.pop(self.folder, None)
-                    if old:
-                        old.cancel()
-                    timer = threading.Timer(2.0, run, args=(self.folder,))
-                    timer.daemon = True
-                    timers[self.folder] = timer
-                    timer.start()
+                paths = [os.fsdecode(event.src_path)]
+                if getattr(event, "dest_path", None):
+                    paths.append(os.fsdecode(event.dest_path))
+                # a change in a skipped folder, or to a file no sync reads, starts nothing:
+                # his ~/Desktop/dev's builds, browsers and databases changed many times a
+                # second, and each change set off a full sync (20 Oct 2026)
+                if any(_seen_by_sync(self.folder, p) for p in paths):
+                    syncs.changed(self.folder)
 
         observer = Observer()
         for conn in self.connections.all("files"):
@@ -711,8 +729,52 @@ class Files:
 
         def stop() -> None:
             observer.stop()
-            with lock:
-                for t in timers.values():
-                    t.cancel()
+            syncs.stop()
 
         return stop
+
+
+class Syncs:
+    """The watcher's syncs of its folders. A burst of changes syncs a folder once, 2 s after the
+    last; a change while that folder syncs makes one more sync after it, never a second one
+    alongside: overlapping syncs of his ~/Desktop/dev, 9 s each, kept the core at 200% CPU and
+    every page in the window waiting (20 Oct 2026)."""
+
+    def __init__(self, sync: Callable[[str], None]) -> None:
+        self.sync = sync
+        self.lock = threading.Lock()
+        self.timers: dict[str, threading.Timer] = {}
+        self.running: set[str] = set()
+        self.again: set[str] = set()
+
+    def changed(self, folder: str) -> None:
+        with self.lock:
+            old = self.timers.pop(folder, None)
+            if old:
+                old.cancel()
+            timer = threading.Timer(2.0, self.run, args=(folder,))
+            timer.daemon = True
+            self.timers[folder] = timer
+            timer.start()
+
+    def run(self, folder: str) -> None:
+        with self.lock:
+            if folder in self.running:
+                self.again.add(folder)
+                return
+            self.running.add(folder)
+        while True:
+            try:
+                self.sync(folder)
+            except Exception:
+                log.exception("live sync of %s failed", folder)
+            with self.lock:
+                if folder not in self.again:
+                    self.running.discard(folder)
+                    return
+                self.again.discard(folder)
+
+    def stop(self) -> None:
+        with self.lock:
+            for timer in self.timers.values():
+                timer.cancel()
