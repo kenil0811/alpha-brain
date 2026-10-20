@@ -184,7 +184,11 @@ Claude" is allowed.
   **Engine reach S2 (20 Oct, Q98):**
   - A2: a turn may start subagents (the SDK's `Agent`), which run in the foreground of the turn, with its hands and sandbox; a subagent's removal asks on the callback's card;
   - A4: Write and Edit follow the person's grants, never under `.claude`;
-  - A3 (Q103): scripts reach the hosts on their module's list and the world's; any other host asks on a card, and a yes lists it. |
+  - A3 (Q103): scripts reach the hosts on their module's list and the world's; any other host asks on a card, and a yes lists it.
+
+  **Engine reach S3 (20 Oct):**
+  - A9: a turn loads the project's settings only, so the SDK loads the module's skills (linked under its `.claude/skills`) and nothing of the person's `~/.claude`; the Skill tool lists only those;
+  - A6: the browser opens a local-network host the person listed, never this Mac. |
 | Differs | The build's sandbox is still the settings JSON of `workspace.sandbox_settings` (Claude Code's own sandbox, as before), passed through the SDK's `settings`, not its `SandboxSettings` field; the same keys. The journal line for every call is still the tools' own, not a hook (it comes with slice 2's tools). The permission callback path (`default` mode, the sensitive tools out of `allowed_tools`) is verified by the spikes and waits for slice 2. |
 | Not built | Subagents, skills from the filesystem, `add_dirs`, the sandbox for a module's scripts, `defer` for approvals that outlive a restart: slices 2 to 6. |
 

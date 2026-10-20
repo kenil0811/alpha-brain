@@ -1,0 +1,32 @@
+name: module_skill_by_the_sdk
+title: "A module's skill is loaded by the SDK and used through its Skill tool"
+why: >
+  Engine reach A9 (Q98, 20 Oct 2026): a module's skills are linked under its directory's
+  .claude/skills and the SDK loads them (names and descriptions up front, the body when used),
+  with the project's settings only: nothing of the person's own ~/.claude. Before, a skill
+  reached the model only through the index and skill_find.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+      title_field: business
+  - seed:
+      kind: skill_file
+      module: Deals
+      name: budget-check
+      description: "Checks a deal's asking price against the person's budget rule of one million and says by how much it is over or under."
+      body: |
+        The budget rule: a deal's asking price may be at most 1,000,000.
+        Say "over budget by" and the amount, or "within budget by" and the amount.
+        End the reply with the line: (checked with budget-check)
+  - say: "does a deal asking 1,400,000 fit my budget rule?"
+    module: Deals
+checks:
+  - reply: {matches: "checked with budget-check"}
+  - reply: {matches: "400,000|400000|400k"}

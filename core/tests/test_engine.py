@@ -634,3 +634,66 @@ def test_a_modules_hosts_edited_in_its_module_yaml_are_read_back(tmp_path: Path)
     assert grants.module_hosts(world, module["id"]) == ["api.coingecko.com"]
     said = world.journal.recent(1, kinds=["changed"])[-1]["text"]
     assert said == "Scripts in Prices may reach: api.coingecko.com (from module.yaml)"
+
+
+def test_a_turn_loads_its_modules_skills_and_nothing_of_the_persons_own(tmp_path: Path) -> None:
+    """A9 (Q98; the spike of 20 Oct 2026): each skill of a module is linked under its
+    directory's .claude/skills, the only thing Alpha puts under a .claude folder; a turn loads
+    the project's settings only (never "user": no synced plugin, no claude.ai connector) and
+    its Skill tool lists only those skills. A link whose skill is gone goes."""
+    from alpha.world.modfiles import link_skills, skills_at
+
+    module = tmp_path / "modules" / "m1"
+    for name in ("price-check", "broker-email"):
+        (module / "skills" / name).mkdir(parents=True)
+        (module / "skills" / name / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: d\n---\nWords.\n")
+    (module / "skills" / "half-made").mkdir()  # no SKILL.md: not a skill
+    assert link_skills(module / "skills", module) == ["broker-email", "price-check"]
+    linked = module / ".claude" / "skills" / "price-check"
+    assert linked.is_symlink() and (linked / "SKILL.md").read_text().startswith("---")
+    assert sorted(p.name for p in (module / ".claude").iterdir()) == ["skills"]
+    import shutil
+    shutil.rmtree(module / "skills" / "broker-email")
+    assert link_skills(module / "skills", module) == ["price-check"]
+    assert skills_at(module) == ["price-check"]
+    req = request(tmp_path, kind="turn")
+    async def allow(*a: Any) -> None:
+        return None
+
+    opts = engine.options_for(req, None, hands=["world_query"], can_use=allow,
+                              cwd=module, skills=skills_at(module))
+    assert opts.setting_sources == ["project"] and opts.skills == ["price-check"]
+    judge = engine.options_for(request(tmp_path, kind="judge"))
+    assert judge.setting_sources == [] and not judge.skills
+    assert running.plain_tool("Skill", {"skill": "price-check"}) == "Using the skill price-check"
+
+
+def test_the_browser_opens_a_listed_private_host_and_never_this_mac(tmp_path: Path) -> None:
+    """A6 (Q98): a local-network host is opened only when it is on the module's or the world's
+    network list; this Mac (loopback, Alpha's own core) never, listed or not."""
+    from alpha.connectors.browser import NOT_HERE, Browser
+    from alpha.world import grants
+    from alpha.world.store import Problem
+    from alpha.world.world import World
+
+    world = World(tmp_path / "w.sqlite")
+    module = world.modules.create("Office")
+    browser = Browser(world)
+
+    def opens(host: str, where: str | None = None) -> bool:
+        try:
+            browser._private(host, where)
+            return True
+        except Problem as e:
+            assert str(e).startswith(NOT_HERE)
+            return False
+
+    assert opens("example.com")  # the web: as before
+    assert not opens("192.168.1.20", "Office") and not opens("printer.local", "Office")
+    grants.set_module_hosts(world, module["id"], ["192.168.1.20"], actor="person")
+    assert opens("192.168.1.20", "Office") and not opens("192.168.1.20")  # the module's list
+    grants.set_world_hosts(world, ["printer.local"])
+    assert opens("printer.local") and opens("printer.local", "Office")  # the world's list
+    grants.set_world_hosts(world, ["localhost", "127.0.0.1"])
+    assert not opens("localhost") and not opens("127.0.0.1", "Office")  # this Mac: never

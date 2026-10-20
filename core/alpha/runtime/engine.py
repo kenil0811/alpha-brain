@@ -66,6 +66,7 @@ from alpha.runtime.running import (
     tools_verdict,
 )
 from alpha.world import grants
+from alpha.world.modfiles import skills_at
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
@@ -114,7 +115,8 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
                 hands: list[str] | None = None,
                 can_use: Callable[..., Awaitable[Any]] | None = None,
                 cwd: Path | None = None, add_dirs: list[Path] | None = None,
-                hosts: list[str] | None = None) -> ClaudeAgentOptions:
+                hosts: list[str] | None = None,
+                skills: list[str] | None = None) -> ClaudeAgentOptions:
     """The SDK's options for a request: the same tools, walls and session rules the CLI route
     passed as flags. With `hands` (the served tools' names) and `can_use`, a turn runs in the
     default mode: every hand but the gated ones is allowed outright, the gated ones reach the
@@ -167,6 +169,12 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         # any other is the callback's card
         kw["sandbox"]["network"] = {"allowedDomains": list(hosts or [])}
         kw["add_dirs"] = [str(d) for d in (add_dirs or [])]
+        # A9 (Q98, the spike of 20 Oct 2026): the project's settings only, so the SDK loads
+        # the skills linked in the turn's directory (`.claude/skills`) and nothing of the
+        # person's own ~/.claude (no synced plugin, no claude.ai connector); and the Skill
+        # tool lists only those, not Claude Code's own skills. Never "user".
+        kw["setting_sources"] = ["project"]
+        kw["skills"] = list(skills or [])
     return ClaudeAgentOptions(**kw)
 
 
@@ -657,7 +665,8 @@ async def run_async(req: TurnRequest, *,
                                                hooks=[removal_hook(req, world)])]
         options = options_for(req, server, hooks, hands=hands, can_use=can_use,
                               cwd=cwd, add_dirs=add_dirs,
-                              hosts=grants.hosts(world, req.module_id) if world else [])
+                              hosts=grants.hosts(world, req.module_id) if world else [],
+                              skills=skills_at(cwd) if cwd else [])
         async with client_factory(options) as c:
             client = c
             await c.query(req.sentence)

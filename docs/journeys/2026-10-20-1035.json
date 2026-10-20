@@ -1,0 +1,10 @@
+[
+ {
+  "name": "module_skill_by_the_sdk",
+  "title": "A module's skill is loaded by the SDK and used through its Skill tool",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: 'Deals' is the module's own name; give the table a name of its own (what its rows are, e.g. 'Listings')."
+ }
+]

@@ -1,0 +1,67 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** with a \"Calories per day\" chart.\n\nTo log something, just tell me what you ate, like \"2 eggs and toast for breakfast\" or \"had a latte at 3\". I'll fill in the time and meal. I'll also estimate calories, protein, carbs and fat and mark them as estimates. If a label or the person you're with gives you exact numbers, I'll use those.\n\nWhat have you had so far today?",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 86574,
+    "tokens_cache_made": 14880,
+    "tokens_out": 886,
+    "first_text_ms": 11220,
+    "seconds": 15.5
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs as breakfast at 10:43 today: about **143 kcal**, with 12.6 g protein, 0.7 g carbs and 9.5 g fat.\n\nThe numbers are standard USDA values for two large eggs. I took them from what I know rather than looking them up just now. I also assumed the eggs were cooked plain and that you ate them just now. If you fried them in butter or oil, tell me and I'll add the extra calories (roughly 35–100 kcal).",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 122262,
+    "tokens_cache_made": 8318,
+    "tokens_out": 920,
+    "first_text_ms": 13733,
+    "seconds": 14.1
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I've removed the eggs from your food log (2 large eggs at breakfast this morning). There's nothing else in the log now.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 121183,
+    "tokens_cache_made": 7650,
+    "tokens_out": 363,
+    "first_text_ms": 7228,
+    "seconds": 11.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "1 asked entry: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken|took"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 40.6,
+  "error": null
+ }
+]

@@ -40,7 +40,12 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - A3 (Q103), accepted and committed:
       - each module carries the hosts its scripts may reach (module.yaml both ways, kits), and the world has a list on Settings' "Folders and network" card;
       - any other host asks on a card, and a yes lists it;
-      - both its journeys pass, and his try in the app: "ok looks good, lets move on". Committed. S3 (A6, A9) is next. Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
+      - both its journeys pass, and his try in the app: "ok looks good, lets move on". Committed.
+  - **Engine reach S3 (A9, A6), accepted and committed** ([`log/2026-10-20-engine-reach-s3.md`](log/2026-10-20-engine-reach-s3.md)):
+    - A9: a module's skills are linked under its `.claude/skills` and loaded by the SDK, with the project's settings only (nothing of `~/.claude`) and the Skill tool limited to them;
+    - A6: the browser opens a local-network host only when listed, and this Mac never.
+    - His word: "ok looks good, lets go to next".
+    - S4 (A7, A10) is next; A7's exact network reach is to be settled with him first (Q98). Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.

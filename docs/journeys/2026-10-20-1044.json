@@ -1,0 +1,62 @@
+[
+ {
+  "name": "reminder_fires",
+  "title": "First day · \"remind me to call Sara on Friday\" is a reminder that fires",
+  "steps": [
+   {
+    "say": "remind me to call Sara on Friday",
+    "ok": true,
+    "reply": "I'll remind you to call Sara on Friday 23 October at 9:00. You didn't give a time, so I went with the morning. Tell me if you'd like a different time.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 84775,
+    "tokens_cache_made": 12138,
+    "tokens_out": 343,
+    "first_text_ms": 17956,
+    "routed": "a new item",
+    "routed_by": "judge: A reminder for Friday is a standing scheduled commitment that must fire later, not something finished in this turn, and no open item relates.",
+    "seconds": 32.8
+   },
+   {
+    "check": "made_since",
+    "ok": true,
+    "detail": "Made 0 tables, 0 readers, 6 agents, 0 modules",
+    "seconds": 0.0
+   },
+   {
+    "due_now": 1,
+    "ok": true,
+    "detail": "1 reminder(s) brought to now",
+    "seconds": 0.0
+   },
+   {
+    "agent": "Reminders",
+    "ok": true,
+    "result": "Reminded you: Call Sara.",
+    "problem": null,
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Reminder: call Sara"
+    },
+    "ok": true,
+    "why": "1 asked entry: Reminder: Call Sara..",
+    "seconds": 0.0
+   },
+   {
+    "check": "run_verdict",
+    "arg": {},
+    "ok": true,
+    "why": "succeeded: Reminded you: Call Sara. (model 0 s, 0 repairs)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 32.8,
+  "error": null
+ }
+]

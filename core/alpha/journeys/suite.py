@@ -468,6 +468,17 @@ class Run:
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            elif seed.get("kind") == "skill_file":
+                # a skill as a file in its module's skills/ (A9), linked where the SDK loads it
+                m = self.world.modules.get(seed["module"])
+                folder = self.world.files.dir_of(m["id"]) / "skills" / str(seed["name"])
+                folder.mkdir(parents=True, exist_ok=True)
+                (folder / "SKILL.md").write_text(
+                    f"---\nname: {seed['name']}\nkind: {seed.get('skill_kind', 'act')}\n"
+                    f"description: {seed['description']}\nmodule: {m['id']}\n---\n"
+                    f"{str(seed['body']).strip()}\n")
+                self.world.files.sync_module(self.world.modules.get(m["id"]))
+                record = {"seed": f"skill {seed['name']} in {m['name']}", "ok": True}
             elif seed.get("kind") == "network":
                 # hosts scripts may reach (A3): a module's list, or the world's
                 if seed.get("module"):

@@ -269,6 +269,10 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     short = name.removeprefix("mcp__alpha__")
     if short == "ToolSearch":
         return "Finding the right tool"
+    if short == "Skill":
+        # one of the module's skills, loaded by the SDK (A9)
+        name = str(inputs.get("skill") or "")
+        return f"Using the skill {name}" if name else "Using a skill"
     if short in ("Agent", "Task"):
         # a subagent (A2): part of the work done alongside, in its own words
         what = " ".join(str(inputs.get("description") or "").split())

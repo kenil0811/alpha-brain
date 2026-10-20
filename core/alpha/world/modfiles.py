@@ -22,6 +22,7 @@ holds everything it is.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,6 +47,34 @@ AGENT_KEYS = ("title", "schedule", "state", "steps", "may", "stage", "goal", "wa
 # a key of the file → the agent's own name for it (its on: lines are `wakes_on`, since YAML
 # reads a bare `on` as true)
 AGENT_FIELDS = {"title": "description", "wakes_on": "events"}
+
+
+def link_skills(skills: Path, workdir: Path) -> list[str]:
+    """Each skill under `skills` linked as `<workdir>/.claude/skills/<name>`, the only thing
+    Alpha puts under a `.claude` folder, so the SDK loads them in a turn that works there (A9,
+    Q98: names and descriptions in front of the model, the body when it uses one). A link
+    whose skill is gone goes. Returns the names linked."""
+    target = workdir / ".claude" / "skills"
+    names = sorted(p.name for p in skills.iterdir()
+                   if (p / "SKILL.md").is_file()) if skills.is_dir() else []
+    if not names and not target.exists():
+        return []
+    target.mkdir(parents=True, exist_ok=True)
+    for link in target.iterdir():
+        if link.is_symlink() and (link.name not in names or not link.resolve().exists()):
+            link.unlink()
+    for name in names:
+        link = target / name
+        if not link.exists() and not link.is_symlink():
+            os.symlink(os.path.relpath(skills / name, target), link)
+    return names
+
+
+def skills_at(workdir: Path) -> list[str]:
+    """The skills linked for a turn that works in `workdir` (A9): what it may use."""
+    target = workdir / ".claude" / "skills"
+    return sorted(p.name for p in target.iterdir()
+                  if (p / "SKILL.md").is_file()) if target.is_dir() else []
 
 
 def _stamp(path: Path) -> str:
@@ -86,6 +115,10 @@ class ModuleFiles:
             for m in self.world.modules.all():
                 self.sync_module(m, counts)
             self.sync_instructions(counts)
+            # a turn with no module works beside the sessions (Home's): the skills with no
+            # module load there, as a module's do in its directory (A9)
+            scratch = Path(self.world.path).parent / "sessions" / "scratch"
+            link_skills(self.home / "skills", scratch)
         except Exception:  # a sync never fails a turn; the log says what went wrong
             log.exception("module files")
         return counts
@@ -98,6 +131,7 @@ class ModuleFiles:
         self._write_if_changed(folder / "module.yaml", self.module_yaml(m), counts)
         self._sync_notes(m, folder, counts)
         self._sync_agents(m, folder, counts)
+        link_skills(folder / "skills", folder)
 
     # ---- module.yaml ----
 

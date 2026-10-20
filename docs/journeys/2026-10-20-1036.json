@@ -1,0 +1,52 @@
+[
+ {
+  "name": "module_skill_by_the_sdk",
+  "title": "A module's skill is loaded by the SDK and used through its Skill tool",
+  "steps": [
+   {
+    "seed": "table listings with 0 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "skill budget-check in Deals",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "does a deal asking 1,400,000 fit my budget rule?",
+    "ok": true,
+    "reply": "No. At 1,400,000 the deal is over budget by 400,000. Your rule caps the asking price at 1,000,000.\n\n(checked with budget-check)",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 52246,
+    "tokens_cache_made": 10461,
+    "tokens_out": 152,
+    "first_text_ms": 5959,
+    "seconds": 10.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "checked with budget-check"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "400,000|400000|400k"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 10.9,
+  "error": null
+ }
+]

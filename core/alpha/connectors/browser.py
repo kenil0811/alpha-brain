@@ -29,6 +29,7 @@ from urllib.parse import urlparse
 
 from alpha.config import settings
 from alpha.connectors.base import Connections, connectors_dir
+from alpha.world import grants
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
@@ -42,6 +43,9 @@ READ_TIMEOUT_S = settings.browser.read_timeout_s
 ACT_TIMEOUT_S = settings.browser.act_timeout_s
 SIGNIN_TIMEOUT_S = settings.browser.signin_timeout_s
 PRIVATE = re.compile(r"^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)")
+# This Mac itself (Alpha's own core listens here): never opened, listed or not (A6).
+LOOPBACK = re.compile(r"^(localhost|127\.|0\.0\.0\.0$|::1$|\[::1\]$)")
+NOT_HERE = "Alpha doesn't open addresses on this Mac or the local network."
 
 
 def node_binary() -> str:
@@ -216,6 +220,23 @@ class Browser:
         self.connections = Connections(world.store)
         self._runner = runner
 
+
+    def _private(self, host: str, module: str | None) -> None:
+        """This Mac is never opened; a local-network host only when it is on the module's or
+        the world's network list (A6, Q98: a LAN system, a local dashboard the person
+        listed). Reading stays read-only by the driver; acting on a site stays a procedure
+        through act_outward."""
+        if LOOPBACK.match(host):
+            raise Problem(NOT_HERE)
+        if not (PRIVATE.match(host) or host.endswith(".local")):
+            return
+        try:
+            module_id = self.world.modules.get(module)["id"] if module else None
+        except Problem:
+            module_id = None
+        if host.lower() not in grants.hosts(self.world, module_id):
+            raise Problem(NOT_HERE + " The person can list a host in Settings › Folders and"
+                          " network, or in the module's module.yaml.")
     def runner(self, job: dict[str, Any], timeout: int) -> dict[str, Any]:
         """Run one driver job. Jobs on the same sign-in profile take turns (a file lock, so the
         model's MCP process and the core never open one Chrome profile twice at once, which
@@ -339,8 +360,7 @@ class Browser:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise Problem(f"'{url}' isn't a web address Alpha can open.")
-        if PRIVATE.match(parsed.hostname):
-            raise Problem("Alpha doesn't open addresses on this Mac or the local network.")
+        self._private(parsed.hostname, module)
         site = site_of(url)
         conn = self.covering(site)
         if conn is not None and conn["status"] != "connected" and signed_in is not False:
@@ -393,8 +413,7 @@ class Browser:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise Problem(f"'{url}' isn't a web address Alpha can open.")
-        if PRIVATE.match(parsed.hostname):
-            raise Problem("Alpha doesn't open addresses on this Mac or the local network.")
+        self._private(parsed.hostname, module)
         if not script.strip():
             raise Problem("The script is empty.")
         site = site_of(url)
@@ -441,8 +460,7 @@ class Browser:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise Problem(f"'{url}' isn't a web address Alpha can open.")
-        if PRIVATE.match(parsed.hostname):
-            raise Problem("Alpha doesn't open addresses on this Mac or the local network.")
+        self._private(parsed.hostname, module)
         site = site_of(url)
         conn = self.covering(site)
         if conn is not None and conn["status"] != "connected":
@@ -484,8 +502,7 @@ class Browser:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise Problem(f"'{url}' isn't a web address Alpha can open.")
-        if PRIVATE.match(parsed.hostname):
-            raise Problem("Alpha doesn't act on addresses on this Mac or the local network.")
+        self._private(parsed.hostname, module)
         site = site_of(url)
         conn = self.covering(site)
         if conn is not None and conn["status"] != "connected":
