@@ -1,0 +1,60 @@
+[
+ {
+  "name": "sync_from_words",
+  "title": "First day · \"keep my LinkedIn connections in sync\" fills the table and schedules the next check",
+  "steps": [
+   {
+    "say": "keep my LinkedIn connections in sync",
+    "ok": true,
+    "reply": "I can't read your connections yet because Alpha isn't signed in to LinkedIn.\n\n**What you need to do:** there's a card asking if Alpha can open a LinkedIn sign-in window. Approve it, sign in there yourself and close the window. Alpha never sees your password. Then tell me \"done\".\n\n**What happens after that:**\n1. I write a reader for your connections page. It pulls each person's name, headline, profile link and the date you connected.\n2. Your connections go into a new **LinkedIn** space I've made for this. Each row is linked to that person across the rest of what Alpha keeps.\n3. I set up an auto",
+    "steps": 8,
+    "tokens_input": 12,
+    "tokens_cache_read": 208854,
+    "tokens_cache_made": 19555,
+    "tokens_out": 1365,
+    "first_text_ms": 11804,
+    "seconds": 27.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": false,
+    "why": "Made 0 tables, 0 readers, 6 agents, 1 modules; short on tables: 0 of 1, readers: 0 of 1",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1000
+    },
+    "ok": false,
+    "why": "0 rows in no table",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": false,
+    "why": "Still a brief the model follows.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "connection"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 27.2,
+  "error": null
+ }
+]

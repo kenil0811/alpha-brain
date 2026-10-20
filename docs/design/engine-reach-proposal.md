@@ -1,5 +1,7 @@
 # Open the engine's reach (A1–A12)
 
+*Built and committed in its five slices, 19–20 Oct 2026: S1 `a2aa1fa`, S2 `34db654` and `97e607a`, S3 `ed375e5`, S4 `42d2f16`, S5 `15eee6d` (Q103–Q106). Its acceptance is written up as it stood, with three things open: `../log/2026-10-20-engine-reach-acceptance.md`.*
+
 *Agreed by Kenil the same evening (Q98): five slices as below; questions 1 and 3–6 as recommended; question 2 answered otherwise: "A7 - let it talk to network" (the frame's network policy opens; its exact reach is settled with him when S4 is built).*
 
 *Kenil's spec of 19 October 2026, evening ("leave that, I want to work in this instead"),

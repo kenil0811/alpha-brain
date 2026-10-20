@@ -1,0 +1,52 @@
+[
+ {
+  "name": "script_reads_a_listed_host",
+  "title": "A script reads a public JSON endpoint on the module's list",
+  "steps": [
+   {
+    "seed": "table users with 0 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "network jsonplaceholder.typicode.com",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the shell, with a short Python script (not WebFetch), read https://jsonplaceholder.typicode.com/users and put each user's name and email into my Users table, with that URL as the source.",
+    "ok": true,
+    "reply": "I added all 10 users to your Users table with their names and emails. Each row lists https://jsonplaceholder.typicode.com/users as its source. I read the list with a short Python script in the shell.\n\nRows are matched on email, so if you run this again it will update the existing users rather than add them twice.\n\n| Name | Email |\n|---|---|\n| Leanne Graham | Sincere@april.biz |\n| Ervin Howell | Shanna@melissa.tv |\n| Clementine Bauch | Nathan@yesenia.net |\n| Patricia Lebsack | Julianne.OConner@kory.org |\n| Chelsey Dietrich | Lucio_Hettinger@annie.ca |\n| Mrs. Dennis Schulist | Karley_Dach@jasper",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 84787,
+    "tokens_cache_made": 12091,
+    "tokens_out": 1109,
+    "first_text_ms": 12548,
+    "seconds": 16.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "users"
+    },
+    "ok": true,
+    "why": "10 row(s) added; source: https://jsonplaceholder.typicode.com/users.",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 10
+    },
+    "ok": true,
+    "why": "10 rows in users (10)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 16.1,
+  "error": null
+ }
+]

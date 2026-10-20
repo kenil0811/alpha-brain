@@ -1,0 +1,58 @@
+[
+ {
+  "name": "script_asks_for_a_host",
+  "title": "A script reaching an unlisted host asks first, and the yes lands it on the module's list",
+  "steps": [
+   {
+    "seed": "table todos with 0 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the shell, with a short Python script (not WebFetch), read https://jsonplaceholder.typicode.com/todos/1 and tell me its title.",
+    "ok": true,
+    "reply": "The title is **\"delectus aut autem\"**. I got it by running a short Python script in the shell that fetched https://jsonplaceholder.typicode.com/todos/1.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52120,
+    "tokens_cache_made": 10201,
+    "tokens_out": 240,
+    "first_text_ms": 4286,
+    "seconds": 7.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "reach jsonplaceholder.typicode.com"
+    },
+    "ok": true,
+    "why": "1 asked entry: Let scripts in Lists reach jsonplaceholder.typicode.com? Reading from it only: anything sent still asks you first..",
+    "seconds": 0.0
+   },
+   {
+    "check": "hosts",
+    "arg": {
+     "module": "Lists",
+     "includes": "jsonplaceholder.typicode.com"
+    },
+    "ok": true,
+    "why": "Lists may reach jsonplaceholder.typicode.com; module.yaml says so",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "delectus"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 7.8,
+  "error": null
+ }
+]

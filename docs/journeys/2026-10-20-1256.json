@@ -1,0 +1,31 @@
+[
+ {
+  "name": "gmail_last_week",
+  "title": "First day · \"what did Vikas email me about last week\" is answered from the signed-in Gmail",
+  "steps": [
+   {
+    "say": "what did Vikas email me about last week",
+    "ok": true,
+    "reply": "Vikas Badami sent you one email last week:\n\n- **14 Oct: \"Folder shared with you: 'Legal Platform'.\"** This was a Google Drive notification. Vikas (badami@wustl.edu) invited you to contribute to a shared folder called *Legal Platform*. It only had the invitation, no other message.\n\nHis only other recent email came on 8 Oct, the week before: a GitHub invitation to collaborate on his **project-waterways** repository.\n\nLast week's other emails that mention Vikas were ones you sent. On 11 Oct you sent one to badami@wusdl.edu, which bounced because \"wusdl\" is a typo for \"wustl\". On 12 Oct you sent o",
+    "steps": 5,
+    "tokens_input": 8,
+    "tokens_cache_read": 122667,
+    "tokens_cache_made": 19314,
+    "tokens_out": 847,
+    "first_text_ms": 25935,
+    "seconds": 26.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Does the answer name specific emails from Vikas (subjects or what they were about) from the last week, read from Gmail, or say plainly that Gmail is not signed in and ask for the sign-in?",
+    "ok": true,
+    "why": "The answer names a specific email from Vikas last week, the 14 Oct Drive share of the 'Legal Platform' folder, and Alpha's journal shows it read this from signed-in Gmail search results.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 31.0,
+  "error": null
+ }
+]
