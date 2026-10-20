@@ -71,7 +71,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
       - side calls (a checkpoint, a judge) run apart from the desk;
       - a yes asked mid-turn is drawn in the stream.
     - `just check-desktop`: 709 of 710 pages clean; Monthly P&L's footer covers cells, a table issue, not C.
-    - His look in the app: background work, 15% answered in a second meanwhile, the desk's words on the outcome, an @Name answer in the stream. His word: "Looks good!". Committed.
+    - His look in the app: background work, 15% answered in a second meanwhile, the desk's words on the outcome, an @Name answer in the stream. His word: "Looks good!". Committed as `7dcd959`.
     - Next: C4 (routing code out, "go ahead" in words), C5 (agents' `tell`), C6, C7, then section C's acceptance.
   - **Next:** C4. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
 - **The files sync's UNIQUE(path) failure, fixed on his yes, accepted and committed** ([`log/2026-10-20-files-sync-unique-path.md`](log/2026-10-20-files-sync-unique-path.md)):
