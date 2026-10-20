@@ -2,7 +2,7 @@
 
 Kenil, on `design/desk-phantom-turn-proposal.md`: "Yes, build the phantom-turn fix as
 proposed: the sentence waits for the boundary, and a prompt landing in a running turn belongs
-to it. Then rerun two_things_at_once and go_ahead." Q113. Nothing here is committed.
+to it. Then rerun two_things_at_once and go_ahead." Q113. Committed as `c847b60` on his word (below).
 
 The spike is `2026-10-20-phantom-turn-spike.md`: a prompt that lands while a turn of the desk
 runs is taken into that turn. Its prompt hook fires, but it gets no turn and no result of its
@@ -58,4 +58,6 @@ own. The desk counted a turn per hook, ran one ahead, and the next sentence wait
       eggs…"; no turn over 15 s);
     - `work_beside_the_desk` passed (`-2035.md`, 231 s): "15% of 840,000 is 126,000" in 6.1 s
       while the research ran.
-- **Not yet:** Kenil's look. The fix is the core's only, so a restart of the core is enough.
+- **His look:** the app was rebuilt and restarted at 22:04 BST with this and P14; his world's journal has no
+  sentence after it, so his look ran none of the test sentences, and the proof is the tests and
+  the journeys; his word: "its fine".

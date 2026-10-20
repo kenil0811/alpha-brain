@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from alpha.connectors import robots
 from alpha.mcp.tools import Tools
 from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
@@ -33,6 +34,13 @@ def no_real_desk(monkeypatch: pytest.MonkeyPatch) -> None:
     from alpha.runtime import desk
 
     monkeypatch.setattr(desk, "of", lambda world: NoDesk())
+
+
+@pytest.fixture(autouse=True)
+def no_robots_from_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never reach the network: a site's robots rules are "no rules file" unless a test
+    gives its own (P14)."""
+    monkeypatch.setattr(robots, "fetch", lambda host: ("none", None))
 
 
 @pytest.fixture(autouse=True)

@@ -541,6 +541,14 @@ ADDED_COLUMNS = [
     # the standing instruction that asks to be told of an agent's runs (section C, C5): while it
     # stands, each run's outcome comes to the conversation
     ("agents", "tell", "TEXT"),
+    # what a source's site says about automated reading (P14): its robots rules, read by code
+    # (allowed, disallowed, unreachable, with the rule in words), and its terms of use, read by
+    # Alpha (allowed, not_allowed, silent, not_found, with their address and the sentence)
+    ("sources", "robots", "TEXT"),
+    ("sources", "robots_words", "TEXT"),
+    ("sources", "terms", "TEXT"),
+    ("sources", "terms_url", "TEXT"),
+    ("sources", "terms_quote", "TEXT"),
     # Removed with its data kept (13 Oct, slice 2 A4): out of sight, its automations stopped,
     # restorable from Settings; `removed_with` is the module the removal was asked of, the same
     # on everything removed together.

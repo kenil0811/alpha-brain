@@ -759,6 +759,28 @@ class Collections:
             ).rowcount
         return gone
 
+    def cleaned(self, name: str, values: dict[str, Any]) -> dict[str, Any] | None:
+        """Values as the table would keep them (numbers read, choices checked), or None when
+        they don't fit it: to compare what a reader found with what is kept (P14)."""
+        try:
+            return self._validate(name, values, partial=True)
+        except Problem:
+            return None
+
+    def keyed(self, name: str, key: str) -> dict[str, dict[str, Any]]:
+        """Every record of a table by its value of `key`: values, provenance, and whether a
+        reader still holds it (P14: what a run will find new or changed)."""
+        out: dict[str, dict[str, Any]] = {}
+        for row in self.store.all(
+                "SELECT \"values\", provenance, reader, gone_at FROM records WHERE collection = ?"
+                " AND deleted_at IS NULL", (name,)):
+            values = loads(row["values"], {})
+            if values.get(key) not in (None, ""):
+                out[str(values[key])] = {"values": values,
+                                         "provenance": loads(row["provenance"], {}),
+                                         "reader": row["reader"], "gone": bool(row["gone_at"])}
+        return out
+
     def held_by(self, name: str, reader: str) -> int:
         """How many rows of a table a reader returned last time and are still there."""
         row = self.store.one(

@@ -12,6 +12,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files, file_hash, files_dir
+from alpha.connectors.robots import Robots
 from alpha.mcp.tools.base import ALPHA_SETS, Base, tool
 from alpha.runtime import pipeline, staging, value_sources
 from alpha.world.readers import health_problem
@@ -227,7 +228,8 @@ class Reading(Base):
     @tool(writes="skills")
     def reader_save(self, name: str, url: str, script: str, description: str,
                     to_end: bool = False, whole: bool | None = None,
-                    when_to_use: str | None = None) -> dict[str, Any]:
+                    when_to_use: str | None = None, page: str | None = None,
+                    detail: str | None = None) -> dict[str, Any]:
         """Keep a reader you wrote: a page_script that turns a page into rows (a list of
         objects with the same keys). It is run once now and only kept if it returns rows; then
         agents use it with reader_run, with no model call, and you repair it when it
@@ -237,14 +239,30 @@ class Reading(Base):
         script fetching the next pages), false when it deliberately reads only the newest page
         (then rows that drop off it are not counted as gone). When the page shows more pages
         you must say which. when_to_use: one line on when this skill is the right one (it is
-        in every turn's context, so you reuse it instead of writing another)."""
+        in every turn's context, so you reuse it instead of writing another). Give each row
+        the ID the site gives its item (a listing's own number, IL6399): that is the key a
+        run matches on, never a position or a title. page: the row's key holding each item's
+        own address. detail: a second script for one item's own page, returning an object of
+        the table's fields that page adds (the full description, the broker, the figures):
+        tried now on the first row's page, then run on each new or changed item's page. The
+        site's robots rules are read first; a page they disallow isn't read."""
         browser = Browser(self.world)
+        state, words = Robots(self.world).check(url)
+        for src in self.world.sources.all():
+            if src["url"] == url:
+                self.world.sources.robots(src["id"], state, words)
+        if state != "allowed":
+            raise Problem(f"Not saved: {words}")
+        if detail and not page:
+            raise Problem("Not saved: a detail script needs page, the row's key holding each"
+                          " item's own address.")
         out = browser.script(url, script, to_end=to_end, turn=self.turn, module=self.module,
                              label=f"the new reader {name}")
         rows = out["result"]
         problem = health_problem(rows, last_ok=None)
         if problem:
             raise Problem(f"Not saved: {problem}. Fix the script and try again.")
+        tried = self._detail_tried(rows, page, detail, name) if detail and page else None
         if out.get("more_pages") and whole is None:
             return {"error": f"Not saved: this page shows more pages, and the reader returned"
                     f" {len(rows)} rows. If it reads every page (to_end, or your script fetching"
@@ -255,11 +273,37 @@ class Reading(Base):
                                          description=description, to_end=to_end,
                                          count=len(rows), whole=whole is not False,
                                          when_to_use=when_to_use,
-                                         source=f"turn:{self.turn}" if self.turn else None)
+                                         source=f"turn:{self.turn}" if self.turn else None,
+                                         page=page, detail=detail)
         self._did("made", f"{'Updated' if reader['version'] > 1 else 'Wrote'} the reader {name}"
-                  f" ({description}); it read {len(rows)} rows.", {"reader": name})
+                  f" ({description}); it read {len(rows)} rows"
+                  + (", and one item's own page" if tried else "") + ".", {"reader": name})
         return {"name": name, "version": reader["version"], "rows": len(rows),
-                "sample": rows[:5]}
+                "sample": rows[:5], **({"detail_sample": tried} if tried else {})}
+
+    def _detail_tried(self, rows: list[dict[str, Any]], page: str, detail: str,
+                      name: str) -> dict[str, Any]:
+        """The detail script on the first row's own page (P14): kept only when it gives
+        something there."""
+        first = next((r[page] for r in rows if isinstance(r.get(page), str)
+                      and r[page].startswith(("http://", "https://"))), None)
+        if first is None:
+            raise Problem(f"Not saved: no row has an address in {page}.")
+        state, words = Robots(self.world).check(first)
+        if state != "allowed":
+            raise Problem(f"Not saved: {words}")
+        out = Browser(self.world).pages([first], detail, pause_s=0, turn=self.turn,
+                                        module=self.module,
+                                        label=f"the new reader {name}'s detail script")
+        if out.get("stopped"):
+            wall = ("asked for a sign-in" if out["stopped"] == "sign_in"
+                    else "stopped Alpha with a bot check")
+            raise Problem(f"Not saved: {first} {wall}.")
+        got = next((p.get("result") for p in out["pages"] if "error" not in p), None)
+        if not isinstance(got, dict) or not any(v not in (None, "", []) for v in got.values()):
+            raise Problem(f"Not saved: the detail script returned nothing on {first}. Look at"
+                          " that page and fix it.")
+        return {"page": first, **got}
 
     @tool(writes="records")
     def reader_run(self, name: str, collection: str, key_field: str,
@@ -342,21 +386,66 @@ class Reading(Base):
 
     @tool(writes="skills")
     def source_add(self, title: str, url: str, module: str | None = None,
-                   reader: str | None = None, status: str = "not_built",
-                   detail: str | None = None) -> dict[str, Any]:
+                   reader: str | None = None, status: str | None = None,
+                   detail: str | None = None, terms: str | None = None,
+                   terms_url: str | None = None, quote: str | None = None) -> dict[str, Any]:
         """Record a place a module reads from, including the ones you can't read, so nothing
         falls off silently: status not_built (not read yet), needs_signin (the site asks for a
         sign-in; start browser_signin), blocked (a bot check or captcha; never try to get past
         it), unavailable (nothing to read: a dead link, no list on the page) or skipped (the
-        person chose not to read it), with detail in plain words. reader: the reader that
-        reads it. Working and broken are set by the reader's runs."""
-        if status not in ALPHA_SETS:
+        person chose not to read it), with detail in plain words; left out, an existing
+        source keeps its own. reader: the reader that reads it. Working and broken are set by
+        the reader's runs. The site's robots rules are read by code. terms: what the site's
+        terms of use say about automated reading, after you read them (page_read on terms_url,
+        the terms page): "allowed" or "not allowed", with quote, their own sentence; "says
+        nothing"; or "not found" when the site has no terms page. Not allowed blocks it."""
+        if status is not None and status not in ALPHA_SETS:
             return {"error": f"Set status {', '.join(ALPHA_SETS)}; the others"
                     f" ({', '.join(s for s in SOURCE_STATUSES if s not in ALPHA_SETS)}) come"
                     " from the reader's runs."}
         module_id = self.world.modules.get(module)["id"] if module else self.module
-        return self.world.sources.add(title, url, module=module_id, reader=reader,
-                                      status=status, detail=detail)
+        said = None
+        if terms is not None:
+            said = self._terms(terms, terms_url, quote)
+            if "error" in said:
+                return said
+        source = self.world.sources.add(title, url, module=module_id, reader=reader,
+                                        status=status, detail=detail)
+        if url.startswith(("http://", "https://")):
+            state, words = Robots(self.world).check(url)
+            source = self.world.sources.robots(source["id"], state, words)
+        if said is not None:
+            source = self.world.sources.terms(source["id"], said["says"], terms_url,
+                                              said.get("quote"))
+        return source
+
+    def _terms(self, terms: str, url: str | None, quote: str | None) -> dict[str, Any]:
+        """What the terms say, as the store keeps it; "allowed" and "not allowed" only with a
+        sentence found on the terms page, read again by code (P14)."""
+        says = {"allowed": "allowed", "not allowed": "not_allowed", "not_allowed": "not_allowed",
+                "says nothing": "silent", "silent": "silent", "not found": "not_found",
+                "not_found": "not_found"}.get(" ".join(terms.lower().split()))
+        if says is None:
+            return {"error": "terms is \"allowed\", \"not allowed\", \"says nothing\" or"
+                             " \"not found\"."}
+        if says == "not_found":
+            return {"says": says}
+        if not (url and url.startswith(("http://", "https://"))):
+            return {"error": "terms_url is the address of the site's terms page."}
+        if says == "silent":
+            return {"says": says}
+        if not (quote and quote.strip()):
+            return {"error": f"terms \"{terms}\" needs quote: the terms' own sentence about"
+                             " automated reading."}
+        page = Browser(self.world).read(url, turn=self.turn, module=self.module)
+
+        def plain(text: str) -> str:
+            text = text.replace("\u2019", "'").replace("\u201c", '"').replace("\u201d", '"')
+            return " ".join(text.lower().split())
+
+        if plain(quote) not in plain(str(page.get("text") or "")):
+            return {"error": f"That sentence isn't on {url}; quote it as the page says it."}
+        return {"says": says, "quote": " ".join(quote.split())}
 
     @tool
     def sources_list(self, module: str | None = None) -> list[dict[str, Any]]:

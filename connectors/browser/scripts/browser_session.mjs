@@ -328,6 +328,61 @@ async function read(job) {
   }
 }
 
+// ---- many pages of one site in one browser: a reader's detail step (P14) ----
+
+// Each page in turn, one at a time with a pause between them (one person's pace), the same
+// script run in each. A bot check or a sign-in wall stops the pass there: what was read so far
+// comes back, with why it stopped. A page that fails to load is reported and the pass goes on.
+async function pages(job) {
+  let browser = null;
+  let context;
+  if (job.profile) {
+    context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
+  } else {
+    browser = await chromium.launch(launchOptions(job, true));
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
+  }
+  const read = [];
+  let stopped = null;
+  try {
+    const blockedCount = await readOnly(context);
+    const page = context.pages()[0] || (await context.newPage());
+    for (let i = 0; i < job.urls.length; i += 1) {
+      if (i > 0) await page.waitForTimeout(job.pause_ms || 3000);
+      const url = job.urls[i];
+      let response = null;
+      try {
+        response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
+      } catch (error) {
+        read.push({ url, error: String((error && error.message) || error).split("\n")[0] });
+        continue;
+      }
+      await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+      if (await isBotCheck(page)) {
+        stopped = "bot_check";
+        break;
+      }
+      if (await isSignIn(page, url)) {
+        stopped = "sign_in";
+        break;
+      }
+      try {
+        const value = await page.evaluate(async (body) => {
+          const fn = new Function(`return (async () => { ${body} })();`);
+          return await fn();
+        }, job.script);
+        read.push({ url, final_url: page.url(), status: response ? response.status() : 0, result: value === undefined ? null : value });
+      } catch (error) {
+        read.push({ url, error: String((error && error.message) || error).split("\n")[0] });
+      }
+    }
+    return { pages: read, stopped, writes_blocked: blockedCount() };
+  } finally {
+    await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 // ---- acting: the one write operation ----
 
 const SENSITIVE_NAME = /passw|passcode|pin\b|cvv|cvc|card.?num|cardnumber|credit|iban|account.?num|ssn|social.?security|passport/i;
@@ -566,6 +621,7 @@ rl.once("line", async (line) => {
     else if (job.op === "status") await out(await status(job));
     else if (job.op === "act") await out(await act(job));
     else if (job.op === "download") await out(await download(job));
+    else if (job.op === "pages") await out(await pages(job));
     else await out({ error: `unknown job ${job.op}` });
   } catch (error) {
     await out({ error: String((error && error.message) || error) });

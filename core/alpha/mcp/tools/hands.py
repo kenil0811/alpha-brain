@@ -385,7 +385,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                        module: str | None = None, status: str | None = None,
                        detail: str | None = None, when: str | None = None,
                        place: str | None = None, repeats: str | None = None,
-                       priority: str | None = None, parent: str | None = None
+                       priority: str | None = None, parent: str | None = None,
+                       terms: str | None = None, terms_url: str | None = None
                        ) -> dict[str, Any]:
         """Keep what should be remembered. kind "reminder": text (what, in the person's
         words) and when (a date and time, 2026-10-24T09:00, worked out from today's date; no
@@ -416,7 +417,10 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         the conversation, until the instruction is removed; state "removed" with quote drops
         one; a rule they did not state goes as tell_person kind "proposal", never here. kind
         "source": a place a module reads from, title, url, module, status (not_built,
-        needs_signin, blocked, unavailable, skipped), detail, so nothing falls off silently."""
+        needs_signin, blocked, unavailable, skipped), detail, so nothing falls off silently;
+        its robots rules are read by code; when you add a site to read, read its terms of use
+        first and give terms ("allowed" or "not allowed" with quote, their own sentence about
+        automated reading; "says nothing"; "not found") and terms_url: not allowed blocks it."""
         if kind == "fact":
             if not (predicate and value is not None):
                 return {"error": "a fact needs predicate and value."}
@@ -463,8 +467,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         if kind == "source":
             if not (title and url):
                 return {"error": "a source needs title and url."}
-            return self.source_add(title, url, module=module, status=status or "not_built",
-                                   detail=detail)
+            return self.source_add(title, url, module=module, status=status, detail=detail,
+                                   terms=terms, terms_url=terms_url, quote=quote)
         return {"error": "kind is one of reminder, task, fact, person, organisation, place,"
                          " goal, note, instruction, source."}
 
@@ -612,12 +616,18 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    fields: list[str] | None = None, verify: list[dict[str, Any]] | None = None,
                    effect: str | None = None, to_end: bool = False, whole: bool | None = None,
                    when_to_use: str | None = None,
-                   discard: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                   discard: list[dict[str, Any]] | None = None, page: str | None = None,
+                   detail: str | None = None) -> dict[str, Any]:
         """Keep know-how you will use again, as a skill (a directory with a SKILL.md the person
         can read; every save a version). kind "read": a reader, script (JavaScript run in the
         page that returns clean rows, objects with the same keys) for url, tried once now and
         kept only if it returns rows; to_end when the list scrolls or shows more; whole false
-        when it reads only the newest page on purpose. kind "act": the steps that do one task on
+        when it reads only the newest page on purpose. Each row carries the ID the site gives
+        its item (a listing's own number): runs match on it, never on a position or a title.
+        page: the row's key holding each item's own address; detail: a second script for one
+        item's own page, returning an object of the fields that page adds, tried now on the
+        first row's page and then run on each new or changed item's page. The site's robots
+        rules are read first. kind "act": the steps that do one task on
         one site in the person's session (url, steps, fields the payload fills, verify checks,
         effect "prepare" for what stays in their account or "send" for what reaches someone;
         a send also needs discard: the steps that throw away what its dry run typed, in the
@@ -630,7 +640,7 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             if not (url and script):
                 return {"error": "a reader needs url and script."}
             return self.reader_save(name, url, script, description, to_end=to_end, whole=whole,
-                                    when_to_use=when_to_use)
+                                    when_to_use=when_to_use, page=page, detail=detail)
         if kind == "act":
             if not (url and steps and effect):
                 return {"error": "a procedure needs url, steps and effect."}
@@ -642,10 +652,13 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
     def skill_run(self, name: str, table: str, key: str,
                   keep_person_fields: list[str] | None = None,
                   value_map: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
-        """Run a reader now and save its rows into table, matched on key (repeat runs update,
-        not duplicate); rows the reader stops returning are marked gone; keep_person_fields are
-        never overwritten; value_map renames or maps values per field. The reader's health is
-        checked before anything is written; when it says the reader is broken, repair it with
+        """Run a reader now and save its rows into table, matched on key (the item's own ID;
+        repeat runs update, not duplicate); rows the reader stops returning are marked gone;
+        keep_person_fields are never overwritten; value_map renames or maps values per field.
+        A reader with a detail script also reads each new or changed item's own page, and
+        every value keeps the page it was read from. The reader's health is checked before
+        anything is written (two rows sharing a key, or one item new and gone in one run, mean
+        the key isn't each item's own ID); when it says the reader is broken, repair it with
         skill_keep and run again."""
         return self.reader_run(name, table, key, keep_person_fields=keep_person_fields,
                                value_map=value_map)

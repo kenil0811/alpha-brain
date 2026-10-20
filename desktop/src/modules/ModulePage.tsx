@@ -433,6 +433,11 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                       <div className="item__sub">
                         {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
                       </div>
+                      {siteSays(src) ? (
+                        <div className="item__sub faint" title={[src.robots_words, src.terms_quote ? `\u201c${src.terms_quote}\u201d` : null].filter(Boolean).join("\n")}>
+                          {siteSays(src)}
+                        </div>
+                      ) : null}
                     </div>
                     <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
                   </div>
@@ -501,6 +506,17 @@ const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> =
   unavailable: { pill: "pill--gray", words: "Nothing to read" },
   skipped: { pill: "pill--gray", words: "Skipped by you" },
 };
+
+/** What a source's site says about automated reading (P14): its robots rules, read by code,
+ *  and its terms of use, read by Alpha; the rule and the sentence are on hover. */
+const ROBOTS_WORDS: Record<string, string> = { allowed: "Robots rules allow it", disallowed: "Robots rules disallow it", unreachable: "Robots rules not read yet" };
+const TERMS_WORDS: Record<string, string> = { allowed: "terms allow it", not_allowed: "terms don't allow it", silent: "terms say nothing on it", not_found: "no terms page" };
+function siteSays(src: Source): string | null {
+  const parts = [src.robots ? ROBOTS_WORDS[src.robots] : null, src.terms ? TERMS_WORDS[src.terms] : null].filter(Boolean) as string[];
+  if (!parts.length) return null;
+  const line = parts.join(" · ");
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
 
 function sourceSummary(sources: Source[]): string {
   const working = sources.filter((s) => s.status === "working").length;

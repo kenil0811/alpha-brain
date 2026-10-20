@@ -1,0 +1,13 @@
+name: reader_with_details
+title: "P14 · a broker's listings, each with its own page read, every value with its page, the site's robots and terms kept"
+why: >
+  P14 (Q114, 20 Oct 2026), DealPilot's first platform piece. A reader keys each listing on the
+  ID the site gives it, opens each new listing's own page with a detail script, keeps every
+  value's source (the list page, or the listing's own page), and its source records what the
+  site's robots rules (read by code) and terms of use (read by Alpha, with their sentence) say.
+  The site is POE Advisors, one of the sources in Kenil's tracker (public).
+fresh: true
+steps:
+  - say: "Keep track of POE Advisors' US CPA firms for sale in a table: https://poegroupadvisors.com/buying/usa-cpa-firms-for-sale/?sort_by=listing_id&sort_order=ASC. Give each listing its own ID from the site, and read each listing's own page for its details. Check every day."
+checks:
+  - reader_finished: {terms: true}

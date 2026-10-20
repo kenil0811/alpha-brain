@@ -13,6 +13,11 @@ when there is one, and a status the platform keeps from what actually happened:
 
 Nothing falls off silently: a source Alpha could not read is still a row with a status the
 person can see.
+
+What its site says about automated reading is kept beside it (P14, Q114): its robots rules,
+read by code, and its terms of use, read by Alpha and kept with the sentence they say it in. A
+page the robots rules disallow, or a site whose terms don't allow automated reading, is blocked
+like a bot check, said plainly.
 """
 
 from __future__ import annotations
@@ -25,6 +30,8 @@ from alpha.world.store import Problem, Store, new_id, now
 
 STATUSES = ("working", "needs_signin", "blocked", "broken", "not_built", "unavailable",
             "skipped")
+TERMS = ("allowed", "not_allowed", "silent", "not_found")
+TERMS_BLOCK = "Its terms of use don't allow automated reading: \u201c{quote}\u201d ({url})."
 
 
 def _site(url: str) -> str:
@@ -44,9 +51,10 @@ class Sources:
         self.store = store
 
     def add(self, title: str, url: str, *, module: str | None, reader: str | None = None,
-            status: str = "not_built", detail: str | None = None) -> dict[str, Any]:
-        """Add a source, or update the one with the same address in this module."""
-        if status not in STATUSES:
+            status: str | None = "not_built", detail: str | None = None) -> dict[str, Any]:
+        """Add a source, or update the one with the same address in this module. Status None
+        keeps an existing source's status and detail (a new one is not_built)."""
+        if status is not None and status not in STATUSES:
             raise Problem(f"A source's status is one of {list(STATUSES)}; got '{status}'.")
         if not url.strip():
             raise Problem("A source needs its address.")
@@ -56,18 +64,19 @@ class Sources:
         with self.store.tx() as db:
             if existing:
                 db.execute(
-                    "UPDATE sources SET title = ?, reader = COALESCE(?, reader), status = ?,"
-                    " detail = ?, updated_at = ? WHERE id = ?",
-                    (title, reader, status, detail, stamp, existing["id"]),
-                )
+                    "UPDATE sources SET title = ?, reader = COALESCE(?, reader), updated_at = ?"
+                    " WHERE id = ?", (title, reader, stamp, existing["id"]))
+                if status is not None:
+                    db.execute("UPDATE sources SET status = ?, detail = ? WHERE id = ?",
+                               (status, detail, existing["id"]))
                 sid = existing["id"]
             else:
                 sid = new_id("s")
                 db.execute(
                     "INSERT INTO sources (id, module, title, url, site, reader, status, detail,"
                     " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (sid, module, title, url, _site(url), reader, status, detail, stamp,
-                     stamp),
+                    (sid, module, title, url, _site(url), reader, status or "not_built", detail,
+                     stamp, stamp),
                 )
         return self.get(sid)
 
@@ -98,6 +107,29 @@ class Sources:
                 " last_rows = COALESCE(?, last_rows), updated_at = ? WHERE reader = ?",
                 (status, detail, now(), rows, now(), reader),
             )
+
+    def robots(self, sid: str, state: str, words: str) -> dict[str, Any]:
+        """What the site's robots rules say of this source's page; disallowed blocks it."""
+        with self.store.tx() as db:
+            db.execute("UPDATE sources SET robots = ?, robots_words = ?, updated_at = ?"
+                       " WHERE id = ?", (state, words, now(), sid))
+            if state == "disallowed":
+                db.execute("UPDATE sources SET status = 'blocked', detail = ? WHERE id = ?",
+                           (words, sid))
+        return self.get(sid)
+
+    def terms(self, sid: str, says: str, url: str | None, quote: str | None
+              ) -> dict[str, Any]:
+        """What the site's terms of use say about automated reading; not allowed blocks it."""
+        if says not in TERMS:
+            raise Problem(f"Terms are one of {list(TERMS)}; got '{says}'.")
+        with self.store.tx() as db:
+            db.execute("UPDATE sources SET terms = ?, terms_url = ?, terms_quote = ?,"
+                       " updated_at = ? WHERE id = ?", (says, url, quote, now(), sid))
+            if says == "not_allowed":
+                db.execute("UPDATE sources SET status = 'blocked', detail = ? WHERE id = ?",
+                           (TERMS_BLOCK.format(quote=quote, url=url), sid))
+        return self.get(sid)
 
     def site_says(self, site: str, status: str, detail: str) -> int:
         """A page on `site` asked for a sign-in or stopped Alpha with a bot check: every

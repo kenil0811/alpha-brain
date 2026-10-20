@@ -26,15 +26,18 @@ from typing import Any
 
 from alpha.config import settings
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
-from alpha.runtime import route, turn
+from alpha.connectors.robots import DISALLOWED, UNREACHABLE, Robots
+from alpha.runtime import route, turn, value_sources
 from alpha.runtime.agents import doc
 from alpha.world import people
-from alpha.world.readers import health_problem
+from alpha.world.readers import MISSING, health_problem, key_problem
 from alpha.world.sites import site_of
+from alpha.world.sources import TERMS_BLOCK
 from alpha.world.store import Problem
 from alpha.world.world import World
 
 NEWEST_ONLY = "Reads the newest page only, so listings that drop off it aren't counted as gone."
+DETAIL_PAUSE_S = settings.readers.detail_pause_s
 
 def apply_map(rows: Any, mapping: dict[str, dict[str, Any]] | None) -> Any:
     """A step's saved value mappings ("PENDING" → "Pending", "For Sale" → "Active"), matched
@@ -75,8 +78,25 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
     reader = world.readers.get(name)
     desc = world.collections.describe(collection)
     home = desc["module"] or module
-    _source(world, reader, home)
-    out = (browser or Browser(world)).script(
+    source = _source(world, reader, home)
+    # What the site says about automated reading comes first (P14): its terms, read by Alpha
+    # when the source was added, and its robots rules, read by code when a day old.
+    site = site_of(reader["url"])
+    if source.get("terms") == "not_allowed":
+        world.sources.ran(name, status="blocked", detail=TERMS_BLOCK.format(
+            quote=source.get("terms_quote"), url=source.get("terms_url")))
+        return {"health": "blocked", "site": site,
+                "note": "The site's terms don't allow automated reading; nothing was read."}
+    state, words = Robots(world).check(reader["url"])
+    world.sources.robots(source["id"], state, words)
+    if state == DISALLOWED:
+        world.readers.ran(name, count=0, problem=None)
+        world.sources.ran(name, status="blocked", detail=words)
+        return {"health": "blocked", "site": site, "note": words + " Nothing was read."}
+    if state == UNREACHABLE:
+        return {"health": "unreachable", "site": site, "note": words}
+    browser = browser or Browser(world)
+    out = browser.script(
         reader["url"], reader["script"], to_end=reader["to_end"], turn=turn_id, module=home,
         label=f"the reader {name}", thread=thread)
     if out.get("bot_check"):
@@ -95,6 +115,17 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
                              required=sorted(set(required + [key])),
                              held=world.collections.held_by(collection, name))
     count = len(rows) if isinstance(rows, list) else 0
+    known = world.collections.keyed(collection, key)
+    if not problem:
+        problem = key_problem(rows, key, title=desc.get("title_field"), whole=reader["whole"],
+                              held={k: r["values"].get(desc.get("title_field") or "")
+                                    for k, r in known.items()
+                                    if r["reader"] == name and not r["gone"]})
+    detail: dict[str, Any] = {}
+    if not problem and reader.get("detail") and reader.get("page"):
+        detail = _details(world, reader, rows, known, key, desc, browser, turn_id, home,
+                          thread)
+        problem = detail.get("problem")
     if problem:
         world.readers.ran(name, count=count, problem=problem)
         world.sources.ran(name, status="broken", detail=f"Its reader looks broken: {problem}.")
@@ -110,28 +141,122 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
                          " once. Fewer rows than before can also mean the page had not finished"
                          " loading (the Mac dozing, a slow network): a script that still finds"
                          " its items on the current HTML needs no rewrite, only that one rerun.")}
+    rows, sources = _sourced(world, reader, rows, detail.get("read") or {}, desc)
     result = world.collections.upsert(
         collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name,
                                 **({"agent": agent} if agent else {})},
-        fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],
+        fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"], sources=sources,
     )
     world.readers.ran(name, count=count, problem=None)
     if desc.get("identity"):
         people.settle_if_changed(world)  # who may be the same, proposed (P8)
     world.sources.ran(name, status="working", rows=count,
-                      detail=None if reader["whole"] else NEWEST_ONLY)
+                      detail=detail.get("note") or (None if reader["whole"] else NEWEST_ONLY))
     world.journal.append(
         "did",
         f"Read {count} with {name} into {desc['title']}: {result['added']} new,"
         f" {result['updated']} updated, {result['unchanged']} unchanged"
         + (f", {result['gone']} gone" if result.get("gone") else "")
-        + (f", {result['invalid']} set aside" if result["invalid"] else "") + ".",
+        + (f", {result['invalid']} set aside" if result["invalid"] else "") + "."
+        + (f" {detail['line']}" if detail.get("line") else ""),
         data={"collection": collection, "reader": name, "turn": turn_id,
               **{k: v for k, v in result.items() if k != "ids"},
               "records": list(result.get("ids") or [])[:500]},
         module=home, thread=thread,
     )
     return {"health": "ok", "rows": count, **{k: v for k, v in result.items() if k != "ids"}}
+
+
+def _changed(world: World, table: str, row: dict[str, Any], record: dict[str, Any] | None,
+             page: str) -> bool:
+    """A row whose own page is to be read: new, changed on the list since the last run (as
+    the table keeps it: "850,000" is 850000), or never read on its page (no value of it
+    sourced to that page)."""
+    if record is None:
+        return True
+    values = record["values"]
+    clean = world.collections.cleaned(table, row)
+    if clean is None or any(values.get(f) != v for f, v in clean.items()
+                            if v not in (None, "")):
+        return True
+    address = row.get(page)
+    fields = (record["provenance"] or {}).get("fields") or {}
+    return not any(isinstance(e, dict) and e.get("url") == address for e in fields.values())
+
+
+def _details(world: World, reader: dict[str, Any], rows: list[dict[str, Any]],
+             known: dict[str, dict[str, Any]], key: str, desc: dict[str, Any],
+             browser: Browser, turn_id: str | None, module: str | None,
+             thread: str | None) -> dict[str, Any]:
+    """The detail step (P14): the reader's second script run on the own page of each row that
+    is new or changed, one page after another in one browser. Returns what each page gave
+    (`read`, by address), the run's line and the source's note, or `problem` when the detail
+    script looks broken (then nothing of the run is written, as for a broken list)."""
+    page = str(reader["page"])
+    fields = {f["name"] for f in desc["fields"]}
+    wanted = [r for r in rows if isinstance(r.get(page), str)
+              and r[page].startswith(("http://", "https://"))
+              and _changed(world, desc["name"], r, known.get(str(r.get(key))), page)]
+    robots = Robots(world)
+    urls, refused = [], 0
+    for row in wanted:
+        state, _ = robots.check(row[page])
+        if state == "allowed":
+            urls.append(row[page])
+        else:
+            refused += 1
+    if not urls:
+        return {"read": {}, "line": f"{refused} listing pages left unread: the site's robots"
+                " rules." if refused else None}
+    out = browser.pages(urls, str(reader["detail"]), pause_s=DETAIL_PAUSE_S, turn=turn_id,
+                        module=module, label=f"the reader {reader['name']}'s detail script",
+                        thread=thread)
+    got: dict[str, dict[str, Any]] = {}
+    empty, opened, unknown = 0, 0, set()
+    for item in out["pages"]:
+        if "error" in item:
+            continue
+        opened += 1
+        value = item.get("result")
+        if not isinstance(value, dict) or not any(v not in (None, "", []) for v in value.values()):
+            empty += 1
+            continue
+        unknown |= {k for k in value if k not in fields}
+        got[item["url"]] = {k: v for k, v in value.items() if k in fields and v not in (None, "")}
+    if opened and empty > opened * MISSING:
+        return {"problem": f"its detail script returned nothing on {empty} of {opened} listing"
+                f" pages (the script for one item's own page, beside the list's)"}
+    stopped = {"bot_check": "a page stopped Alpha with a bot check",
+               "sign_in": "a page asked for a sign-in"}.get(str(out.get("stopped")))
+    line = f"Opened {len(got)} of {len(wanted)} new or changed listing pages."
+    if stopped:
+        line += f" Stopped: {stopped}; the rest keep what the list gave."
+    if refused:
+        line += f" {refused} left unread: the site's robots rules."
+    if unknown:
+        line += f" Its detail script gave fields the table hasn't: {', '.join(sorted(unknown))}."
+    return {"read": got, "line": line, "note": f"Listing pages: {stopped}." if stopped else None}
+
+
+def _sourced(world: World, reader: dict[str, Any], rows: list[dict[str, Any]],
+             read: dict[str, dict[str, Any]], desc: dict[str, Any]
+             ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Each row with what its own page gave, and each value's source by code (P14, in P5's
+    shape): the page it was read from, the list or the item's own, with the time it was read."""
+    fields = {f["name"] for f in desc["fields"]}
+    listed = value_sources.normalise(world, {"url": reader["url"]})
+    out_rows, out_sources = [], []
+    for row in rows:
+        own_page = row.get(str(reader.get("page") or ""))
+        found = read.get(own_page) if isinstance(own_page, str) else None
+        merged = {**row, **(found or {})}
+        sources = {f: listed for f, v in row.items() if f in fields and v not in (None, "")}
+        if found:
+            mine = value_sources.normalise(world, {"url": own_page})
+            sources.update({f: mine for f in found})
+        out_rows.append(merged)
+        out_sources.append(sources)
+    return out_rows, out_sources
 
 
 def check_steps(world: World, steps: list[dict[str, Any]],
@@ -320,6 +445,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                           " read it.", name, auto["module"])
             elif out["health"] == "blocked":
                 blocked.append(out["site"])
+            elif out["health"] == "unreachable":
+                unreachable.append(name)  # its robots rules couldn't be read: next run
             else:
                 broken.append(name)
         elif since is None:

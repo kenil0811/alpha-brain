@@ -45,7 +45,7 @@ KINDS = ("read", "act", "run")
 FORMS = {"read": "by script", "act": "by script", "run": "pipeline"}
 # What the frontmatter carries, in this order; the rest of a skill is its files.
 FRONT = ("name", "kind", "description", "site", "url", "module", "when_to_use", "form",
-         "to_end", "whole", "effect", "source", "version", "created_at", "updated_at")
+         "to_end", "whole", "effect", "source", "version", "created_at", "updated_at", "page")
 GIT = shutil.which("git") or "/usr/bin/git"
 
 # Words that say when or that something is done, not what the skill is about: a pipeline
@@ -182,6 +182,8 @@ class Skills:
         out["path"] = str(folder)
         script = folder / "scripts" / "read.js"
         out["script"] = script.read_text() if script.is_file() else None
+        detail = folder / "scripts" / "detail.js"
+        out["detail"] = detail.read_text() if detail.is_file() else None
         steps = folder / "steps.yaml"
         extra = yaml.safe_load(steps.read_text()) if steps.is_file() else {}
         extra = extra if isinstance(extra, dict) else {}
@@ -298,6 +300,8 @@ class Skills:
             "whole": bool(fields.get("whole", (prior or {}).get("whole", True))),
             "effect": fields.get("effect", (prior or {}).get("effect")),
             "source": source or (prior or {}).get("source"),
+            # a reader's rows: the field holding each item's own page (P14)
+            "page": fields.get("page", (prior or {}).get("page")) if kind == "read" else None,
             "version": version if version else ((prior["version"] + 1) if prior else 1),
             "created_at": (prior or {}).get("created_at") or stamp, "updated_at": stamp,
         }
@@ -307,6 +311,12 @@ class Skills:
             script = fields.get("script", (prior or {}).get("script"))
             (folder / "scripts").mkdir(exist_ok=True)
             (folder / "scripts" / "read.js").write_text(str(script or ""))
+            # the script for one item's own page (P14): kept beside the list's
+            detail = fields.get("detail", (prior or {}).get("detail"))
+            if detail:
+                (folder / "scripts" / "detail.js").write_text(str(detail))
+            elif (folder / "scripts" / "detail.js").is_file():
+                (folder / "scripts" / "detail.js").unlink()
         else:
             extra = {k: fields.get(k, (prior or {}).get(k))
                      for k in ("steps", "verify", "fields", "discard")}

@@ -47,6 +47,35 @@ def health_problem(rows: Any, *, last_ok: int | None,
     return None
 
 
+def key_problem(rows: list[dict[str, Any]], key: str, *, title: str | None,
+                held: dict[str, Any], whole: bool) -> str | None:
+    """Why the key isn't each item's own ID (P14, Deal Tracker's lesson), or None: two rows of
+    one run sharing it, or one run where the same item comes in as new and goes as gone.
+    `held` is the reader's rows still there before this run, their key to their title."""
+    seen: set[str] = set()
+    for row in rows:
+        value = row.get(key)
+        if value in (None, ""):
+            continue
+        if str(value) in seen:
+            return (f"two of its rows share the key {key} = {value}: the key isn't each item's"
+                    " own ID")
+        seen.add(str(value))
+    if not (title and whole and held):
+        return None
+
+    def plain(value: Any) -> str:
+        return " ".join(str(value or "").split()).casefold()
+
+    came = {plain(r.get(title)) for r in rows if str(r.get(key)) not in held and r.get(title)}
+    went = {plain(t): t for k, t in held.items() if k not in seen and t}
+    both = sorted(t for t in came if t in went)
+    if both:
+        return (f"\u201c{went[both[0]]}\u201d came in as new and went as gone in the same run:"
+                f" its key {key} isn't stable (key on the ID the site gives each item)")
+    return None
+
+
 class Readers:
     """Read skills, by the API the rest of the code has used since the first reader."""
 
@@ -57,14 +86,16 @@ class Readers:
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
              by: str | None = None,
              to_end: bool, count: int, whole: bool = True, when_to_use: str | None = None,
-             source: str | None = None) -> dict[str, Any]:
+             source: str | None = None, page: str | None = None,
+             detail: str | None = None) -> dict[str, Any]:
         check_name(name, "reader", "linkedin_connections")
         stamp = now()
         return self.skills.save(name, "read", description=description, site=site, url=url,
                                 by=by,
                                 when_to_use=when_to_use, source=source, health="ok",
                                 script=script, to_end=to_end, whole=whole, last_run_at=stamp,
-                                last_count=count, last_ok_count=count, last_problem=None)
+                                last_count=count, last_ok_count=count, last_problem=None,
+                                page=page, detail=detail)
 
     def get(self, name: str) -> dict[str, Any]:
         return self.skills.get(name, "read")

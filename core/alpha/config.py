@@ -65,6 +65,8 @@ class Readers:
     drop: float
     held: float
     missing: float
+    detail_pause_s: float
+    robots_stale_h: int
 
 
 @dataclass(frozen=True)

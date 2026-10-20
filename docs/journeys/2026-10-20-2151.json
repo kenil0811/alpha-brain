@@ -1,0 +1,33 @@
+[
+ {
+  "name": "reader_with_details",
+  "title": "P14 · a broker's listings, each with its own page read, every value with its page, the site's robots and terms kept",
+  "steps": [
+   {
+    "say": "Keep track of POE Advisors' US CPA firms for sale in a table: https://poegroupadvisors.com/buying/usa-cpa-firms-for-sale/?sort_by=listing_id&sort_order=ASC. Give each listing its own ID from the site, and read each listing's own page for its details. Check every day.",
+    "ok": true,
+    "reply": "The table **POE US CPA Firms for Sale** is set up, filled, and will be checked every day.\n\n**What's in it now:** 47 listings from all 4 pages of Poe Group Advisors' US list:\n- 38 for sale\n- 8 with an acquisition pending\n- 1 on hold\n\nEach row is matched on the site's own listing ID (AL2001, CP2044 and so on). Each row has the title, status, location, asking price, annual gross and the feature tags from the list. It also has details from the listing's own page: designation, reason for selling, firm highlights, about the practice, ideal buyer and about the area. All 47 rows came back with their p",
+    "steps": 16,
+    "tokens_input": 28,
+    "tokens_cache_read": 865818,
+    "tokens_cache_made": 84233,
+    "tokens_out": 7603,
+    "first_text_ms": 35441,
+    "seconds": 350.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "reader_finished",
+    "arg": {
+     "terms": true
+    },
+    "ok": true,
+    "why": "poe_us_cpa_listings: 47 rows in poe_us_listings, 47 with values from their own page, 47 from the list; robots allowed, terms not_found.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 350.7,
+  "error": null
+ }
+]

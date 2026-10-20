@@ -1326,6 +1326,41 @@ class Run:
             f"{reader['name']}: {reader['health']}, {reader.get('last_count')} rows"
             + (f"; {reader['last_problem']}" if reader.get("last_problem") else "") + ".")
 
+    def check_reader_finished(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """P14: a reader made in this journey that reads each item's own page (`page` and a
+        detail script), whose source says what the site's robots rules and terms say, and
+        whose rows keep each value's page: the list's, and an item's own for what its page
+        gave. `terms: true` asks that the terms were read too."""
+        made = [r for r in self.world.readers.all()
+                if str(r.get("created_at") or "") >= self.mark.at]
+        if not made:
+            return False, "No reader was made."
+        reader = made[-1]
+        if not (reader.get("page") and reader.get("detail")):
+            return False, f"{reader['name']} reads no item's own page (page and detail)."
+        [source] = self.world.sources.of_reader(reader["name"]) or [{}]
+        if source.get("robots") != "allowed":
+            return False, f"Its source's robots: {source.get('robots')}."
+        if arg.get("terms") and not source.get("terms"):
+            return False, "Its source doesn't say what the site's terms allow."
+        filled = next((e["data"].get("collection") for e in self.world.journal.recent(200)
+                       if e["data"].get("reader") == reader["name"]
+                       and e["data"].get("collection")), None)
+        if not filled:
+            return False, f"{reader['name']} filled no table."
+        rows = self.world.collections.query(filled, limit=None)
+        page = str(reader["page"])
+        own = [r for r in rows if any(
+            isinstance(e, dict) and e.get("url") == r.get(page)
+            for e in ((r.get("_provenance") or {}).get("fields") or {}).values())]
+        listed = [r for r in rows if any(
+            isinstance(e, dict) and e.get("url") == reader["url"]
+            for e in ((r.get("_provenance") or {}).get("fields") or {}).values())]
+        words = (f"{reader['name']}: {len(rows)} rows in {filled}, {len(own)} with values from"
+                 f" their own page, {len(listed)} from the list; robots {source.get('robots')},"
+                 f" terms {source.get('terms')}.")
+        return bool(rows and own and listed), words
+
     def check_run_verdict(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """The last run's verdict, judged by code, is one of the allowed."""
         auto = self.last_agent or self._agent(arg["title"])

@@ -451,6 +451,48 @@ class Browser:
                 "more_pages": bool(page.get("more_pages")),
                 "result": result, "scrolls": page.get("scrolls")}
 
+    def pages(self, urls: list[str], script: str, *, pause_s: float, turn: str | None = None,
+              module: str | None = None, label: str | None = None,
+              thread: str | None = None) -> dict[str, Any]:
+        """Run Alpha's script in each of several pages of one site, one after another in one
+        browser with a pause between them (a reader's detail step, P14), read-only like
+        `script`. A bot check or a sign-in wall stops the pass: what was read comes back, with
+        `stopped` saying why."""
+        if not urls:
+            return {"pages": [], "stopped": None}
+        for url in urls:
+            parsed = urlparse(url)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                raise Problem(f"'{url}' isn't a web address Alpha can open.")
+            self._private(parsed.hostname, module)
+        if not script.strip():
+            raise Problem("The script is empty.")
+        site = site_of(urls[0])
+        conn = self.covering(site)
+        if conn is not None and conn["status"] != "connected":
+            conn = self.refresh(site)
+        use_profile = conn is not None and conn["status"] == "connected"
+        job: dict[str, Any] = {"op": "pages", "urls": urls, "script": script,
+                               "channel": chrome_channel(), "pause_ms": int(pause_s * 1000)}
+        if use_profile and conn is not None:
+            job["profile"] = str(profile_of(conn))
+        out = self.runner(job, int(READ_TIMEOUT_S * len(urls) + pause_s * len(urls)))
+        read = [p for p in out.get("pages") or [] if "error" not in p]
+        stopped = out.get("stopped")
+        self.world.journal.append(
+            "saw",
+            f"Ran {label or 'a script'} on {len(read)} of {len(urls)} pages of {site}"
+            f"{', signed in' if use_profile else ''}"
+            + (" — a page stopped Alpha with a bot check" if stopped == "bot_check" else "")
+            + (" — a page asked for a sign-in" if stopped == "sign_in" else "") + ".",
+            data={"urls": urls[:50], "read": len(read), "stopped": stopped,
+                  "signed_in": use_profile, "writes_blocked": out.get("writes_blocked"),
+                  "turn": turn},
+            module=module, thread=thread, source="connector:browser",
+        )
+        self._walls(site, {"bot_check": stopped == "bot_check", "blocked": stopped == "sign_in"})
+        return {"pages": out.get("pages") or [], "stopped": stopped, "signed_in": use_profile}
+
     def download(self, url: str, into: Path, *, click: str | None = None,
                  click_text: str | None = None, name: str | None = None,
                  turn: str | None = None, module: str | None = None) -> dict[str, Any]:

@@ -355,6 +355,13 @@ export interface Source {
   detail: string | null;
   last_checked: string | null;
   last_rows: number | null;
+  /** What its site's robots rules say of its page, read by code (P14), with the rule in words. */
+  robots?: "allowed" | "disallowed" | "unreachable" | null;
+  robots_words?: string | null;
+  /** What its site's terms of use say about automated reading, read by Alpha, with their own sentence. */
+  terms?: "allowed" | "not_allowed" | "silent" | "not_found" | null;
+  terms_url?: string | null;
+  terms_quote?: string | null;
 }
 
 /** A question the workflow page asks before its build: its choices and the one Alpha would
