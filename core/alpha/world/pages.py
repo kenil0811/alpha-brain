@@ -110,9 +110,12 @@ def runtime(rows: dict[str, Any]) -> str:
             .replace("__KIT_JS__", (KIT_DIR / "kit.js").read_text().replace("</", "<\\/")))
 
 # The content policy the core serves a page under: its own inline script and style, images it
-# carries itself, and nothing from anywhere (no network, no frames, no forms away).
+# carries itself, no frames and no forms away. Its fetches reach any https host (A7, Q104,
+# 20 Oct 2026, Kenil: "a page may reach any web host"), never plain http: Alpha's own core
+# listens on http://127.0.0.1, and a page never writes (Q82); its one way to act is a button,
+# which the window passes to the core as the person's words.
 POLICY = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';"
-          " img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none';"
+          " img-src data: blob:; font-src data:; connect-src https:; frame-src 'none';"
           " form-action 'none'; base-uri 'none'")
 
 
@@ -202,6 +205,18 @@ class Pages:
                 entry["problem"] = str(e)
             out.append(entry)
         return out
+
+    def thread_of(self, module_id: str, name: str) -> str:
+        """The work item a page's buttons speak in (A7): one per page, in its module, opened
+        the first time and reused after, so its presses and their answers read together."""
+        title = next((p["title"] for p in self.all(module_id) if p["name"] == name), name)
+        named = f"{title} page"
+        row = self.world.store.one(
+            "SELECT id FROM threads WHERE kind = 'work' AND module = ? AND title = ?"
+            " ORDER BY created_at LIMIT 1", (module_id, named))
+        if row:
+            return str(row["id"])
+        return str(self.world.modules.open_thread(named, "work", module_id)["id"])
 
     def front(self, module_ref: str) -> dict[str, Any] | None:
         fronts = [p for p in self.all(module_ref) if p["front"] and not p["problem"]]

@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, cast
 
 from alpha import config
-from alpha.runtime import pipeline, route, turn
+from alpha.runtime import pipeline, route, running, turn
 from alpha.runtime.agents import MENTIONS, RUNS, Work, events
 from alpha.world.journal import RUN
 from alpha.world.store import Problem
@@ -212,9 +212,13 @@ def _run(world: World, agent: dict[str, Any], run_id: str, thread: str, *,
                   f"Run of {agent['name']}, woken by: {'; '.join(work.about['events'])}"[:600]
                   if woke and work is not None else f"Run of {agent['name']} ({agent['when']}).")
     try:
-        outcome = turn.ask(world, prompt, thread=thread, runner=runner,
-                           rules=config.prompt("agent_run", name=agent["name"]), actor=agent_id,
-                           agent=agent_id, journal_as=journal_as)
+        # A10 (Q98, Q105): a run resumes its agent's session, its item's, so it remembers what
+        # the last run found; one at a time with the turns in that item
+        with running.lock_of(thread):
+            outcome = turn.ask(world, prompt, thread=thread, runner=runner,
+                               rules=config.prompt("agent_run", name=agent["name"]),
+                               actor=agent_id, agent=agent_id, journal_as=journal_as,
+                               conversation=True)
     except Exception as e:
         log.exception("agent %s failed", agent_id)
         return _ended(world, agent, run_id, "failed", str(e), None, 0)

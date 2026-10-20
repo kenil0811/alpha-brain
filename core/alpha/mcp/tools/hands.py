@@ -299,14 +299,17 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             {field: "calories", unit: "kcal"}]}},
           {card: {title: "…", text: "…"}}, "a line of text",
           {grid: {columns: 2, blocks: [ … ]}}]; });</script>
-        (blocks: stat/stats, chart with kind line or bar, table, card, text, grid.) data:
+        (blocks: stat/stats, chart with kind line or bar, table, card, text, grid, and button:
+        {button: {label: "Mark as passed", says: "mark Harbour Car Wash as passed"}}, which
+        sends its words to you as the person's, from this page, when pressed.) data:
         {name: one SELECT} on the same views world_query reads (dates as YYYY-MM-DD; order by
         date); each runs now (a wrong one fails here, in words) and the rows reach the page
         as d.<name>, a list of {column: value}; the kit redraws when the data, the theme or
         the width change. SIX LINES: one block per thing; titles in the person's words and
         numbers with units; nothing decorative; a target is one thin labelled line; one period
         per chart, the latest on the right; never a fixed colour, font or stroke of your own
-        (the kit's weights and colours are the app's). No network, no libraries from the web.
+        (the kit's weights and colours are the app's). It may fetch() from any https host for
+        live figures; no libraries from the web.
         After the write Alpha LOOKS at the page and the result says whether it is clean; when
         it is not, fix what is named and call this again before you answer. A page never
         writes: changes to the data stay in the conversation."""

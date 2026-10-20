@@ -140,12 +140,14 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
     assert c.get("/api/agents").json()[0]["last_result"] == "Synced."
 
 
-def test_an_agent_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
+def test_an_agent_run_has_a_turns_reach_with_page_to_table(world: World) -> None:
+    """A10 (Q98 question 5): page_to_table is no longer refused in a run; the call goes on to
+    its own checks (here a field mapped to nothing it knows), never to the run's wall."""
     table(world)
     auto = building(world).agent_create("Sync", "every 1h", "page_to_table …", name="Sync")
     inside = Tools(world, thread=auto["thread"])
-    out = inside.page_to_table(URL, "/in/", "connections", {"name": "text", "linkedin_url": "url"})
-    assert "write a reader" in out["error"].lower() or "Write a reader" in out["error"]
+    out = inside.page_to_table(URL, "/in/", "connections", {"name": "headline"})
+    assert "fields must map" in out["error"] and "reader" not in out["error"].lower()
 
 
 def test_a_reader_reading_part_of_a_list_the_table_holds_is_broken() -> None:

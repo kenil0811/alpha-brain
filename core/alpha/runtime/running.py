@@ -126,6 +126,19 @@ LIVE = Live()
 PARTIAL_CHARS = settings.runs.partial_chars
 
 
+
+# One turn at a time in a thread, whoever starts it: a sentence typed into a busy item waits
+# for the running turn (§7), and an agent's run waits for a turn in its item, and the other way
+# round, since both resume the item's one session (A10, 20 Oct 2026). Re-entrant: a turn that
+# starts its agent's run in the same thread of the process goes on.
+_THREAD_LOCKS: dict[str, threading.RLock] = {}
+_THREAD_LOCKS_LOCK = threading.Lock()
+
+
+def lock_of(thread: str) -> threading.RLock:
+    with _THREAD_LOCKS_LOCK:
+        return _THREAD_LOCKS.setdefault(thread, threading.RLock())
+
 @dataclass
 class RunResult:
     reply: str

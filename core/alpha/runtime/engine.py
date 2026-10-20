@@ -657,9 +657,10 @@ async def run_async(req: TurnRequest, *,
         cwd = grants.module_dir(world, req.module_id) if world is not None else None
         add_dirs = grants.folders(world) if world is not None else []
         hooks = _hooks(req)
-        if world is not None and req.persist:
+        if world is not None and req.persist and not req.run:
             # a conversation keeps its session, so its removal card can outlive the turn and a
-            # restart (P3 item 7); any other turn waits on the card in memory, as before
+            # restart (P3 item 7); any other turn waits on the card in memory, as before, and
+            # so does an agent's run (A10): the yes would resume the conversation, not the run
             hooks["PreToolUse"] = [*hooks.get("PreToolUse", []),
                                    HookMatcher(matcher="mcp__alpha__world_change",
                                                hooks=[removal_hook(req, world)])]

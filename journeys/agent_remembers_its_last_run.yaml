@@ -1,0 +1,35 @@
+name: agent_remembers_its_last_run
+title: "An agent's second run knows what its first one found"
+why: >
+  Engine reach A10 (Q98, Q105, 20 Oct 2026): an agent's run resumes its agent's session, so a
+  second run remembers what the first found without being told again. Before, every run
+  started afresh from its brief and the journal (Q21).
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000}
+        - {business: "Corner Print Shop", asking_price: 210000}
+  - seed:
+      kind: agent
+      name: "Listing Watch"
+      title: "Say which listings are new since the last run"
+      schedule: "weekly mon 09:00"
+      brief: >
+        Each run, look at the Listings table and say in one line which listings are new since
+        your last run, by name; on your first run, say how many there are.
+  - agent: "Listing Watch"
+  - add_row: {table: listings, values: {business: "Lakeside Bakery", asking_price: 450000}}
+  - agent: "Listing Watch"
+checks:
+  - agent: {title: "Listing Watch", result_matches: "Lakeside"}
+  # the second run tells the new one apart from what its first run saw
+  - agent: {title: "Listing Watch", result_matches: "(?i)(one|1) new|new since|since (my|the) last run"}

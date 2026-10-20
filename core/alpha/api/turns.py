@@ -33,7 +33,6 @@ class Turns:
         self.after = after
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
-        self.locks: dict[str, threading.Lock] = {}
 
     def start(self, body: AskBody, *, actor: str = "person",
               journal_as: str | None = None) -> dict[str, Any]:
@@ -136,9 +135,8 @@ class Turns:
         self.world.agents.set_thread(agent["id"], thread["id"])
         return str(thread["id"])
 
-    def _lock_of(self, thread: str) -> threading.Lock:
-        with self.lock:
-            return self.locks.setdefault(thread, threading.Lock())
+    def _lock_of(self, thread: str) -> threading.RLock:
+        return running.lock_of(thread)
 
     def _open_again(self, thread: str | None, why: str = "") -> None:
         """A turn that could not run: Home is open again; an item is stopped, saying why."""

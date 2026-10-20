@@ -1336,6 +1336,8 @@ export class Client {
   pageData = (ref: string, name: string) => this.call<Record<string, Record<string, unknown>[]>>("GET", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}/data`);
   setPageFront = (ref: string, name: string, front: boolean) => this.call<PageInfo>("PATCH", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}`, { front });
   removePage = (ref: string, name: string) => this.call<{ removed: string }>("DELETE", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}`);
+  /** A press on a page's button (A7): its words, as the person's, in the page's own item. */
+  pageAct = (ref: string, name: string, words: string) => this.call<Turn>("POST", `/api/modules/${encodeURIComponent(ref)}/pages/${encodeURIComponent(name)}/act`, { words });
   entityFiles = (eid: string) => this.call<FileItem[]>("GET", `/api/entities/${encodeURIComponent(eid)}/files`);
   documentRemoval = (did: string) => this.call<{ document: string; title: string; what: string; used_by: FileItem["used_by"] }>("GET", `/api/documents/${encodeURIComponent(did)}/removal`);
   documentPlace = (did: string, at: { page?: number; sheet?: string; cell?: string }) => this.call<DocumentPlace>("GET", `/api/documents/${encodeURIComponent(did)}/place?${new URLSearchParams(Object.entries(at).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)])).toString()}`);

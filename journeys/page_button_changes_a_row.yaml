@@ -1,0 +1,35 @@
+name: page_button_changes_a_row
+title: "A page's button changes a row through a turn, and the journal says it came from the page"
+why: >
+  Engine reach A7 (Q98, 20 Oct 2026): a page the model drew may carry a button; pressing it
+  sends its words to Alpha as the person's, in the page's own item, and the journal shows the
+  page as where the sentence came from. The page itself never writes (Q82).
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: status, kind: choice, choices: [Looking, Passed, Offer made]}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", status: Looking}
+        - {business: "Corner Print Shop", status: Looking}
+  - seed:
+      kind: page
+      module: Deals
+      name: overview
+      title: Deals
+      data: {listings: "SELECT business, status FROM rows_listings"}
+      html: |
+        <script>alpha.ui.page(function (d) { return [
+          {table: {title: "Listings", rows: d.listings, columns: [{field: "business"}, {field: "status"}]}},
+          {button: {label: "Pass on Harbour Car Wash", says: "mark Harbour Car Wash as passed"}}]; });</script>
+  - press: {module: Deals, page: overview, words: "mark Harbour Car Wash as passed"}
+checks:
+  - journal: {kind: said, contains: "From the Deals page: mark Harbour Car Wash as passed"}
+  - field: {collection: listings, title_contains: "Harbour Car Wash", field: status, matches: "^Passed$"}
+  - field: {collection: listings, title_contains: "Corner Print Shop", field: status, matches: "^Looking$"}

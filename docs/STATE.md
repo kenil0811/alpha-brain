@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 19 October 2026, night.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
+**As of 20 October 2026, midday.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
 - **The prompt and the context (B1–B8; Q99): steps 0 to 3 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md), [`log/2026-10-19-prompt-and-context-step2.md`](log/2026-10-19-prompt-and-context-step2.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)).
   - **Found first:** a resumed SDK session kept its first turn's system prompt, so since 17 Oct every turn after a conversation's first had a stale pre-pack. Now `snapshot` is off and the prompt is fixed.
   - **Steps 0–1 (`8d88bbe`):**
@@ -44,9 +44,14 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
   - **Engine reach S3 (A9, A6), accepted and committed** ([`log/2026-10-20-engine-reach-s3.md`](log/2026-10-20-engine-reach-s3.md)):
     - A9: a module's skills are linked under its `.claude/skills` and loaded by the SDK, with the project's settings only (nothing of `~/.claude`) and the Skill tool limited to them;
     - A6: the browser opens a local-network host only when listed, and this Mac never.
-    - His word: "ok looks good, lets go to next".
-    - S4 (A7, A10) is next; A7's exact network reach is to be settled with him first (Q98). Rework or retire the stale journeys. His three "feels dumb" sentences come separately. Then step 4 (the after run), then engine reach S2–S5. His three "feels dumb" sentences come separately.
-- **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2–S5 come after section B.
+    - His word: "ok looks good, lets go to next". Committed as `ed375e5`.
+  - **Engine reach S4 (A7, A10), accepted and committed** ([`log/2026-10-20-engine-reach-s4.md`](log/2026-10-20-engine-reach-s4.md)):
+    - A7 (Q104, his choice "a page may reach any web host"): a page fetches from any https host, never plain http (Alpha's own core stays out of reach, so a page still never writes); the kit's `button` block sends its words to Alpha, which runs them as a turn in the page's own work item, journaled "From the <page> page: …".
+    - A10 (Q105): an agent's run resumes its own item's session (one turn at a time per item, the lock shared with typed sentences), and is no longer refused `reader_run`, `page_to_table` or `procedure_save`; acting outward still waits for the person's yes.
+    - Journeys: both new ones pass, and the agent journeys and `reminder_fires` pass on the resumed sessions.
+    - His look in the app: a Pass button changed Ohio Plumbing; a live USD/GBP tile on the page; Deal Analyst's three runs resumed one session, with no start layer given again. His word: "lokos good". Committed.
+  - **Next:** S5 (A11, three agents off by default). Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+- **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2, S3 and S4 are committed (above); S5 is left.
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
   - **A table's rows are people** by any of their keys.
@@ -111,12 +116,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, engine reach S2 built)
+## Numbers (`just stats`, 20 Oct, engine reach S4 built)
 
-- 439 core tests, 239 desktop tests; lint and types clean.
-- 70 tools; 55 journeys defined.
-- Core 29,306 lines, tests 11,459, desktop 21,513.
-- 303 commits before S2's A3.
+- 443 core tests, 240 desktop tests; lint and types clean.
+- 70 tools; 58 journeys defined.
+- Core 29,452 lines, tests 11,590, desktop 21,542.
+- 305 commits before S4.
 
 ## What is built, against the design's order of work
 
@@ -160,7 +165,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 
 ## Pending, in order
 
-- **Now:** section B ([`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)): step 1 to his look and commit, then step 2 (B2's content, B4, B5, `snapshot` off), step 3 (B6, B7), step 4 (the "after" run). Then engine reach S2–S5 ([`design/engine-reach-proposal.md`](design/engine-reach-proposal.md)). P4/P10 of Vikas's projects stay parked.
+- **Now:** engine reach ([`design/engine-reach-proposal.md`](design/engine-reach-proposal.md)): S5 (A11, three agents off by default), proposed in writing first; S1–S4 are committed. Section B is done (steps 0–4 committed). Then section C (routing), still to be written. The stale journeys to rework or retire. P4/P10 of Vikas's projects stay parked.
 
 0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built and accepted 17 Oct**; (2a) the end of the gate: **built and accepted 17 Oct night**; left: `sync_from_words` as a journey on his say, `vague_tracker` on its new rule; (2b) agreed 17 Oct ([`design/harness-slice-2b-proposal.md`](design/harness-slice-2b-proposal.md)): step 1 skills as directories **built**; step 2 the hands **built**; step 3 the permission callback **built**; step 4 the CLI route and the skills tables removed **built and 2b accepted**; left in 2b's words: the SDK's own shell and files in a turn (with the granted folders, slice 6) and `defer` across restarts; (2) the fifteen tools and the end of the gate; (3) conversations and work items: **built 18 Oct** ([`design/harness-slice-3-proposal.md`](design/harness-slice-3-proposal.md), Q75, Q76), Kenil's acceptance in the app open; left in 3: agents' runs as resumed sessions, the Mac notification, several items folding into one Home line, a move button in the window; (4) triggers and the quieter agents; (5) modules as directories and kits: **built 18 Oct** (the window's part with 6); (6) the window's simplification: **built 18 Oct** (the core and the window; the full desktop sweep's hang still to look at); (7) pages the model draws (Q82): **built 18 Oct**; (7b) clean pages (Q83: the kit, the overview rule, the look before done): **built 18 Oct**, Kenil's run open; held: the React catalogue tier, a dark look, Versions for pages and agents' files. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
 

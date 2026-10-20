@@ -1,0 +1,61 @@
+[
+ {
+  "name": "agent_remembers_its_last_run",
+  "title": "An agent's second run knows what its first one found",
+  "steps": [
+   {
+    "seed": "table listings with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "agent Listing Watch",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "First run: your Listings table has **2 listings**, Harbour Car Wash (asking £850,000) and Corner Print Shop (asking £210,000). Next time I'll name any listings added since today.",
+    "problem": null,
+    "seconds": 15.3
+   },
+   {
+    "add_row": "listings",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "One new listing since my last run: **Lakeside Bakery**, asking 450,000. That makes 3 in the table.\n\n(In my last report I put a £ sign on the prices, but the table doesn't say which currency they're in, so I've left it off here.)",
+    "problem": null,
+    "seconds": 10.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent",
+    "arg": {
+     "title": "Listing Watch",
+     "result_matches": "Lakeside"
+    },
+    "ok": true,
+    "why": "One new listing since my last run: **Lakeside Bakery**, asking 450,000. That makes 3 in the table.\n\n(In my last report I put a £ sign on the prices, but the tab",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second run's answer names Lakeside Bakery as the one new listing since the last run and does not call Harbour Car Wash or Corner Print Shop new. Fails if it lists all three as new, or misses Lakeside Bakery.",
+     "facts": "The first run saw two listings, Harbour Car Wash and Corner Print Shop. Then Lakeside Bakery was added. The second run's answer is the reply judged."
+    },
+    "ok": false,
+    "why": "No turn to judge.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 25.4,
+  "error": null
+ }
+]

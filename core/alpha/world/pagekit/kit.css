@@ -28,3 +28,7 @@ line.ak-grid { stroke: var(--line); stroke-width: 0.75; }
 .ak-table th { text-align: left; font-weight: 500; color: var(--text-2); padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: var(--text-sm, 12px); }
 .ak-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--text); }
 .ak-table td.ak-num, .ak-table th.ak-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ak-actions { display: flex; gap: 8px; }
+.ak-button { font: inherit; font-size: var(--text-sm, 13px); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.ak-button:hover { background: var(--hover, var(--surface-2)); }
+.ak-button:disabled { color: var(--text-3); cursor: default; }

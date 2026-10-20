@@ -2,7 +2,9 @@
  * A page the model drew (slice 7): the core serves it with its rows under its own content
  * policy; here it sits in a sandboxed frame (its script, nothing else), gets the app's colours
  * and fonts as the same CSS variables, fresh rows when the world changes, and a line in words
- * when it did not draw. The frame cannot reach the app; the app only posts to it.
+ * when it did not draw. The frame cannot reach the app; it can only say ready, error, its size,
+ * and a press on one of its buttons (A7), whose words the window passes to Alpha as the
+ * person's, from this page. A page never writes.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Client, PageInfo } from "../core/client";
@@ -31,6 +33,7 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
   const [ready, setReady] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [height, setHeight] = useState<number | null>(null); // the page's own height, posted by it
+  const [sent, setSent] = useState<string | null>(null); // the last press, said in a line
   const post = useCallback((message: unknown) => {
     frame.current?.contentWindow?.postMessage(message, "*");
   }, []);
@@ -59,11 +62,19 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
         setProblem(m.text || "something in its script failed");
       } else if (m.alpha === "size" && typeof (m as { height?: unknown }).height === "number") {
         setHeight(Math.max(120, Math.ceil((m as { height: number }).height)));
+      } else if (m.alpha === "act" && typeof (m as { words?: unknown }).words === "string") {
+        const words = String((m as { words: string }).words).slice(0, 500);
+        if (!words.trim()) return;
+        setSent(`Sent to Alpha from this page: "${words}"`);
+        client
+          .pageAct(moduleId, page.name, words)
+          .then((turn) => setSent(`Sent to Alpha from this page: "${words}"${turn.conversation ? ` (in ${turn.conversation.title})` : ""}`))
+          .catch((e: unknown) => setSent(`Couldn't send "${words}": ${say(e)}`));
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [post]);
+  }, [post, client, moduleId, page.name]);
   // the app's theme changed: the page gets the new variables
   useEffect(() => {
     if (!ready) return;
@@ -105,6 +116,7 @@ export function PageFrame({ client, moduleId, page, version, onChanged }: { clie
       {problem ? (
         <p className="notice" role="alert">This page did not draw: {problem}</p>
       ) : null}
+      {sent ? <p className="faint" role="status" style={{ margin: "4px 0" }}>{sent}</p> : null}
       {src ? <iframe ref={frame} className="pageframe__frame" title={page.title} src={src} sandbox="allow-scripts" referrerPolicy="no-referrer" style={height ? { height, minHeight: 0, flex: "none" } : undefined} /> : <p className="empty">Opening the page…</p>}
       <Confirm open={removing} title={`Remove the page ${page.title}?`} action="Remove" onConfirm={remove} onCancel={() => setRemoving(false)}>
         <p>Its file goes; the tables it read stay. Alpha can draw it again if you ask.</p>

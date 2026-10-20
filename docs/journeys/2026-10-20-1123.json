@@ -1,0 +1,61 @@
+[
+ {
+  "name": "agent_remembers_its_last_run",
+  "title": "An agent's second run knows what its first one found",
+  "steps": [
+   {
+    "seed": "table listings with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "agent Listing Watch",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "This is my first look at your Listings table, and it has 2 listings: Harbour Car Wash (asking £850,000) and Corner Print Shop (asking £210,000).",
+    "problem": null,
+    "seconds": 11.4
+   },
+   {
+    "add_row": "listings",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "One listing is new since my last run: Lakeside Bakery, with an asking price of 450,000. (Last time I wrote the prices in £, but the table doesn't record a currency, so I'm leaving it off.)",
+    "problem": null,
+    "seconds": 7.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent",
+    "arg": {
+     "title": "Listing Watch",
+     "result_matches": "Lakeside"
+    },
+    "ok": true,
+    "why": "One listing is new since my last run: Lakeside Bakery, with an asking price of 450,000. (Last time I wrote the prices in £, but the table doesn't record a curre",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent",
+    "arg": {
+     "title": "Listing Watch",
+     "result_matches": "(?i)(one|1) new|new since|since (my|the) last run"
+    },
+    "ok": true,
+    "why": "One listing is new since my last run: Lakeside Bakery, with an asking price of 450,000. (Last time I wrote the prices in £, but the table doesn't record a curre",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 19.0,
+  "error": null
+ }
+]

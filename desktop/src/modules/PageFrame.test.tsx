@@ -79,3 +79,18 @@ describe("a page the model drew, in its frame", () => {
     await waitFor(() => expect(removePage).toHaveBeenCalledWith("m_1", "summary"));
   });
 });
+
+describe("a page's button (A7)", () => {
+  it("passes a press's words to Alpha as the person's, from this page, and says so", async () => {
+    const pageAct = vi.fn().mockResolvedValue({ id: "k1", state: "running", conversation: { id: "t_9", title: "Summary page" } });
+    render(<PageFrame client={fakeClient({ pageAct })} moduleId="m_1" page={page} version={1} onChanged={vi.fn()} />);
+    const frame = (await screen.findByTitle("Summary")) as HTMLIFrameElement;
+    frameWindow();
+    fromFrame(frame, { alpha: "act", words: "mark Harbour Car Wash as passed" });
+    expect(pageAct).toHaveBeenCalledWith("m_1", "summary", "mark Harbour Car Wash as passed");
+    expect(await screen.findByRole("status")).toHaveTextContent('Sent to Alpha from this page: "mark Harbour Car Wash as passed" (in Summary page)');
+    // empty words are not sent
+    fromFrame(frame, { alpha: "act", words: "   " });
+    expect(pageAct).toHaveBeenCalledTimes(1);
+  });
+});

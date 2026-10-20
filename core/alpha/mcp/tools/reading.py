@@ -275,14 +275,8 @@ class Reading(Base):
         reader_save, run once more); never rerun a broken reader unchanged. needs_signin: offer
         browser_signin. blocked: the site stops automated reading; say so plainly, never try to
         get past it."""
-        if self._in_run():
-            # Reading is code, never a model turn a day (8 Oct): the agent converts itself.
-            raise Problem(
-                "An agent reads through its steps, with no model. Turn this agent into"
-                " steps with agent_update(id, steps=[{\"read\": \"<reader>\", \"into\":"
-                " \"<table>\", \"key\": \"<field>\", \"keep\": [<the person's fields>]},"
-                " {\"tell\": \"<table>\"}]) and finish; the steps run as soon as you have"
-                " saved them, in this run, and on every run after without you.")
+        # A10 (Q98 question 5): a run reads as a turn does; an agent whose whole work is a read
+        # can still turn itself into steps (agent_update) so it runs with no model
         return pipeline.run_reader(self.world, name, collection, key_field,
                                    keep=keep_person_fields, mapping=value_map,
                                    turn_id=self.turn, module=self.module)

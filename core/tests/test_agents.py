@@ -305,8 +305,8 @@ def test_a_page_that_does_not_answer_at_wake_is_tried_again_in_a_minute(world: W
 
 def test_an_agent_that_reads_by_its_brief_converts_itself_to_steps(world: World) -> None:
     """8 Oct: the LinkedIn connections automation, made before pipelines, paid a model turn a
-    day for a read and failed with the route. Reading in a run is refused; the model converts
-    the agent; the steps run in the same run."""
+    day for a read and failed with the route. The model converts the agent; the steps run in
+    the same run. Since A10 (Q98 question 5) a run may read too: reader_run is not refused."""
     from alpha.runtime import pipeline
 
     connections_table(world)
@@ -317,9 +317,17 @@ def test_an_agent_that_reads_by_its_brief_converts_itself_to_steps(world: World)
                                "Run reader_run(linkedin_connections into connections).",
                                module="Network",
                                name="Daily at 07:00, read your LinkedIn connections")
-    refused = Tools(world, thread=auto["thread"]).reader_run("linkedin_connections",
-                                                             "connections", "linkedin_url")
-    assert "error" in refused and "agent_update" in refused["error"]
+    read: list[str] = []
+
+    def fake_reader(w: World, name: str, *a: Any, **kw: Any) -> dict[str, Any]:
+        read.append(name)
+        return {"health": "ok", "line": "Read 5 rows."}
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(pipeline, "run_reader", fake_reader)
+        inside = Tools(world, thread=auto["thread"]).reader_run("linkedin_connections",
+                                                                "connections", "linkedin_url")
+    assert read == ["linkedin_connections"] and "error" not in inside
     ran: list[str] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -834,3 +842,23 @@ def test_an_agents_own_item_is_titled_with_its_name(world: World) -> None:
     assert world.modules.thread(other["id"])["title"] == "My watches"
     world.modules.title_agents_items()
     assert world.modules.home_thread()["title"] != "Deal Analyst"
+
+
+def test_an_agents_runs_resume_its_session(world: World) -> None:
+    """A10 (Q98, Q105): a run resumes its agent's session, its item's, so a second run
+    remembers what the first found; the first is a new session given the start layer."""
+    t = building(world, turn="j_1")
+    auto = t.agent_create("Deal watcher", "daily 07:00", "Look at the deals and say what's new.",
+                          name="Deal watcher")
+    seen: list[TurnRequest] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        seen.append(req)
+        return RunResult(reply="Two deals are new.", ok=True, session_id="s_watch")
+
+    agent_runner.run(world, auto["id"], trigger="now", runner=runner)
+    agent_runner.run(world, auto["id"], trigger="now", runner=runner)
+    runs = [r for r in seen if r.kind == "turn"]
+    assert [r.resume for r in runs] == [None, "s_watch"] and all(r.persist for r in runs)
+    assert "THIS THREAD" in runs[0].start_layer  # its brief and history, given at the start
+    assert world.modules.thread(auto["thread"])["session_ref"] == "s_watch"

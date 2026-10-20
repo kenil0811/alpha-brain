@@ -1,0 +1,82 @@
+[
+ {
+  "name": "agent_takes_a_task",
+  "title": "Tasks · a task given to an agent in words is done by its run, with its steps",
+  "steps": [
+   {
+    "seed": "agent Deal Analyst",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "keep a list of deals: the firm's name, the asking price and the yearly revenue",
+    "ok": true,
+    "reply": "I've set up a **Deal list** in a new Deals section. Each deal has three columns: the firm's name, the asking price and the yearly revenue. Each firm is also linked to what Alpha knows about it elsewhere.\n\nThe list is empty for now. Tell me about a deal, like \"Acme Ltd, asking £2.4M, revenue £1.1M,\" and I'll add it.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 117392,
+    "tokens_cache_made": 12438,
+    "tokens_out": 818,
+    "first_text_ms": 9614,
+    "seconds": 14.9
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k, revenue 1.2M",
+    "ok": true,
+    "reply": "I added Midwest HVAC to your deal list, with an asking price of 900k and yearly revenue of 1.2M. That's an asking price of 0.75× revenue.\n\nYou didn't give a currency, so I saved the amounts as plain numbers. Is it dollars?",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 122508,
+    "tokens_cache_made": 7932,
+    "tokens_out": 612,
+    "first_text_ms": 17030,
+    "seconds": 21.5
+   },
+   {
+    "say": "add a task on Midwest HVAC to work out the asking price as a multiple of revenue, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task \"Work out the asking price as a multiple of revenue\" to Midwest HVAC (Deals › Deal list) and gave it to the Deal Analyst. It's started, and the Deal Analyst should pick it up within about half a minute. Its result will show on the task's page.",
+    "steps": 7,
+    "tokens_input": 12,
+    "tokens_cache_read": 203457,
+    "tokens_cache_made": 12571,
+    "tokens_out": 878,
+    "first_text_ms": 6391,
+    "seconds": 17.3
+   },
+   {
+    "start_tasks": [
+     "Work out the asking price as a multiple of revenue"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Work out the asking price as a multiple of revenue",
+    "seconds": 15.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "task",
+    "arg": {
+     "matches": "multiple|revenue",
+     "true": "record"
+    },
+    "ok": true,
+    "why": "Work out the asking price as a multiple of revenue: on Deals › Deal list › Midwest HVAC (record).",
+    "seconds": 0.0
+   },
+   {
+    "check": "task_run",
+    "arg": {
+     "matches": "multiple|revenue",
+     "verdict": "succeeded",
+     "state": "Done"
+    },
+    "ok": true,
+    "why": "Work out the asking price as a multiple of revenue: run succeeded (task), 6 steps, task Done: Midwest HVAC's asking price is **0.75 times its yearly revenue**: 900,000 divided by 1,200,000, both the figures you gave.\n\nI added a \"Price / revenue\" column t",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 68.9,
+  "error": null
+ }
+]

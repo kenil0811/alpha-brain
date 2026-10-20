@@ -41,13 +41,8 @@ class Acting(Base):
         one message: the payload carries what differs. Before writing one, look at WHAT ALPHA
         CAN DO (or skills_find by site): an existing procedure for the site and task is used,
         and generalised with fields when it was too narrow, rather than a second one written."""
-        agent = self._agent()
-        if self._in_run() and agent is not None and agent["kind"] == "custom":
-            # a site's first procedure is learnt with the person there, never in a run nobody
-            # watches (Q94); Doc's repair of one that broke is its own work (Q49)
-            raise Problem("A procedure for a site is learnt with the person there, not in a"
-                          " run. Propose it with tell_person kind \"proposal\": what you"
-                          " would send, to whom, through which site; Alpha sets it up.")
+        # A10 (Q98 question 5): a run may keep a procedure too; acting through it still needs a
+        # dry run and the person's yes (act_outward), so nothing leaves on its own
         site = site_of(url)
         saved = self.world.procedures.save(name, by=self.actor, site=site, url=url,
                                            description=description,

@@ -41,6 +41,10 @@ class PageFrontBody(BaseModel):
     front: bool = True
 
 
+class PageActBody(BaseModel):
+    words: str
+
+
 class KitInstallBody(BaseModel):
     path: str
 

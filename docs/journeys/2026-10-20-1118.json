@@ -1,0 +1,91 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I've set up a **Deals** list with two columns: the firm's name and the asking price. It's empty for now.\n\nTo add a deal, just tell me something like \"Acme Holdings, asking 2.4M\". What currency are the prices in? I'll label the column with it.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 117038,
+    "tokens_cache_made": 11993,
+    "tokens_out": 695,
+    "first_text_ms": 8738,
+    "seconds": 11.9
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I've added Midwest HVAC to your deal list with an asking price of 900,000.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 121973,
+    "tokens_cache_made": 7666,
+    "tokens_out": 395,
+    "first_text_ms": 18438,
+    "seconds": 22.9
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "Deal Analyst is set up in your Deals module. It doesn't run on a schedule, so it only works when you give it a task about a deal and start it, or mention it with @.\n\nOn each task it will:\n1. **Find the deal's row** by the firm you name. If no row matches, or more than one does, it asks you which deal you mean.\n2. **Work it out from the row.** If the task needs something the row doesn't have and it can be found publicly (the firm's website, filings, news), it looks it up and names where it found it. It never makes up a value.\n3. **Save the result on that row with its source.** If there's no fie",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 123036,
+    "tokens_cache_made": 8841,
+    "tokens_out": 1163,
+    "first_text_ms": 17009,
+    "seconds": 23.1
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added the task \"Ask the broker for 3 years of P&L\" to Midwest HVAC in your deal list and gave it to the Deal Analyst. It's started, and its progress will show on the task's page.\n\nNothing goes to the broker without your yes. Once the Deal Analyst has drafted the request, a card will show you the exact message to approve before it's sent. I don't have the broker's name or email yet. If you share them, the request can go straight to them.",
+    "steps": 6,
+    "tokens_input": 10,
+    "tokens_cache_read": 166155,
+    "tokens_cache_made": 12591,
+    "tokens_out": 881,
+    "first_text_ms": 6351,
+    "seconds": 14.1
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 18.5
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC, and what's their email address? I'll draft the request for 3 years of P&L to them for you to approve before anything is sent",
+    "ok": true,
+    "detail": "{\"answered\":\"j_7d8c2e06c037\",\"turn\":null,\"agent\":\"a_e4c7f92ba399\"}",
+    "seconds": 18.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: **Blocked: I can't send the request yet because no email account is signed in to Alpha.**\n\n**Saved on the row:** The Midwest HVAC deal now lists the broker as Kenil Shah, kenilshah081198@gmail.com, as",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 109.0,
+  "error": null
+ }
+]

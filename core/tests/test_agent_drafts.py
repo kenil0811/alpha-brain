@@ -150,13 +150,13 @@ def test_a_yes_to_an_agents_suggestion_goes_to_its_own_item(world: World) -> Non
     assert decided["turn"]["conversation"]["id"] == agent["thread"]
 
 
-def test_an_agent_cant_learn_a_sites_procedure_in_its_run(world: World) -> None:
-    """Its write list keeps skills out by default; one the person let change skills still
-    can't learn a site's procedure in a run nobody watches (Q94)."""
+def test_an_agent_may_keep_a_sites_procedure_in_its_run(world: World) -> None:
+    """A10 (Q98 question 5): one the person let change skills may keep a site's procedure in
+    its run; acting through it still needs a dry run and the person's yes (act_outward)."""
     agent = analyst(world)
     world.agents.update(agent["id"], may=[*agent["may"], "skills"])
     inside = Tools(world, turn="j_r", thread=agent["thread"], actor=agent["id"])
     out = inside.procedure_save("gmail_draft", "https://mail.google.com/mail/u/0/#inbox",
                                 "Make a draft email in Gmail", "prepare",
                                 [{"click_text": "Compose"}, {"click": "b"}], [])
-    assert "learnt with the person there" in out["error"]
+    assert "error" not in out, out

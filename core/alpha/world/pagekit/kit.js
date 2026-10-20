@@ -176,6 +176,19 @@
     return wrap;
   }
 
+  // A button (A7): pressing it sends its words to Alpha as the person's, from this page; the
+  // page itself never writes. {button: {label: "Mark as passed", says: "mark Harbour as passed"}}
+  function button(btn) {
+    var b = el("button", { class: "ak-button", type: "button", text: esc(btn.label || btn.says) });
+    b.addEventListener("click", function () {
+      try { parent.postMessage({ alpha: "act", words: String(btn.says || btn.label || "") }, "*"); } catch (_) {}
+      b.disabled = true;
+      b.textContent = "Sent to Alpha";
+      setTimeout(function () { b.disabled = false; b.textContent = esc(btn.label || btn.says); }, 2500);
+    });
+    return el("div", { class: "ak-actions" }, [b]);
+  }
+
   function block(b, width) {
     if (!b) return null;
     if (typeof b === "string") return text(b);
@@ -185,6 +198,7 @@
     if (b.table) return table(b.table);
     if (b.card) return card(b.card);
     if (b.text != null) return text(b.text);
+    if (b.button) return button(b.button);
     if (b.grid) {
       var cols = b.grid.columns || 2;
       return el("div", { class: "ak-grid", style: "grid-template-columns: repeat(" + cols + ", minmax(0, 1fr))" },

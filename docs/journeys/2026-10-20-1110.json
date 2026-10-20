@@ -1,0 +1,62 @@
+[
+ {
+  "name": "page_button_changes_a_row",
+  "title": "A page's button changes a row through a turn, and the journal says it came from the page",
+  "steps": [
+   {
+    "seed": "table listings with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "page overview in Deals",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "press": "mark Harbour Car Wash as passed",
+    "ok": true,
+    "reply": "I've changed Harbour Car Wash in Listings from Looking to **Passed**.",
+    "seconds": 12.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "said",
+     "contains": "From the Deals page: mark Harbour Car Wash as passed"
+    },
+    "ok": true,
+    "why": "1 said entry: From the Deals page: mark Harbour Car Wash as passed.",
+    "seconds": 0.0
+   },
+   {
+    "check": "field",
+    "arg": {
+     "collection": "listings",
+     "title_contains": "Harbour Car Wash",
+     "field": "status",
+     "matches": "^Passed$"
+    },
+    "ok": true,
+    "why": "Harbour Car Wash's status is 'Passed'.",
+    "seconds": 0.0
+   },
+   {
+    "check": "field",
+    "arg": {
+     "collection": "listings",
+     "title_contains": "Corner Print Shop",
+     "field": "status",
+     "matches": "^Looking$"
+    },
+    "ok": true,
+    "why": "Corner Print Shop's status is 'Looking'.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 12.8,
+  "error": null
+ }
+]

@@ -176,13 +176,7 @@ class Tables(Base):
         a name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
         words, e.g. a headline). The url-mapped field is the key. Use it for any list that
         should be kept whole and current; then refine individual rows if needed."""
-        if self._in_run():
-            raise Problem(
-                "page_to_table is only a first look; it isn't how a list is kept. Write a reader "
-                "for this page (page_script to look at the page and try, reader_save), use "
-                "reader_run here, and turn this agent into steps with agent_update so every "
-                "run uses it."
-            )
+        # A10 (Q98 question 5): a run has a turn's reach, this first look included
         sources = {"url", "text", "near", "near_without_text"}
         bad = [v for v in fields.values() if v not in sources]
         if bad:

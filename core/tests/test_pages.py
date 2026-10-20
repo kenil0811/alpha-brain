@@ -119,7 +119,9 @@ def test_the_routes_list_ticket_serve_front_and_remove(world: World) -> None:
     page = c.get(ticket["url"], headers={"Authorization": ""})
     assert page.status_code == 200 and page.headers["content-security-policy"].startswith(
         "default-src 'none'; script-src 'unsafe-inline'")
-    assert "connect-src 'none'" in page.headers["content-security-policy"]
+    # A7 (Q104): its fetches reach any https host, never plain http (Alpha's own core)
+    assert "connect-src https:;" in page.headers["content-security-policy"]
+    assert "http:" not in page.headers["content-security-policy"].replace("https:", "")
     assert "2026-10-13" in page.text
     assert c.get(ticket["url"]).status_code == 404  # used
     assert bare.get("/api/modules/Food/pages/summary/data").status_code == 401
@@ -185,3 +187,39 @@ def test_a_kit_carries_the_pages_and_removal_takes_them(tmp_path: Path, world: W
     other.close()
     purge.remove_module(world, module)
     assert not (Path(world.path).parent / "modules" / module).exists()
+
+
+def test_a_pages_button_speaks_as_the_person_from_the_page(world: World) -> None:
+    """A7 (Q98): a press on a page's button starts a turn with its words as the person's, in
+    the page's own item of its module, journaled as coming from the page; a second press uses
+    the same item; a page that isn't there, or a press with no words, is refused."""
+    import time
+
+    from alpha.runtime.running import RunResult, TurnRequest
+
+    food(world)
+    world.pages.keep("Food", "summary", "Summary", CHART, {"days": DAYS})
+    seen: list[TurnRequest] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        seen.append(req)
+        return RunResult(reply="Marked.", ok=True)
+
+    c = TestClient(create_app(world, live=False, token="t", runner=runner),
+                   headers={"Authorization": "Bearer t"})
+    started = c.post("/api/modules/Food/pages/summary/act",
+                     json={"words": "log a banana for lunch"}).json()
+    end = time.time() + 5
+    while time.time() < end and c.get(f"/api/turns/{started['id']}").json()["state"] != "done":
+        time.sleep(0.05)
+    turn = c.get(f"/api/turns/{started['id']}").json()
+    said = world.journal.read(turn["said"])
+    assert said["text"] == "From the Summary page: log a banana for lunch"
+    assert said["actor"] == "person" and said["data"]["prompt"] == "log a banana for lunch"
+    item = world.modules.thread(said["thread"])
+    assert item["title"] == "Summary page" and item["module"] == world.modules.get("Food")["id"]
+    assert seen[-1].sentence == "log a banana for lunch"
+    again = c.post("/api/modules/Food/pages/summary/act", json={"words": "and an apple"}).json()
+    assert again["conversation"]["id"] == said["thread"]
+    assert c.post("/api/modules/Food/pages/nope/act", json={"words": "x"}).status_code == 400
+    assert c.post("/api/modules/Food/pages/summary/act", json={"words": "  "}).status_code == 400

@@ -468,6 +468,11 @@ class Run:
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            elif seed.get("kind") == "page":
+                # a page the model drew, there before the journey (A7)
+                self.world.pages.keep(seed["module"], seed["name"], seed.get("title") or
+                                      seed["name"], str(seed["html"]), seed.get("data") or {})
+                record = {"seed": f"page {seed['name']} in {seed['module']}", "ok": True}
             elif seed.get("kind") == "skill_file":
                 # a skill as a file in its module's skills/ (A9), linked where the SDK loads it
                 m = self.world.modules.get(seed["module"])
@@ -583,6 +588,19 @@ class Run:
             final = self.world.workflows.get(agreed["id"])
             record = {"agree_workflow": agreed["title"], "ok": final["state"] == "built",
                       "state": final["state"], "reply": doing.reply}
+        elif "press" in spec:
+            # a press on a page's button, as the window passes it (A7): the words as the
+            # person's, in the page's own item, journaled as from the page
+            a = spec["press"]
+            m = self.world.modules.get(a["module"])
+            title = next((p["title"] for p in self.world.pages.all(m["id"])
+                          if p["name"] == a["page"]), a["page"])
+            thread = self.world.pages.thread_of(m["id"], a["page"])
+            outcome = turn.ask(self.world, a["words"], thread=thread, runner=self.runner,
+                               conversation=True, journal_as=f"From the {title} page: {a['words']}")
+            self.last_turn, self.last_reply = outcome.said, outcome.reply
+            self.last_thread = thread
+            record = {"press": a["words"], "ok": outcome.ok, "reply": outcome.reply[:600]}
         elif "add_row" in spec:
             # A thing added as the person would, then the parts that run when it arrives.
             # `table` names it; `field` finds the newest module's table that has that field
@@ -1304,6 +1322,19 @@ class Run:
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
 
+    def check_field(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A row's field, found by its title: it reads as asked (A7: a page's button changed
+        it through a turn)."""
+        table = self._table(arg["collection"])
+        rows = [r for r in self.world.collections.query(table, limit=None)
+                if arg["title_contains"].lower() in " ".join(str(v) for v in r.values()
+                                                              if isinstance(v, str)).lower()]
+        if not rows:
+            return False, f"No row of {table} like {arg['title_contains']!r}."
+        value = str(rows[0].get(arg["field"]) or "")
+        ok = bool(re.search(str(arg["matches"]), value, re.I))
+        return ok, f"{arg['title_contains']}'s {arg['field']} is {value!r}."
+
     def check_hosts(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A host a module's scripts may reach (A3): on its list and in its module.yaml."""
         m = self.world.modules.get(arg["module"])
@@ -1422,7 +1453,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "check", "reader", "agent", "break_reader", "compact",
+            kind = next((k for k in ("say", "press", "check", "reader", "agent", "break_reader",
+                                     "compact",
                                      "kit_export", "kit_install", "module_remove",
                                      "connect_folder", "due_now",
                                      "approve_action",

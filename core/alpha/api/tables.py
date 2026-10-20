@@ -25,6 +25,7 @@ from alpha.api.bodies import (
     KitInstallBody,
     ListBody,
     MoveModuleBody,
+    PageActBody,
     PageFrontBody,
     RecordBody,
     RelabelFieldBody,
@@ -172,6 +173,23 @@ def routes(app: FastAPI, s: Served) -> None:
                     + json.dumps(str(e)) + "}, '*')</script></body></html>")
         return HTMLResponse(html, headers={"Content-Security-Policy": POLICY,
                                            "Cache-Control": "no-store"})
+
+    @app.post("/api/modules/{ref}/pages/{name}/act", dependencies=[api])
+    def page_act(ref: str, name: str, body: PageActBody) -> dict[str, Any]:
+        """A press on a page's button (A7): its words as the person's, in the page's own item
+        of the module, journaled as coming from the page; the turn goes through the engine and
+        the permission callback like any other, so what must ask still asks. A page never
+        writes (Q82)."""
+        m = world.modules.get(ref)
+        if name not in world.pages.names(m["id"]):
+            raise Problem(f"There is no page {name} in {m['name']}.")
+        words = " ".join(body.words.split())[:500]
+        if not words:
+            raise Problem("The button sent no words.")
+        title = next((p["title"] for p in world.pages.all(m["id"]) if p["name"] == name), name)
+        thread = world.pages.thread_of(m["id"], name)
+        return s.running.start(AskBody(text=words, module=m["id"], conversation=thread),
+                               journal_as=f"From the {title} page: {words}")
 
     @app.post("/api/modules/{ref}/kit", dependencies=[api])
     def export_kit(ref: str, body: KitExportBody | None = None) -> dict[str, Any]:
