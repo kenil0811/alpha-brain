@@ -86,4 +86,4 @@ From his journal (read-only), 12:47–12:52 BST:
   Sherlock's item (the table is Alpha's), not by Sherlock himself. That's how a mention's
   questions are answered today, not something S5 changed.
 
-His word: "looks fine". S5 is committed on it.
+His word: "looks fine". S5 is committed on it as `15eee6d`.
