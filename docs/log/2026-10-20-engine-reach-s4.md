@@ -116,4 +116,4 @@ From his journal (read-only), 11:36–11:41 BST:
   - "Name Plate", a person, is named as "who the sentence names" for a run's own line.
   - He did not try the last step (asking Deal Analyst in its item what its runs found).
 
-His word: "lokos good". S4 is committed on it.
+His word: "lokos good". S4 is committed on it as `42d2f16`.
