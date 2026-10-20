@@ -1,0 +1,39 @@
+name: tell_me
+title: "Section C · an agent's run stays out of the stream, until the person asks to be told"
+why: >
+  Section C, C5 (20 Oct 2026): an agent's runs keep their own thread for its page and
+  Activity; nothing of a run enters the stream unless it raises a card, or a standing
+  instruction asks to be told of that agent's runs. The desk keeps such an instruction with
+  `about` the agent, which sets the agent's `tell` by code, never by reading prose. A run before
+  the instruction adds nothing to the stream; one after it adds one line under the agent's name.
+  Q111 (20 Oct): the ask said to the agent itself (agent_keep tell, with the person's words)
+  is the same instruction, so either path the model takes passes.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000}
+        - {business: "Corner Print Shop", asking_price: 210000}
+  - seed:
+      kind: agent
+      name: "Listing Watch"
+      title: "Say which listings are new since the last run"
+      schedule: "weekly mon 09:00"
+      brief: >
+        Each run, look at the Listings table and say in one line which listings are new since
+        your last run, by name; on your first run, say how many there are.
+  - agent: "Listing Watch"
+  - say: "From now on, tell me here whenever Listing Watch finds a new listing."
+  - add_row: {table: listings, values: {business: "Lakeside Bakery", asking_price: 450000}}
+  - agent: "Listing Watch"
+checks:
+  - told: {count: 1}
+  - journal: {kind: changed, contains: "runs now come to the conversation"}

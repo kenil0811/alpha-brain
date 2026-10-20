@@ -142,7 +142,7 @@ export function Reply({
   return (
     <div className={`reply${failed ? " reply--failed" : ""}${running ? " reply--running" : ""}`} data-turn={turn ? turnKey(turn) : entry ? replyKey(entry) : undefined}>
       {fromThread ? <div className="reply__label">From the thread · {fromThread}</div> : null}
-      {entry && typeof entry.data.agent_name === "string" ? <div className="reply__label">{entry.data.agent_name} answers</div> : null}
+      {entry && typeof entry.data.agent_name === "string" ? <div className="reply__label">{entry.data.agent_name} {entry.data.told ? "reports" : "answers"}</div> : null}
       {running ? (
         <div className="reply__head" role="status" aria-live="polite">
           {!text ? (

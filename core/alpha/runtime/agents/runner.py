@@ -97,9 +97,30 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
             _settle(world, agent, run_id, task, thread)
         if agent["kind"] == "custom":
             events.ran(world, agent_id, work)  # what woke it is behind it now (P7)
+        _tell(world, world.agents.get(agent_id), run_id)
         return out
     finally:
         RUN.reset(bound)
+
+
+def _tell(world: World, agent: dict[str, Any], run_id: str) -> None:
+    """A run of an agent the person asked to hear from (section C, C5): its outcome, a
+    paragraph, comes to the conversation marked with the agent, while the instruction that
+    asked for it stands. Any other run stays on its page and in Activity; a run with nothing
+    to say tells nothing."""
+    instruction = agent.get("tell")
+    if not instruction or instruction not in world.knowledge.instructions():
+        return
+    done = world.runs.last(agent["id"])
+    if done is None or done["id"] != run_id:
+        return
+    words = (str(done.get("line") or "") if done["verdict"] != "failed"
+             else f"That run didn't work: {done.get('why') or 'it gave no reason'}")
+    if not words.strip():
+        return
+    world.journal.append("replied", words, actor=agent["id"], module=agent["module"],
+                         thread=world.modules.home_thread()["id"],
+                         data={"agent_name": agent["name"], "run": run_id, "told": True})
 
 
 def _became(world: World, card: dict[str, Any]) -> str:

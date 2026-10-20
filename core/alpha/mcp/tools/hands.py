@@ -410,10 +410,12 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         kind "note": a page of Alpha's wiki, scope (person, module:<name>, topic:<slug>,
         skill:<name>, entity:<id>), title, body (Markdown). kind "instruction": a standing
         instruction in text when the person said how they always want something done, quote
-        their words; state "removed" with quote drops one; a rule they did not state goes as
-        tell_person kind "proposal", never here. kind "source": a place a module reads from,
-        title, url, module, status (not_built, needs_signin, blocked, unavailable, skipped),
-        detail, so nothing falls off silently."""
+        their words; about (an agent's id or name) when it asks to be told of that agent's
+        runs ("tell me whenever the tracker finds something"): each run's outcome then comes to
+        the conversation, until the instruction is removed; state "removed" with quote drops
+        one; a rule they did not state goes as tell_person kind "proposal", never here. kind
+        "source": a place a module reads from, title, url, module, status (not_built,
+        needs_signin, blocked, unavailable, skipped), detail, so nothing falls off silently."""
         if kind == "fact":
             if not (predicate and value is not None):
                 return {"error": "a fact needs predicate and value."}
@@ -441,7 +443,9 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
             if not (text and quote):
                 return {"error": "an instruction needs text and the person's quote."}
             if state == "removed":
-                return self.instruction_remove(text, quote)
+                return self._untell(text, quote)
+            if about:
+                return self._tell(about, text, quote)
             return self.instruction_add(text, quote)
         if kind == "reminder":
             if not (text and when):
@@ -462,6 +466,32 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                                    detail=detail)
         return {"error": "kind is one of reminder, task, fact, person, organisation, place,"
                          " goal, note, instruction, source."}
+
+    def _tell(self, about: str, text: str, quote: str) -> dict[str, Any]:
+        """An instruction about an agent (C5, Q111): kept in ALPHA.md like any other, and the
+        agent's runs' outcomes come to the conversation while it stands there."""
+        told = next((a for a in self.world.agents.all()
+                     if a["id"] == about or a["name"].lower() == about.lower()), None)
+        if told is None:
+            return {"error": f"There is no agent {about}."}
+        out = self.instruction_add(text, quote)
+        if _bad(out):
+            return out
+        self.world.agents.set_tell(told["id"], " ".join(text.split()))
+        self._did("changed", f"{told['name']}'s runs now come to the conversation: {text}",
+                  {"agent": told["id"]})
+        return {**out, "told": told["name"]}
+
+    def _untell(self, text: str, quote: str) -> dict[str, Any]:
+        """The instruction goes, and with it the telling of every agent it asked about."""
+        out = self.instruction_remove(text, quote)
+        if _bad(out):
+            return out
+        for agent in self.world.agents.by_tell(" ".join(text.split())):
+            self.world.agents.set_tell(agent["id"], None)
+            self._did("changed", f"{agent['name']}'s runs stay on its own page again.",
+                      {"agent": agent["id"]})
+        return out
 
     def _task(self, *, text: str | None, place: str | None, module: str | None,
               when: str | None, owner: str | None, repeats: str | None, priority: str | None,
@@ -639,7 +669,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    goal: str | None = None, state: str | None = None,
                    name: str | None = None,
                    stage: list[str] | None = None,
-                   on: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                   on: list[dict[str, Any]] | None = None,
+                   tell: str | None = None, quote: str | None = None) -> dict[str, Any]:
         """Make or change an agent of the person's. New: name (what the person calls it, two or
         three words: "Deal Analyst"), title (the sentence the person would say: "Every Monday
         at 08:00, sync my LinkedIn connections and tell me who is new"), and schedule when it
@@ -660,15 +691,31 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         that needs judgement each run), module, goal. For one on a schedule, its first run is
         yours to do now (skill_run). Existing (id): state "paused" or "on", a new schedule,
         brief, title, name, or steps (an agent that read by its brief converts itself to steps).
-        The agent's page shows its runs and verdicts."""
+        The agent's page shows its runs and verdicts; its runs stay there unless the person asks
+        to be told of them ("tell me whenever it finds something"): tell is that ask as one
+        sentence and quote their exact words from this message; each run's outcome then comes
+        to the conversation, kept as a standing instruction that, removed, stops it (tell ""
+        with quote stops it)."""
+        if tell is not None and not quote:
+            return {"error": "tell needs the person's quote from this message."}
         if id:
-            return self.agent_update(id, state=state, schedule=schedule, brief=brief, title=title,
-                                     name=name, steps=steps, stage=stage, on=on)
-        if not (title and name and name.strip()):
+            changes = (state, schedule, brief, title, name, steps, stage, on)
+            agent = (self.agent_update(id, state=state, schedule=schedule, brief=brief,
+                                       title=title, name=name, steps=steps, stage=stage, on=on)
+                     if any(v is not None for v in changes) else self.world.agents.get(id))
+        elif not (title and name and name.strip()):
             return {"error": "a new agent needs a title (what it does) and a name (two or three"
                              " words the person calls it by)."}
-        return self.agent_create(title, schedule or "", brief=brief or "", steps=steps,
-                                 module=module, goal=goal, name=name, stage=stage, on=on)
+        else:
+            agent = self.agent_create(title, schedule or "", brief=brief or "", steps=steps,
+                                      module=module, goal=goal, name=name, stage=stage, on=on)
+        if tell is None or _bad(agent):
+            return agent
+        if not tell.strip() and not agent.get("tell"):
+            return {**agent, "note": "Its runs were not being told."}
+        told = (self._untell(agent["tell"], str(quote)) if not tell.strip()
+                else self._tell(agent["id"], tell, str(quote)))
+        return told if _bad(told) else {**agent, **told}
 
     # ---- acting outward ----
 

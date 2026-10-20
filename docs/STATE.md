@@ -74,8 +74,10 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - His look in the app: background work, 15% answered in a second meanwhile, the desk's words on the outcome, an @Name answer in the stream. His word: "Looks good!". Committed as `7dcd959`.
     - **C4 accepted and committed** ([`log/2026-10-20-section-c-c4.md`](log/2026-10-20-section-c-c4.md), Q108): the routing judgement and everything of it gone; `card_answer` answers one open yes card on the person's words when the desk is free; while a turn waits on a yes card the box points to its buttons. A script's host card now goes to the work whose shell is running. `go_ahead` (new) and four regressions pass. From his first try: every run now carries Alpha's certificate bundle (`SSL_CERT_FILE`), since python.org's Python has none until its installer step (his app's scripts failed every https read). From his second try (Q109): every card waiting on him sits at the bottom of the stream; a host's card holds nothing (refused at once, his yes lists the host and tells the desk to run it again).
     - Q110: "go ahead" says yes to every site card open at that moment. His look: "yes for both" answered both old cards, both helpers worked with the certificate fix. His word: "looks good". Committed as `d7d8362`.
-    - Next: C5 (agents' `tell`), C6, C7, then section C's acceptance.
-  - **Next:** C5. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+    - **C5 built, not committed** ([`log/2026-10-20-section-c-c5.md`](log/2026-10-20-section-c-c5.md)): agents' runs stay out of the stream unless a standing instruction about the agent asks to be told (`agents.tell`); then each run's outcome is a line under its name. Q111: the first `tell_me` failed because the model changed the agent instead of keeping an instruction, so `agent_keep` now takes `tell` with his words and keeps the same instruction in ALPHA.md.
+    - Next: C6, C7, then section C's acceptance.
+  - **Next:** C5 to his look, then C6. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+- **Files sync kept the core busy, fixed on his yes, not committed** ([`log/2026-10-20-files-sync-cpu.md`](log/2026-10-20-files-sync-cpu.md)): his pages stuck loading after the C5 restart. The core sat at 200% CPU in overlapping syncs of his `~/Desktop/dev`: each walk went into `node_modules`, `.venv`, `.git` and `alpha-v2/.data` before dropping them (9.4 s), and any change anywhere in the folder started another. Now the walk passes skipped folders by (0.44 s, the same 3,965 documents), a change no sync would see starts none, and the watcher runs one sync of a folder at a time. The core was restarted alone at 17:14 BST: 0.2% CPU, pages answer in milliseconds, and a new file is read about 3 s after it is written. His look is next.
 - **The files sync's UNIQUE(path) failure, fixed on his yes, accepted and committed** ([`log/2026-10-20-files-sync-unique-path.md`](log/2026-10-20-files-sync-unique-path.md)):
   - the cause: two syncs of his `~/Desktop/dev` overlapped (a walk takes 8 s, the watcher starts another 2 s after a change), and the second inserted a file the first had just read in; each failure cut that sync short and showed the folder broken;
   - `_save` reads the path's row inside its write's transaction, a removal is a conditional write, and a file another watched folder reads stays that folder's (his choice);
@@ -146,12 +148,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, the files sync fix built)
+## Numbers (`just stats`, 20 Oct, C5 and the files sync fix built)
 
-- 450 core tests, 240 desktop tests; lint and types clean.
-- 70 tools; 58 journeys defined.
-- Core 29,521 lines, tests 11,774, desktop 21,542.
-- 310 commits before the files sync fix.
+- 467 core tests, 240 desktop tests; lint and types clean.
+- 70 tools; 61 journeys defined.
+- Core 30,355 lines, tests 12,375, desktop 21,380.
+- 316 commits before C5.
 
 ## What is built, against the design's order of work
 
@@ -192,7 +194,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 - Columbo's cost is now one small judgement per candidate about once an hour, plus only the ways it names (Q51); whether System One's "needs no check" is too eager or too shy is for Kenil's real days to show, in its run lines.
 - Columbo's verdict is one small model's reading: on the same turn of Kenil's (a copy), the world's judge agreed once and once found that Alpha's answer said six exports while listing five. A difference that names no field marks no row; the words land in Activity. How often it is right is what its notes will show.
 - The earlier near miss on a label (fat 14 g against 13.4 g) was a rounding apart, which the judge's rules now say is not a difference.
-- A watched folder is synced on every change under it, including `.git`, `node_modules`, `.venv`, `.check` and build output that the walk skips, so in his `~/Desktop/dev` every commit or build starts an 8 s walk, which goes through those folders before dropping them. A writer there that never pauses for 2 s stops every sync: the desktop check's `desktop/.check` did from 14:07 BST on 20 Oct. A file deleted between the walk and its read fails that whole sync (not seen in his log yet).
+- A watched folder reads build output as documents: `target`, `dist` and `build` aren't skipped names, so his `~/Desktop/dev` holds 1,016 of them (978 from `alpha-brain/desktop/src-tauri/target`), and every app build changes about a thousand. Whether to skip them is his call. A writer of readable files that never pauses for 2 s still holds a sync off (the desktop check's `desktop/.check` did from 14:07 BST on 20 Oct; hidden folders no longer count). A file deleted between the walk and its read fails that whole sync (not seen in his log yet).
 
 ## Pending, in order
 

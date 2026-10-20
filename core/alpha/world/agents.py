@@ -372,6 +372,16 @@ class Agents:
         with self.store.tx() as db:
             db.execute("UPDATE agents SET thread = ? WHERE id = ?", (thread, aid))
 
+    def set_tell(self, aid: str, instruction: str | None) -> None:
+        """The standing instruction that asks to be told of this agent's runs (C5), or none."""
+        with self.store.tx() as db:
+            db.execute("UPDATE agents SET tell = ? WHERE id = ?", (instruction, aid))
+
+    def by_tell(self, instruction: str) -> list[dict[str, Any]]:
+        """The agents an instruction asks to be told of."""
+        rows = self.store.all("SELECT id FROM agents WHERE tell = ?", (instruction,))
+        return [self.get(r["id"]) for r in rows]
+
     def due(self, at: datetime | None = None) -> list[dict[str, Any]]:
         moment = (at or datetime.now(UTC)).astimezone(UTC).isoformat()
         rows = self.store.all(

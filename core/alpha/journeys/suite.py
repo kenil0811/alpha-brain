@@ -838,6 +838,15 @@ class Run:
                      if e["kind"] == "replied" and thread in (e["data"].get("work") or [])),
                     None)
 
+    def check_told(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Agents' runs that came to the conversation (C5): exactly `count` lines in Home marked
+        as told, each with its agent's name; any other run stayed on its page."""
+        home = self.world.modules.home_thread()["id"]
+        lines = [e for e in self.world.journal.recent(200, thread=home, kinds=["replied"])
+                 if e["at"] >= self.mark.at and e["data"].get("told")]
+        words = "; ".join(f"{e['data'].get('agent_name')}: {e['text'][:80]}" for e in lines)
+        return len(lines) == int(arg.get("count", 1)), f"{len(lines)} told: {words or 'none'}."
+
     def check_answered_in_words(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """Yes cards the desk answered on the person's words (C4): exactly `count`."""
         got = [e for e in self.world.journal.recent(200, kinds=["answered"])

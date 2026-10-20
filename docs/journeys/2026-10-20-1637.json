@@ -1,0 +1,91 @@
+[
+ {
+  "name": "answer_back_to_the_agent",
+  "title": "Tasks · an agent made on call, and the answer to its question goes back to it",
+  "steps": [
+   {
+    "say": "keep a list of deals: the firm's name and the asking price",
+    "ok": true,
+    "reply": "I set up a Deal list under a new Deals area. Each deal has the firm's name and its asking price, and each firm is linked to anything else I know about that company. The list is empty for now.\n\nGive me deals whenever you like, for example \"Acme Ltd, asking 2.5m\", and I'll add them. If you tell me the currency (pounds, dollars, euros), I'll show the prices in it.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 118082,
+    "tokens_cache_made": 12154,
+    "tokens_out": 765,
+    "first_text_ms": 12220,
+    "seconds": 16.1
+   },
+   {
+    "say": "add Midwest HVAC, asking 900k",
+    "ok": true,
+    "reply": "I've added Midwest HVAC to your deal list with an asking price of $900,000.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 89511,
+    "tokens_cache_made": 6831,
+    "tokens_out": 242,
+    "first_text_ms": 4465,
+    "seconds": 9.8
+   },
+   {
+    "say": "make an agent called Deal Analyst that, when given a task about a deal, works it out from the deal's row, saves what it found on the row with its source, and asks me for anything the row doesn't have",
+    "ok": true,
+    "reply": "I've set up Deal Analyst in your Deals module. It doesn't run on a schedule. It only works when you give it a task about a deal and press Start, or when you mention it with @ (for example: \"@Deal Analyst what multiple is Midwest HVAC asking?\").\n\nFor each task it will:\n- **Use the deal's row first.** It takes what's already in the deal list, and looks up public details like the firm's website or listings when needed.\n- **Save its findings on that row.** Each value is marked as something you told it, a link it read, a calculation with its inputs, or an estimate.\n- **Ask you for what it can't fin",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 99965,
+    "tokens_cache_made": 2826,
+    "tokens_out": 995,
+    "first_text_ms": 13036,
+    "seconds": 23.1
+   },
+   {
+    "say": "add a task on Midwest HVAC to ask the broker for 3 years of P&L, give it to the Deal Analyst and start it",
+    "ok": true,
+    "reply": "I added \"Ask the broker for 3 years of P&L\" as a task on Midwest HVAC in your deal list, gave it to the Deal Analyst and started it. It should pick the task up within half a minute, and its progress will show on the task's page.\n\nIt almost certainly can't send the request yet, though. The row doesn't have the broker's name or email, so it will ask you for them. Even then, nothing goes to the broker until you've seen the message and said yes.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 148148,
+    "tokens_cache_made": 3317,
+    "tokens_out": 653,
+    "first_text_ms": 8977,
+    "seconds": 11.8
+   },
+   {
+    "start_tasks": [
+     "Ask the broker for 3 years of P&L"
+    ],
+    "ok": true,
+    "detail": "1 task(s) started: Ask the broker for 3 years of P&L",
+    "seconds": 20.1
+   },
+   {
+    "answer_ask": "Who is the broker for Midwest HVAC, and what is their email? The request for 3 years of P&L is drafted on the deal; send it yourself, or tell me where to put it",
+    "ok": true,
+    "detail": "{\"answered\":\"j_a8af1ce19e8e\",\"turn\":null,\"agent\":\"a_09eeda0b4ad4\"}",
+    "seconds": 15.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "agent_made",
+    "arg": {
+     "on_call": true,
+     "name_words_max": 3
+    },
+    "ok": true,
+    "why": "'Deal Analyst' (2 words), works when you ask; tasks it owns: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "answer_went_back",
+    "arg": {},
+    "ok": true,
+    "why": "Deal Analyst's run succeeded: The P&L request is now addressed to Kenil Shah, but it still hasn't been sent.\n\n- **Saved on the Midwest HVAC row:** Kenil Shah as the broker and kenilshah081198@gmail.com as the broker email, both fr",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 96.2,
+  "error": null
+ }
+]
