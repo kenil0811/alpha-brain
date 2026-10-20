@@ -2,8 +2,8 @@
 
 DealPilot's first platform piece (Q114). Kenil, on `design/readers-finished-p14-proposal.md`:
 "Yes, build P14 as written, with the three recommendations: terms that say no block the source,
-robots disallow blocks, detail pages for new and changed rows only." Q115. Committed on
-his word (below).
+robots disallow blocks, detail pages for new and changed rows only." Q115. Committed as
+`51d3b11` on his word (below).
 
 ## Built
 
