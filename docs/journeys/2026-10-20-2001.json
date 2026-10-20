@@ -1,0 +1,115 @@
+[
+ {
+  "name": "tell_me",
+  "title": "Section C · an agent's run stays out of the stream, until the person asks to be told",
+  "steps": [
+   {
+    "seed": "table listings with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "agent Listing Watch",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "This is my first run: there are **2 listings** in the Listings table, Harbour Car Wash and Corner Print Shop.",
+    "problem": null,
+    "seconds": 7.8
+   },
+   {
+    "say": "From now on, tell me here whenever Listing Watch finds a new listing.",
+    "ok": true,
+    "reply": "Done. From now on, each time Listing Watch runs, what it finds will show up here in our conversation. It checks every Monday at 09:00, so the next check is Monday 26 October. If your Mac is asleep then, it runs when the Mac next wakes.\n\nRight now it knows about 2 listings: Harbour Car Wash and Corner Print Shop. Anything new after those will be named here. If you ever want this to stop, just say so.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 87153,
+    "tokens_cache_made": 13509,
+    "tokens_out": 569,
+    "first_text_ms": 7654,
+    "seconds": 16.8
+   },
+   {
+    "add_row": "listings",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "There's one new listing since my last run: **Lakeside Bakery**.",
+    "problem": null,
+    "seconds": 4.4
+   },
+   {
+    "say": "Stop telling me about Listing Watch.",
+    "ok": true,
+    "reply": "Done, Listing Watch's results will no longer come here. It still checks every Monday at 09:00, and you can see what it finds on its own page.\n\nIts last check, which ran just before you turned this off, found one new listing: **Lakeside Bakery**.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 70285,
+    "tokens_cache_made": 1100,
+    "tokens_out": 275,
+    "first_text_ms": 4022,
+    "seconds": 7.2
+   },
+   {
+    "add_row": "listings",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Listing Watch",
+    "ok": true,
+    "result": "There's one new listing since my last run: **Sunbelt Laundry**.",
+    "problem": null,
+    "seconds": 4.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "told",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 told: Listing Watch: There's one new listing since my last run: **Lakeside Bakery**..",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "runs now come to the conversation"
+    },
+    "ok": true,
+    "why": "1 changed entry: Listing Watch's runs now come to the conversation: Tell me here whenever Listing Watch finds a new listing..",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "runs stay on its own page again"
+    },
+    "ok": true,
+    "why": "1 changed entry: Listing Watch's runs stay on its own page again..",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "The answer says the telling of Listing Watch's runs has stopped, plainly, without mentioning a stray, blank or empty instruction having to be cleaned up.\n"
+    },
+    "ok": true,
+    "why": "The answer says plainly that Listing Watch's results will no longer come to the conversation, and it doesn't mention any stray, blank or empty instruction being cleaned up.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 45.1,
+  "error": null
+ }
+]

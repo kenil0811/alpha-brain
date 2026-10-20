@@ -1,0 +1,62 @@
+[
+ {
+  "name": "work_beside_the_desk",
+  "title": "Section C · a long piece of work runs beside the desk while the next sentence is answered",
+  "steps": [
+   {
+    "say": "Find out the three biggest car wash chains in the US by number of locations, with each one's founding year and a source for every number. It's a longer job, so do it in the background and carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started the research in the background. It will rank US car wash chains by location count and find each one's founding year. Every number will have a source, and company filings and industry rankings come first. It will also check recent mergers that could change the order, and it will treat franchised chains separately so they're compared fairly.\n\nI'll come back with the top three when it's done. Until then, I'm free to talk about anything else.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52622,
+    "tokens_cache_made": 11168,
+    "tokens_out": 874,
+    "first_text_ms": 11140,
+    "seconds": 15.0
+   },
+   {
+    "say": "Meanwhile: what is 15% of 840,000?",
+    "ok": true,
+    "reply": "15% of 840,000 is **126,000**.\n\nThe car wash research is still running. Right now it's checking what happened to Driven Brands' car washes after they were sold last year.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 32511,
+    "tokens_cache_made": 433,
+    "tokens_out": 56,
+    "first_text_ms": 829,
+    "seconds": 5.3
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 188.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1,
+     "answered_while_running": true
+    },
+    "ok": true,
+    "why": "1 piece(s): Research top US car wash chains (done); answered meanwhile: 15% of 840,000 is **126,000**.\n\nThe car wash research is still running. Right no.",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "replied",
+     "contains": "126,000"
+    },
+    "ok": true,
+    "why": "1 replied entry: 15% of 840,000 is **126,000**.\n\nThe car wash research is still running. Right now it's checking what happened to Driven Brands' car washes after they were sold .",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 208.6,
+  "error": null
+ }
+]

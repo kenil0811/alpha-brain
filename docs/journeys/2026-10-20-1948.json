@@ -1,0 +1,96 @@
+[
+ {
+  "name": "go_ahead",
+  "title": "Section C · \"go ahead\" in words says yes to every host's card open at that moment",
+  "steps": [
+   {
+    "say": "Start a helper in the background, as a piece of work beside us, that uses a short Python script (not WebFetch) to read https://jsonplaceholder.typicode.com/todos/1 and tell me its title. Don't run the script yourself; carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started a helper in the background. It will write a short Python script, run it to read that address, and report the title back to me. I'll pass the title on as soon as it arrives.\n\nThat site isn't on the list of places your scripts can reach yet. If the request is refused, you may see a card asking to allow `jsonplaceholder.typicode.com`. If you say yes, the script will need to run again.\n\nIn the meantime, what would you like to talk about?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52631,
+    "tokens_cache_made": 10760,
+    "tokens_out": 499,
+    "first_text_ms": 7361,
+    "seconds": 14.1
+   },
+   {
+    "wait_for_card": 1,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach jsonplaceholder.typicode.com? Reading from it only: an",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I tried the request again and it worked this time. The title of todo #1 on jsonplaceholder.typicode.com is **\"delectus aut autem\"**.\n\nThe approval card for that site had already closed before I could answer it, so I'm not sure the site is allowed from now on. The next request to it may ask you again.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 122079,
+    "tokens_cache_made": 6215,
+    "tokens_out": 594,
+    "first_text_ms": 9830,
+    "seconds": 628.4
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 0.0
+   },
+   {
+    "say": "Start two helpers in the background at once, as two pieces of work beside us: one uses a short Python script (not WebFetch) to read https://httpbin.org/json and tell me its slideshow title, the other uses a short Python script (not WebFetch) to read https://api.github.com/zen and tell me what it says. Don't run the scripts yourself.",
+    "ok": true,
+    "reply": "Both helpers are running in the background now. One is getting the slideshow title from httpbin.org/json, and the other is reading what api.github.com/zen says. Each writes and runs its own short Python script, and I'm not running anything myself.\n\nYou may get a card asking to let scripts reach httpbin.org or api.github.com. If a site is refused, that helper will stop and report the error. I'll pass on each result as it comes back.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 65400,
+    "tokens_cache_made": 2232,
+    "tokens_out": 763,
+    "first_text_ms": 7987,
+    "seconds": 13.7
+   },
+   {
+    "wait_for_card": 2,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach httpbin.org? Reading from it only: anything sent still; Let Alpha's scripts reach api.github.com? Reading from it only: anything sent st",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I've allowed httpbin.org and api.github.com for Alpha's scripts from now on, for reading only. Anything that would send something out will still ask you first.\n\nBoth helpers are running their scripts again in the background. I'll tell you the slideshow title and what GitHub's page says when they report back.",
+    "steps": 6,
+    "tokens_input": 8,
+    "tokens_cache_read": 152275,
+    "tokens_cache_made": 4036,
+    "tokens_out": 873,
+    "first_text_ms": 14019,
+    "seconds": 14.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "answered_in_words",
+    "arg": {
+     "count": 3
+    },
+    "ok": true,
+    "why": "3 answered in words: Yes, always (\"go ahead\"); Yes, always (\"go ahead\"); Yes, always (\"go ahead\").",
+    "seconds": 0.0
+   },
+   {
+    "check": "yes_cards_open",
+    "arg": {
+     "count": 0
+    },
+    "ok": true,
+    "why": "0 yes card(s) open.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 670.2,
+  "error": null
+ }
+]
