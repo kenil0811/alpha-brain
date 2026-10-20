@@ -191,6 +191,9 @@ class Served:
     config: McpSdkServerConfig
     world: World
     tools: list[Any] = field(default_factory=list)
+    # who says which turn and thread a call serves (`of`: the call's id → its binding); the
+    # desk's (section C), whose one server serves its own calls and its work's
+    binding: dict[str, Any] = field(default_factory=dict)
 
 
 ServerBuilder = Callable[[TurnRequest, ThreadPoolExecutor], Awaitable[Served]]
@@ -701,10 +704,19 @@ async def run_async(req: TurnRequest, *,
         executor.shutdown(wait=False)
         if world is not None:
             world.close()
+    if stalled and final is None:
+        log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
+    return outcome_of(final, failure=failure, tools=tools, stopped=stopped, stalled=stalled,
+                      first_text_at=first_text_at, started_at=started_at)
+
+
+def outcome_of(final: ResultMessage | None, *, failure: str | None, tools: dict[str, Any],
+               stopped: bool, stalled: bool, first_text_at: float | None,
+               started_at: float) -> RunResult:
+    """What a run came to, from its result message: a turn of its own or the desk's (C1)."""
     if stopped:
         return RunResult(reply="", ok=False, error=STOPPED, stopped=True)
     if stalled and final is None:
-        log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
         return RunResult(reply="", ok=False, error=STALLED)
     if final is None:
         words = (failure or "").lower()

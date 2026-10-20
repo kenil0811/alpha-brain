@@ -3,7 +3,10 @@ title: "Two sources compared, each read by a helper alongside"
 why: >
   Engine reach A2 (Q98, 20 Oct 2026): a turn may start subagents (the SDK's Agent), which have
   the turn's hands, hooks and the permission callback. Asked for two sources side by side, the
-  answer is right whether or not it used helpers; the spike showed they work.
+  answer is right whether or not it used helpers; the spike showed they work. Since section C
+  (Q107) the desk may run them beside it and report when they end, so the journey waits for
+  any work it started and judges the desk's words on it (its first run on C ended on "I'll put
+  the comparison side by side once both report back").
 fresh: true
 steps:
   - seed:
@@ -30,6 +33,8 @@ steps:
         - {company: Delta Freight, value: 45000}
         - {company: Elm Studio, value: 5000}
   - say: "compare my two lead sources side by side: how many leads each has and their total value; have a helper read each one"
+  # if the desk ran the helpers beside it, its words on them are the answer (section C)
+  - wait_for_work: {seconds: 600}
 checks:
   - judge:
       rubric: "Passes if the answer says Leads North has 2 leads worth 42,000 in total and Leads South has 3 leads worth 58,000 in total (or the same in other words). Fails if a count or total is wrong."

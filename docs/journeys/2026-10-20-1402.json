@@ -1,0 +1,63 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food** section with a food log, plus a chart of your calories per day.\n\nTo log something, just tell me in your own words, like \"2 eggs and toast for breakfast\" or \"had a latte at 4\". For each entry I'll record the food, the time, the meal and the amount. I'll also fill in calories, protein, carbs and fat. Those numbers are my estimates unless you give me the real ones from a label.\n\nWhat have you eaten so far today?",
+    "steps": 5,
+    "tokens_input": 8,
+    "tokens_cache_read": 124211,
+    "tokens_cache_made": 16063,
+    "tokens_out": 1094,
+    "first_text_ms": 12208,
+    "seconds": 19.5
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I've logged two eggs as lunch at 14:02. My estimate is about **143 kcal**, with 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\nThat assumes two large eggs eaten just now, cooked without butter or oil. If you fried them in butter, add about 35 kcal per teaspoon. If you ate them at another time or with something else, tell me and I'll fix the entry.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 74735,
+    "tokens_cache_made": 1046,
+    "tokens_out": 663,
+    "first_text_ms": 6840,
+    "seconds": 6.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 26.4,
+  "error": null
+ }
+]

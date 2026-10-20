@@ -1,11 +1,11 @@
 /**
- * Home: what needs the person (questions Alpha asked, things it proposes, facts waiting for a
- * yes), what's coming up, and their modules. Nothing here is decoration: each card is something
- * to answer or open.
+ * Home: how many things wait on the person (the cards themselves are in the conversation, where
+ * they arose: section C, Q107), Scout's picks, what didn't work today, what's coming up, and
+ * their modules. Nothing here is decoration: each card is something to answer or open.
  */
 import { useEffect, useState } from "react";
-import { AskCard, AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
-import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem, Thread } from "../core/client";
+import { AskCard, WorkflowCard } from "../assistant/AssistantPanel";
+import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import { CardFromLine, NoWithReason, PairsCard, StagedCard } from "./CardBits";
@@ -110,7 +110,7 @@ function Failure({ e, client, onGo, onDismiss, onDone }: { e: JournalEntry; clie
   );
 }
 
-function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
+export function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function act(work: () => Promise<unknown>, words: string) {
@@ -181,16 +181,6 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       {error ? <p className="notice">{error}</p> : null}
     </article>
   );
-}
-
-/** A work item's state in words (harness §7). */
-const ITEM_STATE: Record<string, string> = { open: "Open", working: "Working", needs_you: "Needs you", done: "Done", stopped: "Stopped" };
-
-/** Home shows the work items that wait on the person, nothing else (Kenil, 18 Oct 2026: "only
- *  things it needs me for", Q77); working and finished items are the Assistant page's. */
-export function laneThreads(items: Thread[]): [string, Thread[]][] {
-  const waiting = items.filter((t) => t.state === "needs_you");
-  return waiting.length ? [["Waiting on you", waiting]] : [];
 }
 
 /** The kinds of Scout's picks, in words (Q48). */
@@ -279,26 +269,14 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       </div>
 
       {home.needs_you.length ? (
-        <div className="section" style={{ marginTop: 0 }}>
-          <div className="section__head">
-            <h2>Needs you</h2>
-            <span className="faint">Alpha never sends anything or acts for you without a yes</span>
-          </div>
-          <div className="needs">
-            {groupNeeds(home.needs_you).map((group) =>
-              group.length > 1 ? (
-                <article key={group[0].id} className="card need">
-                  <h3>Alpha asked {group.length} questions</h3>
-                  <p className="because">
-                    <b>Asked</b> {when(group[0].at)}, because the answers change what it builds.
-                  </p>
-                  <AskGroup asks={group.map(askOf)} client={client} onAnswered={() => { setToast("Answered."); onChanged(); }} />
-                </article>
-              ) : (
-                <Need key={group[0].id} item={group[0]} client={client} onDone={(words) => { setToast(words); onChanged(); }} />
-              ),
-            )}
-          </div>
+        // what waits on the person is in the stream, where it arose (section C, Q107)
+        <div className="section needsline" style={{ marginTop: 0 }}>
+          <span>
+            <b>{home.needs_you.length}</b> {home.needs_you.length === 1 ? "thing waits" : "things wait"} on you, in the conversation. Alpha never sends anything or acts for you without a yes.
+          </span>
+          <Button size="sm" onClick={() => onOpenThread("")}>
+            Open the conversation
+          </Button>
         </div>
       ) : null}
 
@@ -348,44 +326,6 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             ))}
           </div>
         </section>
-      ) : null}
-
-      {laneThreads(home.threads).length ? (
-        <div className="section">
-          <div className="section__head">
-            <h2>Waiting on you</h2>
-            <span className="faint">Work that stopped for your word; the rest is on the Assistant page</span>
-          </div>
-          <div className="lanes">
-            {laneThreads(home.threads).map(([lane, rows]) => (
-              <section key={lane} aria-label={lane}>
-                <div className="lane__head">{lane}</div>
-                <div className="card list">
-                  {rows.map((t) => (
-                    <div key={t.id} className="item item--thread">
-                      <span className={`badge badge--${t.state === "needs_you" ? "waiting" : t.state === "working" ? "running" : "good"}`}>{ITEM_STATE[t.state] ?? t.state}</span>
-                      <div className="item__body">
-                        <b>{t.title}</b>
-                        {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
-                          <div className="thread__now">
-                            <span className="working__pulse" aria-hidden="true" />
-                            <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
-                          </div>
-                        ) : (
-                          <div className="item__sub oneline">{t.last_line ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : t.state === "stopped" ? "Stopped" : "Done")}</div>
-                        )}
-                        <div className="item__sub faint">started {when(t.created_at)}{t.last_at && t.last_at !== t.created_at ? ` · last ${when(t.last_at)}` : ""}</div>
-                      </div>
-                      <Button size="sm" onClick={() => onOpenThread(t.id)}>
-                        Open
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
       ) : null}
 
       {home.coming_up.length ? (

@@ -75,6 +75,7 @@ def alphas_item(world: World, words: str, module: str | None) -> str:
 
 
 UNNAMED = "New conversation"
+RESTARTED = "Alpha closed while this ran, so it stopped. Try again to start it afresh."
 
 
 def rename(world: World, cid: str, title: str) -> dict[str, Any]:
@@ -123,6 +124,13 @@ def reset_working(world: World) -> list[str]:
     """At the core's start no turn is running, so a thread left "working" by a core that died
     is open again: the panel was stuck polling it with Done hidden (found at the 3 Oct
     checkpoint)."""
+    # Work beside the desk (section C) lived in the desk's process, which is gone: it stopped,
+    # and its thread says so (Try again starts it afresh).
+    for t in world.store.all("SELECT id FROM threads WHERE session_tools = 'desk-work'"
+                             " AND state IN ('working', 'needs_you')"):
+        world.modules.update_thread(t["id"], state="stopped", last_line=RESTARTED)
+        world.journal.append("changed", RESTARTED, actor="alpha", thread=t["id"],
+                             data={"work": t["id"]})
     reset = [t["id"] for t in world.store.all(
         "SELECT id FROM threads WHERE state = 'working'")]
     for tid in reset:

@@ -59,7 +59,7 @@ def test_the_layers_state_the_clock_and_emptiness(world: World) -> None:
     text = layers.given(world, "anything")
     assert "Today's date is" in text and "created_at >=" in text
     assert "Nothing yet: no modules, no tables." in text
-    assert "WORK ITEMS" in text and "- None open." in text
+    assert "WORK ITEMS" not in text  # no roster at the desk: no sentence is routed (C)
 
 
 def test_the_start_layer_maps_tables_without_fields_and_gives_instructions_whole(

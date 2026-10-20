@@ -296,7 +296,8 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
                thread: str | None = None, said: str | None = None) -> str:
     """What rides with each sentence, a few lines: the clock, what changed elsewhere since the
     last turn here, what is due today, the cards open here, the strongest matches for the
-    sentence with their ids (one query reaches each), who it names, and in Home the work items.
+    sentence with their ids (one query reaches each), who it names, and at the desk (Home) the
+    page the sentence came from and the work beside it (section C).
     `said` is the sentence's own journal line, never a match for itself."""
     sections: list[tuple[str, list[str]]] = [("NOW", clock())]
 
@@ -312,7 +313,8 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
         if last_at:
             for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
                                                      "noticed"]):
-                if e["at"] > last_at and e["thread"] != chat["id"]:
+                if e["at"] > last_at and e["thread"] != chat["id"] \
+                        and not e["data"].get("step"):
                     delta.append(f"- {when(e['at'])} {e['kind']}: {one_line(e['text'], 200)}")
         if delta:
             sections.append(("SINCE YOUR LAST TURN HERE (elsewhere, meanwhile)",
@@ -373,22 +375,32 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
                          " each)", named))
 
     if chat["kind"] == "home":
-        # The roster: what is in progress, one line each, never their transcripts (§7).
+        # The desk (section C, Q107): one session for every page, so a sentence typed on a
+        # module's page brings that module and its notes with it.
+        if module:
+            m = world.modules.get(module)
+            lines = [f"- {m['name']} ({m['id']}); its folder: {grants.module_dir(world, module)}"]
+            page = next((n for n in world.knowledge.notes(f"module:{m['name']}")), None)
+            if page and page["body"].strip():
+                lines.append(f"- Its notes (NOTES.md, {page['title']}):")
+                lines += _indented(page["body"])
+            sections.append(("THIS SENTENCE CAME FROM A MODULE'S PAGE", lines))
+        # The work beside the desk: what runs now (a message reaches it by its task's id) and
+        # what finished since the desk's last turn, one line each, never a transcript (C6).
+        since = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
         lines = []
-        for t in world.modules.items(limit=12):
-            if t["state"] in ("done", "stopped") and t["updated_at"] < (
-                    datetime.now(UTC) - timedelta(hours=24)).isoformat():
+        for t in world.modules.items(limit=40):
+            if t.get("session_tools") != "desk-work":
                 continue
-            owner = world.agents.of_thread(t["id"])
-            if owner and owner["kind"] != "custom":
+            if t["state"] in ("done", "stopped") and t["updated_at"] < since:
                 continue
-            lines.append(f"- {t['title']} ({t['id']}, {t['state'].replace('_', ' ')}"
-                         + (f", {owner['name']}'s" if owner else "") + ")"
-                         + (f": {one_line(t['last_line'], 160)}" if t.get("last_line") else ""))
-        sections.append(("WORK ITEMS (each has its own conversation and session; the person's"
-                         " sentence that opens or continues one is routed there before you see"
-                         " it; here, answer what can be answered now)",
-                         lines or ["- None open."]))
+            line = f"- {t['title']} (thread {t['id']}, task {t.get('session_ref')}," \
+                   f" {t['state'].replace('_', ' ')})"
+            lines.append(line + (f": {one_line(t['last_line'], 160)}" if t.get("last_line")
+                                 else ""))
+        if lines:
+            sections.append(("WORK BESIDE YOU (running, or finished in the last day; what it"
+                             " did is in the journal under its thread)", lines[:TURN_ELSEWHERE]))
 
     return _joined(sections)
 

@@ -1,10 +1,12 @@
 name: removal_waits_on_its_card
-title: "A removal in a conversation ends its turn on the card, and the answer resumes it"
+title: "A removal at the desk waits on its card, and the yes lets it through in the same turn"
 why: >
-  P3 item 7 of the tasks-and-cards proposal (19 Oct 2026). A removal card used to wait on a
-  future in memory, so after a restart the answer became a bare "Yes, remove it" turn. Now the
-  call is deferred on its card (the SDK's defer, proven by a spike), the turn ends, and the
-  answer's turn resumes the kept session in a new process: the deferred removal runs on the yes.
+  P3 item 7 of the tasks-and-cards proposal (19 Oct 2026) deferred a conversation's removal on
+  its card, resumed by the answer's turn in a new process. Since section C (20 Oct 2026) the
+  desk's session is kept open, where a deferred call never resumes (this journey's first run
+  on C: the yes began a new turn and the model asked again on a second card). So at the desk
+  a removal waits on its card while the turn stays open, as a host's card does, and the yes
+  lets it through in the same turn: one card, one yes, the row gone.
 fresh: true
 steps:
   - say: "track what I eat"
@@ -15,5 +17,5 @@ steps:
     home: true
 checks:
   - journal: {kind: asked, contains: "Remove "}
-  - journal: {kind: answered, contains: "Yes, remove it"}
+  - journal: {kind: answered, contains: "Yes"}
   - reply: {matches: "removed|gone|deleted|taken|took"}

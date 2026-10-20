@@ -1,0 +1,16 @@
+name: work_beside_the_desk
+title: "Section C · a long piece of work runs beside the desk while the next sentence is answered"
+why: >
+  Section C (Q107, 20 Oct 2026): every sentence is the desk's, Home's session kept open, and
+  work longer than a few steps runs beside it as a background subagent. C2's proof: one
+  sentence starts work, a second unrelated sentence is answered while it runs, and the
+  outcome then appears as Alpha's reply in Home carrying the work's id. The person asks for it
+  to run in the background in their own words; no rule in the prompt says when to start work.
+fresh: true
+steps:
+  - say: "Find out the three biggest car wash chains in the US by number of locations, with each one's founding year and a source for every number. It's a longer job, so do it in the background and carry on talking with me meanwhile."
+  - say: "Meanwhile: what is 15% of 840,000?"
+  - wait_for_work: {seconds: 900}
+checks:
+  - work: {count: 1, answered_while_running: true}
+  - reply: {matches: "126,000|126000"}

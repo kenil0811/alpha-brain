@@ -49,25 +49,36 @@ AGENT_KEYS = ("title", "schedule", "state", "steps", "may", "stage", "goal", "wa
 AGENT_FIELDS = {"title": "description", "wakes_on": "events"}
 
 
-def link_skills(skills: Path, workdir: Path) -> list[str]:
-    """Each skill under `skills` linked as `<workdir>/.claude/skills/<name>`, the only thing
-    Alpha puts under a `.claude` folder, so the SDK loads them in a turn that works there (A9,
-    Q98: names and descriptions in front of the model, the body when it uses one). A link
-    whose skill is gone goes. Returns the names linked."""
+def link_skills(skills: Path | list[Path], workdir: Path) -> list[str]:
+    """Each skill under `skills` (one folder, or several, the first of a name winning) linked
+    as `<workdir>/.claude/skills/<name>`, the only thing Alpha puts under a `.claude` folder,
+    so the SDK loads them in a turn that works there (A9, Q98: names and descriptions in front
+    of the model, the body when it uses one). A link whose skill is gone, or now comes from
+    another folder, goes. Returns the names linked."""
+    found: dict[str, Path] = {}
+    for folder in ([skills] if isinstance(skills, Path) else skills):
+        if not folder.is_dir():
+            continue
+        for p in sorted(folder.iterdir()):
+            if (p / "SKILL.md").is_file():
+                if p.name in found:
+                    log.warning("two skills are called %s; %s is used, %s is not", p.name,
+                                found[p.name], p)
+                    continue
+                found[p.name] = p
     target = workdir / ".claude" / "skills"
-    names = sorted(p.name for p in skills.iterdir()
-                   if (p / "SKILL.md").is_file()) if skills.is_dir() else []
-    if not names and not target.exists():
+    if not found and not target.exists():
         return []
     target.mkdir(parents=True, exist_ok=True)
     for link in target.iterdir():
-        if link.is_symlink() and (link.name not in names or not link.resolve().exists()):
+        if link.is_symlink() and (link.name not in found or not link.resolve().exists()
+                                  or link.resolve() != found[link.name].resolve()):
             link.unlink()
-    for name in names:
+    for name, source in found.items():
         link = target / name
         if not link.exists() and not link.is_symlink():
-            os.symlink(os.path.relpath(skills / name, target), link)
-    return names
+            os.symlink(os.path.relpath(source, target), link)
+    return sorted(found)
 
 
 def skills_at(workdir: Path) -> list[str]:
@@ -116,9 +127,12 @@ class ModuleFiles:
                 self.sync_module(m, counts)
             self.sync_instructions(counts)
             # a turn with no module works beside the sessions (Home's): the skills with no
-            # module load there, as a module's do in its directory (A9)
+            # module load there, as a module's do in its directory (A9); since section C the
+            # desk works there for every module, so every module's skills load there too (Q107)
             scratch = Path(self.world.path).parent / "sessions" / "scratch"
-            link_skills(self.home / "skills", scratch)
+            link_skills([self.home / "skills",
+                         *[self.dir_of(m["id"]) / "skills" for m in self.world.modules.all()]],
+                        scratch)
         except Exception:  # a sync never fails a turn; the log says what went wrong
             log.exception("module files")
         return counts

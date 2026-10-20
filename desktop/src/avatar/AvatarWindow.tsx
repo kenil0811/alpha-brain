@@ -5,7 +5,7 @@
  * needs the full window is handed to the workspace, which comes forward.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
+import type { Client, Companion, Home, JournalEntry, Turn, Work } from "../core/client";
 import { useVisible } from "../core/changes";
 import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
@@ -50,8 +50,8 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
   const [comp, setComp] = useState<Companion | null>(null);
-  const [routing, setRouting] = useState<{ ask: string; options: string[]; text: string } | null>(null);
-  const [whereNote, setWhereNote] = useState<string | null>(null);
+  // the work beside the desk running now or waiting (section C): the Now strip
+  const [now, setNow] = useState<Work[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,10 +63,12 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       .companion()
       .then((c) => {
         setComp(c);
-        return client.conversation(null, c.focus?.id ?? null);
+        // the stream's tail (section C): the same one place to talk as the workspace's
+        return client.conversation(null, null);
       })
       .then((c) => {
-        setTurns(c.turns.slice(-12));
+        setTurns(c.turns.filter((e) => e.kind === "said" || e.kind === "replied" || e.kind === "failed").slice(-12));
+        setNow(c.now ?? []);
         setTrouble(null);
       })
       .catch((e: unknown) => setTrouble(inWords(e)));
@@ -126,20 +128,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     }, 12_000);
   }, []);
 
-  /** Follow a routed turn to its answer; a routing question comes back as choices. */
+  /** Follow a turn of the desk to its answer (section C: no routing, one place to talk). */
   const finish = useCallback(
-    async (started: Turn, before: string | null) => {
-      // Routing happens in the core's worker now: the sentence may come back at once or after
-      // a judge has looked, as a question with choices either way.
+    async (started: Turn) => {
       const turn = await client.waitTurn(started);
-      if (turn.state === "asked" && turn.ask) {
-        setRouting({ ask: turn.ask, options: turn.options ?? [], text: turn.text });
-        setMood("unsure");
-        return;
-      }
-      const went = turn.conversation;
-      setWhereNote(went ? `${went.scope}: ${went.title}` : null);
-      say(`${went && went.id !== before ? `In ${went.scope}: ` : ""}${turn.reply ?? ""}`, turn.state === "done" ? "happy" : "concerned");
+      say(turn.reply ?? "", turn.state === "done" ? "happy" : "concerned");
     },
     [client, say],
   );
@@ -150,11 +143,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setBusy(true);
       setMood("thinking");
       setText("");
-      setRouting(null);
       try {
-        // No conversation named: the core routes it (structure first, the judge when there
-        // is a real choice, a question when unsure).
-        await finish(await client.ask(clean), comp?.focus?.id ?? null);
+        // to the desk, as every sentence is (section C)
+        await finish(await client.ask(clean));
       } catch (e) {
         say(inWords(e), "concerned");
       } finally {
@@ -162,7 +153,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         refresh();
       }
     },
-    [busy, client, say, refresh, finish, comp?.focus?.id],
+    [busy, client, say, refresh, finish],
   );
   const choose = useCallback(
     async (askId: string, option: string) => {
@@ -170,8 +161,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setMood("thinking");
       try {
         const out = await client.answerAsk(askId, option);
-        setRouting(null);
-        if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
+        if (out.turn) await finish(out.turn);
       } catch (e) {
         say(inWords(e), "concerned");
       } finally {
@@ -179,7 +169,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         refresh();
       }
     },
-    [client, finish, say, refresh, comp?.focus?.id],
+    [client, finish, say, refresh],
   );
 
   const speech = useSpeech((final, interim) => {
@@ -253,8 +243,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   };
 
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
-  const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = trouble ? "Alpha isn't answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = trouble ? "Alpha isn't answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: now.length ? `${now.length} at work beside us` : "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && failedRunWords ? failedRunWords : null);
@@ -297,7 +286,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
+            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
             <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
           </header>
           <div className="avatar__turns" ref={listRef}>
@@ -307,17 +296,13 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 {t.kind === "said" ? t.text : <Rich text={t.text} />}
               </div>
             ))}
-            {routing ? (
-              <div className="avatar__pills" role="group" aria-label="Which conversation">
-                <p className="panel__hint">Which is this about?</p>
-                {routing.options.map((o) => (
-                  <Button size="sm" className="askcard__opt" key={o} disabled={busy} onClick={() => void choose(routing.ask, o)}>
-                    {o}
-                  </Button>
-                ))}
-              </div>
+            {now.length ? (
+              <p className="panel__hint avatar__now" aria-label="Now">
+                Now: {now.slice(0, 3).map((w) => `${w.title} (${w.state === "needs_you" ? "needs you" : w.state})`).join(" · ")}
+                {now.length > 3 ? ` +${now.length - 3}` : ""}
+              </p>
             ) : null}
-            {!busy && !routing && openAsk ? (
+            {!busy && openAsk ? (
               <div className="avatar__pills" role="group" aria-label="Alpha asks">
                 <p className="panel__hint">{openAsk.text}</p>
                 {(openAsk.options ?? []).map((o) => (

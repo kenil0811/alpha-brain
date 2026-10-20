@@ -1,0 +1,67 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** under a new **Food** module, along with a chart that shows your calories per day.\n\nJust tell me what you eat, however you like, e.g. \"two eggs and toast for breakfast\" or \"had a latte at 4.\" I'll add a row with the time and meal. I'll also fill in rough calories, protein, carbs and fat; those are estimates and I'll mark them that way. If you give me the label numbers instead, I'll use those.\n\nWhat have you had so far today? And do you have a calorie or protein target you want me to track against? It's fine if not.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 87436,
+    "tokens_cache_made": 15710,
+    "tokens_out": 997,
+    "first_text_ms": 13961,
+    "seconds": 22.8
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I've logged **2 eggs** at 14:46 today. My estimate is about **144 kcal**, with 12.6 g protein, 0.8 g carbs and 9.6 g fat.\n\nThat assumes large eggs cooked without oil or butter, using USDA values for one large egg. If they were fried in butter or you ate them at another time, tell me and I'll fix the row.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 74105,
+    "tokens_cache_made": 1123,
+    "tokens_out": 648,
+    "first_text_ms": 8839,
+    "seconds": 8.9
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I've removed the eggs, so your food log is empty again.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 76238,
+    "tokens_cache_made": 595,
+    "tokens_out": 138,
+    "first_text_ms": 4177,
+    "seconds": 7.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "1 asked entry: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken|took"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 39.2,
+  "error": null
+ }
+]

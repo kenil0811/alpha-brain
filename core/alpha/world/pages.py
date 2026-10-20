@@ -206,18 +206,6 @@ class Pages:
             out.append(entry)
         return out
 
-    def thread_of(self, module_id: str, name: str) -> str:
-        """The work item a page's buttons speak in (A7): one per page, in its module, opened
-        the first time and reused after, so its presses and their answers read together."""
-        title = next((p["title"] for p in self.all(module_id) if p["name"] == name), name)
-        named = f"{title} page"
-        row = self.world.store.one(
-            "SELECT id FROM threads WHERE kind = 'work' AND module = ? AND title = ?"
-            " ORDER BY created_at LIMIT 1", (module_id, named))
-        if row:
-            return str(row["id"])
-        return str(self.world.modules.open_thread(named, "work", module_id)["id"])
-
     def front(self, module_ref: str) -> dict[str, Any] | None:
         fronts = [p for p in self.all(module_ref) if p["front"] and not p["problem"]]
         return fronts[0] if fronts else None

@@ -1083,6 +1083,30 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .asked__who { flex: none; }
 .asked__q { min-width: 0; overflow-wrap: anywhere; }
 /* a work item's card in Home (harness §7): the item's title, its one line, its state, open */
+/* The stream (section C, Q107): work beside the desk as one live message, its chip, its fold,
+   the Now strip above the composer; thin lines, the app's own colours */
+.assistpage--stream { grid-template-columns: minmax(0, 1fr); }
+.needsline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: var(--text-sm); }
+.work { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, transparent); }
+.work__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.work__head .badge { margin-left: auto; }
+.work__line { display: flex; align-items: center; gap: 7px; font-size: var(--text-sm); min-width: 0; }
+.work__line span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work__fold { display: flex; flex-direction: column; gap: 4px; }
+.work__toggle { align-self: flex-start; border: 0; background: none; padding: 0; font: inherit; font-size: var(--text-xs); color: var(--text-3); cursor: pointer; }
+.work__toggle:hover { color: var(--text-2); text-decoration: underline; }
+.work__steps { list-style: none; margin: 0; padding: 0 0 0 10px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-2); }
+.work__step--outcome { color: var(--text-1, inherit); }
+.topic { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; font: inherit; font-size: var(--text-xs); color: var(--text-2); cursor: pointer; }
+.topic:hover, .topic[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--text-1, inherit); }
+.topic__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.streamreply { display: flex; flex-direction: column; gap: 4px; }
+.streamreply__topics { display: flex; flex-wrap: wrap; gap: 6px; }
+.streamfilter { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.nowstrip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 12px 0; font-size: var(--text-xs); }
+.nowstrip__head { display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
+.nowstrip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+.nowstrip__needs { margin-left: auto; }
 .itemcard { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 2px 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, transparent); text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .itemcard:hover { background: var(--hover); }
 .itemcard__body { display: flex; flex-direction: column; min-width: 0; flex: 1; }

@@ -20,6 +20,21 @@ def building(world: World, *, turn: str | None = None, module: str | None = None
     return Tools(world, turn=turn, thread=thread["id"], module=module)
 
 
+class NoDesk:
+    """The desk a test reaches without asking for one (section C): it never runs the real
+    model; a test of the desk itself makes a `Desk` with a scripted client."""
+
+    def run(self, req: TurnRequest) -> RunResult:
+        return RunResult(reply="", ok=False, error="No model runs in the tests.")
+
+
+@pytest.fixture(autouse=True)
+def no_real_desk(monkeypatch: pytest.MonkeyPatch) -> None:
+    from alpha.runtime import desk
+
+    monkeypatch.setattr(desk, "of", lambda world: NoDesk())
+
+
 @pytest.fixture(autouse=True)
 def scratch_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every test keeps Alpha's own folders (files, actions, the browser's) in a scratch home:

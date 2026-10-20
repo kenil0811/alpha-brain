@@ -70,8 +70,9 @@ def test_a_parents_page_summary_and_activity_reach_what_it_holds(world: World) -
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == \
         "You moved Resume under the top."
     chat = world.modules.open_thread("A chat", "work", search)
-    convo = c.get("/api/conversation", params={"conversation": chat["id"]}).json()
-    assert convo["conversation"]["scope"] == "Job › Search"
+    # a thread in a nested module says its whole path (the stream filters by module, C3)
+    from alpha.api.views import conversation_view
+    assert conversation_view(world, chat["id"])["scope"] == "Job › Search"
 
 
 def test_the_start_layer_and_the_map_show_the_tree(world: World) -> None:

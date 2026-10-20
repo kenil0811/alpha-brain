@@ -1,0 +1,51 @@
+[
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I've set up a watch on We Work Remotely's back-end jobs. It checks the site every morning at 08:00 and tells you which roles are new and which have been taken down. The first check runs tomorrow, 21 October.\n\nThere are only six back-end listings on the site right now. I compared the page with the site's own feed and both show the same six, so nothing is missing. All six are full-time, open to applicants anywhere in the world, and saved in a new **Job Search** module:\n\n| Role | Company | Posted |\n|---|---|---|\n| Distribution Engineer (Python, API, DevOps) | Vertex Marketing Group | today |\n| Se",
+    "steps": 14,
+    "tokens_input": 24,
+    "tokens_cache_read": 465326,
+    "tokens_cache_made": 26357,
+    "tokens_out": 4757,
+    "first_text_ms": 48231,
+    "seconds": 108.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "6 rows in wwr_backend_jobs (6)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 108.7,
+  "error": null
+ }
+]

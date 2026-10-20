@@ -176,52 +176,43 @@ def test_the_roster_carries_each_items_line_and_what_it_touches(world: World) ->
                                   " linkedin.com")
 
 
-def test_items_and_home_keep_their_sessions_only_on_the_same_tools(
+def test_every_sentence_is_the_desks_and_keeps_its_session_on_the_same_tools(
         world: World, monkeypatch: Any) -> None:
+    """Section C (Q107): every sentence goes to the desk, Home's session, with no judge before
+    it, whatever box it was typed in; the session is resumed only on the same tools (A12)."""
     requests: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
         requests.append(req)
-        if req.kind == "judge":
-            return RunResult(ok=True, reply='{"answer": "new item", "confidence": 0.9}')
-        return RunResult(ok=True, reply="ok", session_id=f"s{len(requests)}")
+        return RunResult(ok=True, reply="ok", session_id="s1")
 
     monkeypatch.setattr(engine, "tools_fingerprint", "hands-v1")
     c = TestClient(create_app(world, live=False, runner=runner))
+    home = world.modules.home_thread()["id"]
     started = c.post("/api/ask", json={"text": "sync my LinkedIn connections"}).json()
-    assert started["state"] == "routing" and started["conversation"] is None  # at once
-    first = settle(c, started)
-    tid = first["conversation"]["id"]
-    t = world.modules.thread(tid)
-    assert t["kind"] == "work" and t["state"] == "done" and t["last_line"] == "ok"
-    turn = next(r for r in requests if r.kind == "turn")
-    assert turn.persist and turn.resume is None and turn.thread_id == tid
-    assert t["session_ref"] == "s2" and t["session_tools"] == engine.fingerprint()
-    # typed in the item's own box: that item, its session resumed
-    second = settle(c, c.post("/api/ask", json={"text": "how many?", "conversation": tid}).json())
-    assert second["conversation"]["id"] == tid and requests[-1].resume == "s2"
-    # the session holds the conversation: no copy of it, and the system prompt as before (B)
-    assert requests[-1].system == turn.system and "THIS CONVERSATION" not in requests[-1].system
-    assert "NOW" in requests[-1].turn_layer
-    # the hands changed (an update): the session is not resumed, a fresh one starts, said so
+    assert started["state"] == "running" and started["conversation"]["id"] == home
+    settle(c, started)
+    assert [r.kind for r in requests] == ["turn"]  # no routing judgement (C1's proof)
+    first = requests[0]
+    assert first.persist and first.resume is None and first.thread_id == home
+    t = world.modules.thread(home)
+    assert t["session_ref"] == "s1" and t["session_tools"] == engine.fingerprint()
+    # typed in an old item's box: still the desk, its session resumed
+    old = item(world, "Old item")
+    second = settle(c, c.post("/api/ask", json={"text": "how many?", "conversation": old}).json())
+    assert second["conversation"]["id"] == home and requests[-1].resume == "s1"
+    assert requests[-1].system == first.system and "NOW" in requests[-1].turn_layer
+    # the hands changed (an update): a fresh session starts, said so
     monkeypatch.setattr(engine, "tools_fingerprint", "hands-v2")
-    settle(c, c.post("/api/ask", json={"text": "and now?", "conversation": tid}).json())
+    settle(c, c.post("/api/ask", json={"text": "and now?"}).json())
     assert requests[-1].resume is None and requests[-1].persist
-    assert world.modules.thread(tid)["session_tools"] == "hands-v2+layers"
-    assert any(e["data"].get("fresh_session") for e in world.journal.recent(5, thread=tid))
-    turns = c.get(f"/api/conversation?conversation={tid}").json()
+    assert world.modules.thread(home)["session_tools"] == "hands-v2+layers"
+    assert any(e["data"].get("fresh_session") for e in world.journal.recent(5, thread=home))
+    turns = c.get("/api/conversation").json()
     assert [x["kind"] for x in turns["turns"]] == ["said", "replied"] * 3
-    # Home's transcript: the routing line (the card) under which the item opened
-    home = c.get("/api/conversation").json()
-    assert home["conversation"]["kind"] == "home"
-    assert [x["kind"] for x in home["turns"]] == ["did"]
-    assert home["turns"][0]["data"]["routed"] == tid and home["turns"][0]["data"]["opened"]
-    listed = c.get("/api/conversations").json()
-    assert [x["kind"] for x in listed] == ["home", "work"]
-    assert listed[1]["last_line"] == "ok"
 
 
-def test_an_item_waits_on_a_question_and_a_failure_stops_it(world: World) -> None:
+def test_a_question_at_the_desk_waits_in_home_and_a_failure_says_so(world: World) -> None:
     def runner(req: TurnRequest) -> RunResult:
         if "fail" in req.sentence:
             return RunResult(ok=False, reply="", error="the site stopped it")
@@ -231,33 +222,34 @@ def test_an_item_waits_on_a_question_and_a_failure_stops_it(world: World) -> Non
         return RunResult(ok=True, reply="Which size?")
 
     c = TestClient(create_app(world, live=False, runner=runner))
-    tid = item(world, "Logging the shake")
-    settle(c, c.post("/api/ask", json={"text": "log a shake", "conversation": tid}).json())
-    assert world.modules.thread(tid)["state"] == "needs_you"
-    settle(c, c.post("/api/ask", json={"text": "please fail", "conversation": tid}).json())
-    t = world.modules.thread(tid)
-    assert t["state"] == "stopped" and t["last_line"].startswith("That didn't work")
-    listed = c.get("/api/home").json()["threads"]
-    assert [x["id"] for x in listed] == [tid]  # stopped today: still on Home
+    home = world.modules.home_thread()["id"]
+    settle(c, c.post("/api/ask", json={"text": "log a shake"}).json())
+    asks = [a for a in world.journal.open_asks() if a["thread"] == home]
+    assert [a["text"] for a in asks] == ["Which size was the shake?"]
+    settle(c, c.post("/api/ask", json={"text": "please fail"}).json())
+    last = world.journal.recent(1, thread=home)[0]
+    assert last["kind"] == "failed" and last["text"].startswith("That didn't work")
+    assert world.modules.thread(home)["state"] == "open"
 
 
-def test_a_sentence_from_a_module_page_is_routed_with_the_module_as_its_scope(
-        world: World) -> None:
+def test_a_sentence_from_a_module_page_brings_the_module_to_the_desk(world: World) -> None:
     world.modules.create("Nutrition")
+    world.knowledge.write_note("module:Nutrition", "NOTES", "Kcal from the label first.")
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
         seen.append(req)
-        if req.kind == "judge":
-            return RunResult(ok=True, reply='{"answer": "new item", "confidence": 0.9}')
         return RunResult(ok=True, reply="ok", session_id="n")
 
     c = TestClient(create_app(world, live=False, runner=runner))
     a = settle(c, c.post("/api/ask", json={"text": "log two eggs", "module": "Nutrition"}).json())
-    assert "on the page of the module Nutrition" in seen[0].sentence
-    assert a["conversation"]["scope"] == "Nutrition"
-    listed = c.get("/api/conversations?module=Nutrition").json()
-    assert [x["title"] for x in listed] == ["Log two eggs"]
+    assert a["conversation"]["kind"] == "home" and [r.kind for r in seen] == ["turn"]
+    assert seen[0].sentence == "log two eggs"
+    layer = seen[0].turn_layer
+    assert "THIS SENTENCE CAME FROM A MODULE'S PAGE" in layer and "Nutrition" in layer
+    assert "Kcal from the label first." in layer
+    # the session's start layer is the same whichever page the first sentence came from
+    assert "THIS MODULE'S NOTES" not in seen[0].start_layer
 
 
 def test_a_core_that_starts_opens_the_work_a_dead_one_left_working(world: World) -> None:

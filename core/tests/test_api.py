@@ -304,15 +304,15 @@ def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(
         if turns_.get(started["id"])["state"] == "done":
             break
         time.sleep(0.05)
-    # the routing judgement, then the turn; nothing runs behind the turn itself any more
-    assert kinds == ["judge", "turn"]
+    # the turn alone: no routing judgement before a sentence (section C, C1's proof)
+    assert kinds == ["turn"]
     # What the app's kick does after the turn (Q50): the agents whose kinds look at what it
     # left in the journal. Columbo gathers for about an hour, then judges and checks (Q47, Q51).
     assert look_and_run(world, "columbo", runner=runner) is None
     monkeypatch.setattr(columbo, "_now", lambda: datetime.now(UTC) + timedelta(minutes=61))
     out = look_and_run(world, "columbo", runner=runner)
     assert out and out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
-    assert sorted(kinds[2:]) == ["independent", "judge", "judge", "judge"]
+    assert sorted(kinds[1:]) == ["independent", "judge", "judge", "judge"]
     checked = world.journal.recent(1, kinds=["checked"])[0]
     assert checked["text"] == "Checked against an independent answer and your world: both agree."
     row = world.collections.query("food_log")[0]

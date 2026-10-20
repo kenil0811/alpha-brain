@@ -17,6 +17,7 @@ import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from functools import partial
 from typing import Any
 
@@ -30,13 +31,25 @@ from alpha.runtime.engine import Served
 from alpha.runtime.running import TurnRequest
 from alpha.world.world import World
 
+# The call a hand is serving, by Claude Code's own id for it (its `_meta` carries
+# "claudecode/toolUseId", seen in section C's spike of 20 Oct 2026): the desk says from it
+# which thread and turn the call belongs to, its own or a piece of work beside it.
+CALL: ContextVar[str | None] = ContextVar("alpha_call", default=None)
+USE_ID = "claudecode/toolUseId"
 
-def _handler(fast_tool: Any,
-             executor: ThreadPoolExecutor) -> Callable[[Any], Awaitable[dict[str, Any]]]:
+
+def _handler(fast_tool: Any, executor: ThreadPoolExecutor,
+             bind: Callable[[str | None], None] | None = None,
+             ) -> Callable[[Any], Awaitable[dict[str, Any]]]:
     async def call(args: Any) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
+        use_id = CALL.get()
 
         def work() -> Any:
+            if bind is not None:
+                # one worker runs the calls one at a time, so the tools are bound to this
+                # call's thread and turn right before it runs
+                bind(use_id)
             return asyncio.run(fast_tool.run(dict(args or {})))
 
         try:
@@ -59,6 +72,17 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
     world = World(req.world_path)
     tools = tools_cls(world, turn=req.turn_id, thread=req.thread_id, module=req.module_id,
                       actor=req.actor, run=req.run)
+    binding: dict[str, Any] = {}
+
+    def bind(use_id: str | None) -> None:
+        # the desk (section C) sets `of`: a call's id → the turn, thread and module it serves;
+        # a run of its own never sets it, and its tools stay bound to its request
+        of = binding.get("of")
+        found = of(use_id) if of is not None else None
+        if found:
+            for key in ("turn", "thread", "module"):
+                setattr(tools, key, found.get(key))
+
     fast = FastMCP("alpha")
     served: list[SdkMcpTool[Any]] = []
     cards: set[str] = set()
@@ -68,10 +92,10 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
         assert fast_tool is not None
         served.append(SdkMcpTool(name=fn.__name__, description=fast_tool.description or "",
                                  input_schema=dict(fast_tool.parameters),
-                                 handler=_handler(fast_tool, executor)))
+                                 handler=_handler(fast_tool, executor, bind)))
         if getattr(fn, "card", False):
             cards.add(fn.__name__)
-    return Served(server_of("alpha", served, cards), world, served)
+    return Served(server_of("alpha", served, cards), world, served, binding)
 
 
 # Claude Code's key in a tool's `_meta`: the tool is always in front of the model, never
@@ -100,7 +124,13 @@ def server_of(name: str, tools: list[SdkMcpTool[Any]], cards: set[str]) -> McpSd
             return CallToolResult.model_validate({"content": [
                 {"type": "text", "text": f"There is no hand called {params.name}."}],
                 "isError": True})
-        result = await found.handler(params.arguments or {})
+        meta: Any = getattr(params, "meta", None)
+        extra = meta.model_dump() if meta is not None and hasattr(meta, "model_dump") else {}
+        token = CALL.set(extra.get(USE_ID))
+        try:
+            result = await found.handler(params.arguments or {})
+        finally:
+            CALL.reset(token)
         return CallToolResult.model_validate({"content": result.get("content", []),
                                               "isError": bool(result.get("is_error", False))})
 

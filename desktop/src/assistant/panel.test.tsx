@@ -34,24 +34,62 @@ describe("each of Alpha's turns says what it was", () => {
 });
 
 describe("the assistant panel", () => {
-  it("keeps the picker in its place with one conversation, and switches from it", async () => {
-    const client = core([entry("s", "said", "hi"), entry("r", "replied", "Hello.", { duration_ms: 3000, num_turns: 2 })], [convo("c_1", "Morning plan"), convo("c_2", "Deals", { state: "needs_you", scope: "Deal Tracker", last_line: "Which broker?" })]);
+  it("shows work beside the desk as one live message, then the desk's words on it with its chip and its steps", async () => {
+    const working = { id: "w_1", title: "Deal research", state: "working", last_line: "Reading the deals", module: null, created_at: "2026-10-20T09:00:01Z", updated_at: "2026-10-20T09:00:05Z" };
+    const started = { ...entry("d_1", "did", "Started work beside the conversation: Deal research", { work: "w_1" }), at: "2026-10-20T09:00:01Z" };
+    const client = {
+      ...core([entry("s", "said", "look into the deals"), started], []),
+      thread: vi.fn().mockResolvedValue({ journal: [entry("j1", "did", "Asked to: Find which deals are new.", { brief: true }), entry("j2", "replied", "Two are new.", { outcome: true })] }),
+      stopWork: vi.fn().mockResolvedValue({}),
+    };
+    client.conversation.mockResolvedValue({ turns: [entry("s", "said", "look into the deals"), started], threads: [], actions: [], asks: [], conversations: [], conversation: null, work: { w_1: working }, now: [working], needs: [] });
     panel(client);
-    const pick = await screen.findByRole("button", { name: "Conversation: Morning plan. Pick another" });
-    expect(screen.getByText("3 s · 2 steps")).toBeInTheDocument();
-    fireEvent.click(pick);
-    const list = await screen.findByRole("dialog", { name: "Conversations" });
-    expect(within(list).getByText("needs you · Which broker?")).toBeInTheDocument();
-    fireEvent.click(within(list).getByText("Deals"));
-    await waitFor(() => expect(client.conversation).toHaveBeenLastCalledWith(null, "c_2"));
+    const live = await screen.findByRole("article", { name: "Work: Deal research" });
+    expect(within(live).getByText("Reading the deals")).toBeInTheDocument();
+    fireEvent.click(within(live).getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(client.stopWork).toHaveBeenCalledWith("w_1"));
+    // the Now strip: the work running now, a filter
+    expect(within(screen.getByLabelText("Now")).getByText("Deal research")).toBeInTheDocument();
+    // "Show the work": its steps from its thread's journal, no model call
+    fireEvent.click(within(live).getByRole("button", { name: "Show the work" }));
+    expect(await within(live).findByText("Asked to: Find which deals are new.")).toBeInTheDocument();
+    expect(client.thread).toHaveBeenCalledWith("w_1");
   });
 
-  it("shows the picker with only one conversation too, and starts a new one from + New", async () => {
-    const client = core([], [convo("c_1", "Morning plan")]);
+  it("puts the desk's reply on finished work in place of its live message, and its chip filters the stream", async () => {
+    const done = { id: "w_1", title: "Deal research", state: "done", last_line: "Two are new.", module: null, created_at: "2026-10-20T09:00:01Z", updated_at: "2026-10-20T09:02:00Z" };
+    const turns = [
+      entry("s", "said", "look into the deals"),
+      { ...entry("d_1", "did", "Started work beside the conversation: Deal research", { work: "w_1" }), at: "2026-10-20T09:00:01Z" },
+      { ...entry("r_1", "replied", "The deal research finished: two are new.", { work: ["w_1"] }), at: "2026-10-20T09:02:00Z" },
+    ];
+    const client = { ...core(turns, []), thread: vi.fn().mockResolvedValue({ journal: [] }) };
+    client.conversation.mockResolvedValue({ turns, threads: [], actions: [], asks: [], conversations: [], conversation: null, work: { w_1: done }, now: [], needs: [] });
     panel(client);
-    expect(await screen.findByRole("button", { name: "Conversation: Morning plan. Pick another" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "New" }));
-    await waitFor(() => expect(client.newConversation).toHaveBeenCalledWith(null, "New conversation"));
+    expect(await screen.findByText("The deal research finished: two are new.")).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "Work: Deal research" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Deal research" }));
+    await waitFor(() => expect(client.conversation).toHaveBeenLastCalledWith(null, null, "w_1"));
+    expect(await screen.findByRole("button", { name: "Show everything" })).toBeInTheDocument();
+  });
+
+  it("shows a yes asked mid-turn while the turn waits on it, and a question only after the turn", async () => {
+    const client = core([], []);
+    const asks = [
+      { id: "q_perm", text: 'Remove "Eggs" from Food log?', at: "2026-10-20T09:00:02Z", options: ["Yes, remove it", "No, keep it"], thread: "t_home", module: null, turn: "s_1", permission: "world_change" },
+      { id: "q_plain", text: "Which size?", at: "2026-10-20T09:00:03Z", options: ["Small", "Large"], thread: "t_home", module: null, turn: "s_1" },
+    ];
+    client.conversation.mockResolvedValue({ turns: [], threads: [], actions: [], asks, conversations: [], conversation: null, work: {}, now: [], needs: [] });
+    client.askAndWait.mockImplementation((_t: string, _o: unknown, onTick?: (t: Turn) => void) => {
+      onTick?.({ id: "t_1", state: "running", text: "remove the eggs", said: "s_1", started_at: new Date().toISOString(), live: { thought: null, doing: "Waiting for your yes", tools: 1, at: Date.now() } } as unknown as Turn);
+      return new Promise<Turn>(() => undefined);
+    });
+    panel(client);
+    const box = (await screen.findAllByRole("textbox"))[0];
+    fireEvent.change(box, { target: { value: "remove the eggs" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(await screen.findByText('Remove "Eggs" from Food log?')).toBeInTheDocument();
+    expect(screen.queryByText("Which size?")).toBeNull();
   });
 
   it("sends the sentence again on Retry under a turn that didn't finish", async () => {

@@ -54,7 +54,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.contacts import MacContacts
 from alpha.connectors.files import Files
-from alpha.runtime import conversations, route
+from alpha.runtime import conversations, desk, route
 from alpha.runtime import turn as turns
 from alpha.runtime.agents import builtin
 from alpha.runtime.agents.scheduler import Scheduler
@@ -120,6 +120,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             threading.Thread(target=read_contacts, daemon=True, name="contacts-read").start()
             scheduler.start()
             stops.append(scheduler.stop)
+            stops.append(desk.close_all)  # the desk's client, and work still running with it
         yield
         for stop in stops:
             stop()

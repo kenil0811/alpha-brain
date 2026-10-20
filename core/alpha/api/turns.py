@@ -11,7 +11,7 @@ from typing import Any
 
 from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
-from alpha.runtime import conversations, running
+from alpha.runtime import conversations, desk, running
 from alpha.runtime import turn as turns
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
@@ -36,25 +36,28 @@ class Turns:
 
     def start(self, body: AskBody, *, actor: str = "person",
               journal_as: str | None = None) -> dict[str, Any]:
-        # Where this turn lives (harness §7). A thread given is that thread: an item's own box,
-        # Home's, an agent's. "@Name …" from the person goes to that agent's own item. Anything
-        # else from the person is routed in the worker (the judge is a model run, and a
-        # request never waits on one), so the turn comes back at once as "routing".
+        # Where this turn lives (section C, Q107): the desk, Home's session kept open, the one
+        # voice. Two cases by structure stay: "@Name …" from the person reaches that agent in
+        # its own item (as Q44), and a sentence for an agent's own thread stays its (A10).
+        # Everything else is the desk's, with no routing before it.
         conversation: str | None = None
         addressed = self.world.agents.by_mention(body.text) if actor == "person" else None
-        if body.conversation or body.thread:
-            conversation = self.world.modules.thread(str(body.conversation or body.thread))["id"]
-        elif addressed:
+        given = body.conversation or body.thread
+        if given:
+            row = self.world.modules.thread(str(given))
+            if self.world.agents.of_thread(row["id"]) is not None:
+                conversation = row["id"]
+        if conversation is None and addressed and not given:
             conversation = self._agents_item(addressed[0])
             conversations.mentioned(self.world, body.text, conversation)
-        elif actor != "person":
-            conversation = conversations.alphas_item(self.world, journal_as or body.text,
-                                                     body.module)
-        routing = conversation is None and actor == "person"
+        else:
+            addressed = None
+        home = self.world.modules.home_thread()["id"]
+        conversation = conversation or home
         key = secrets.token_hex(6)
         self._evict()
         with self.lock:
-            self.state[key] = {"id": key, "state": "routing" if routing else "running",
+            self.state[key] = {"id": key, "state": "running",
                                "text": body.text,
                                "started_at": datetime.now(UTC).isoformat(),
                                "conversation": conversation_view(self.world, conversation)
@@ -67,31 +70,20 @@ class Turns:
 
             nonlocal conversation
             try:
-                if routing:
-                    routed = conversations.route(self.world, body.text, module=body.module,
-                                                 runner=self.runner if self.runner else None)
-                    if "ask" in routed:
-                        with self.lock:
-                            self.state[key].update({"state": "asked", "ask": routed["ask"],
-                                                    "options": routed["options"]})
-                        return
-                    conversation = routed["thread"]
-                    with self.lock:
-                        self.state[key].update({
-                            "state": "running",
-                            "conversation": conversation_view(self.world, conversation)})
                 thread = conversation
                 kwargs: dict[str, Any] = {"module": body.module, "thread": thread,
                                           "on_said": said, "actor": actor,
                                           "journal_as": journal_as, "conversation": True}
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
+                elif conversation == home:
+                    kwargs["runner"] = desk.of(self.world).run
                 assert thread is not None
                 # One turn at a time in a thread: a sentence typed into a busy item waits for
                 # the running turn and is read after it (an addition, never a cut; §7).
                 with self._lock_of(thread):
                     self.world.modules.update_thread(thread, state="working")
-                    if addressed and not body.conversation and not body.thread:
+                    if addressed and not given:
                         # the agent answers in its own item, as itself (Q44)
                         agent, rest = addressed
                         out = agent_runner.mention(

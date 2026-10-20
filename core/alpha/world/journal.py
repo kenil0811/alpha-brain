@@ -122,6 +122,7 @@ class Journal:
         module: str | None = None,
         modules: list[str] | None = None,
         thread: str | None = None,
+        threads: list[str] | None = None,
         stream: bool = False,
         kinds: list[str] | None = None,
         since: str | None = None,
@@ -153,6 +154,9 @@ class Journal:
         if thread is not None:
             where.append("thread = ?")
             args.append(thread)
+        if threads is not None:
+            where.append(f"thread IN ({','.join('?' * len(threads))})" if threads else "0")
+            args.extend(threads)
         if stream:
             where.append("thread IS NULL")
         if actor is not None:

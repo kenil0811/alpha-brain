@@ -59,7 +59,21 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - his sentences: the Gmail question and the two-site watch passed; the CSV and the JSON fetch were not tried, left open;
     - measured: input per turn is not lower (against before S1, `track_then_log` −11% and +17%; against after S1, every turn +7% to +72%), and first words vary as much between two runs as between before and after. Section A gave reach, not speed.
     - Found: a plain answer in Home to a question Alpha asked in prose is asked "Which is this about?" (routing, section C).
-  - **Next:** section C (routing) when he sends it. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+  - **Section C ("one stream, many sessions underneath", his spec of 20 Oct; Q107):**
+    - C0's spike: yes to all three questions ([`log/2026-10-20-section-c-spike.md`](log/2026-10-20-section-c-spike.md)), so path 1 with no nudge. He agreed the proposal's four recommendations ("makes sense", [`design/section-c-proposal.md`](design/section-c-proposal.md)).
+    - **C1–C3 accepted and committed** ([`log/2026-10-20-section-c-c1-c3.md`](log/2026-10-20-section-c-c1-c3.md)):
+      - the desk: Home's session kept open (`runtime/desk.py`), every sentence its own with no routing;
+      - work beside it as background subagents, its outcome the desk's reply carrying its id;
+      - the stream in the window: live work entries, chips, "Show the work", the Now strip, every card inline; item picker, boxes and lanes gone.
+    - `work_beside_the_desk` (C2's proof) passed with the real model: the 15% question was answered in 8.9 s while the research ran. Eleven regression journeys pass on C, after four fixes the journeys found:
+      - `/compact` at the desk;
+      - a removal waits on its card in the desk's turn (no deferral in a kept session);
+      - side calls (a checkpoint, a judge) run apart from the desk;
+      - a yes asked mid-turn is drawn in the stream.
+    - `just check-desktop`: 709 of 710 pages clean; Monthly P&L's footer covers cells, a table issue, not C.
+    - His look in the app: background work, 15% answered in a second meanwhile, the desk's words on the outcome, an @Name answer in the stream. His word: "Looks good!". Committed.
+    - Next: C4 (routing code out, "go ahead" in words), C5 (agents' `tell`), C6, C7, then section C's acceptance.
+  - **Next:** C4. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
 - **The files sync's UNIQUE(path) failure, fixed on his yes, accepted and committed** ([`log/2026-10-20-files-sync-unique-path.md`](log/2026-10-20-files-sync-unique-path.md)):
   - the cause: two syncs of his `~/Desktop/dev` overlapped (a walk takes 8 s, the watcher starts another 2 s after a change), and the second inserted a file the first had just read in; each failure cut that sync short and showed the folder broken;
   - `_save` reads the path's row inside its write's transaction, a removal is a conditional write, and a file another watched folder reads stays that folder's (his choice);

@@ -1,0 +1,64 @@
+[
+ {
+  "name": "compaction_keeps_what_was_made",
+  "title": "A conversation compacted still knows what it made",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your food log is set up in a new **Food** module. Each entry records:\n\n- what you ate and when\n- which meal it was\n- how much\n- calories, protein, carbs and fat\n- notes\n\nI also added a **Calories per day** chart.\n\nTo log something, tell me in plain words, like \"two eggs and toast for breakfast\" or \"a latte at 4\". I'll fill in the time and meal. If you don't give the numbers, I'll estimate them and mark them as estimates. If you give me exact values from a label, I'll use those instead.\n\n**What have you eaten so far today?** And do you have a daily target, like a calorie or protein number? If y",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 122135,
+    "tokens_cache_made": 14847,
+    "tokens_out": 1035,
+    "first_text_ms": 14740,
+    "seconds": 20.6
+   },
+   {
+    "say": "log two boiled eggs for breakfast",
+    "ok": true,
+    "reply": "I logged two boiled eggs for breakfast: about **156 kcal, 12.6 g protein, 1 g carbs and 10.6 g fat**.\n\nThe numbers are estimates. I used typical values for large eggs, so medium eggs would come in a bit lower. You didn't say when you ate, so I set the time to 8:00. Tell me the real time or egg size and I'll update the entry.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 72423,
+    "tokens_cache_made": 1179,
+    "tokens_out": 667,
+    "first_text_ms": 7736,
+    "seconds": 10.5
+   },
+   {
+    "compact": "Home",
+    "ok": false,
+    "detail": "no compaction came back",
+    "seconds": 12.0
+   },
+   {
+    "say": "what have we set up for tracking my food so far, and what's logged in it?",
+    "ok": true,
+    "reply": "Your food tracking lives in a **Food** module. Its goal is to keep a log of what you eat.\n\n**What's in it**\n- A **Food log** table. Each entry records the food, when you ate it, which meal it was (breakfast, lunch, dinner, snack or drink) and the amount. It also has calories, protein, carbs and fat, plus room for notes.\n- A **Calories per day** chart that adds up your calories for each day.\n\n**Logged so far:** one entry, from today.\n\n| When | Meal | Food | Amount | kcal | Protein | Carbs | Fat |\n|---|---|---|---|---|---|---|---|\n| Tue 20 Oct, 8:00 | Breakfast | Boiled eggs | 2 eggs | 156 | 12.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 90423,
+    "tokens_cache_made": 7815,
+    "tokens_out": 616,
+    "first_text_ms": 8890,
+    "seconds": 8.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries.",
+     "facts": "In this conversation Alpha made a food log table (in a Food or Nutrition module) and logged two boiled eggs for breakfast today. Nothing else is logged."
+    },
+    "ok": true,
+    "why": "The answer names the Food module and its Food log table made in this conversation, and says the only entry is two boiled eggs at breakfast today, with no made-up entries.",
+    "seconds": 7.6
+   }
+  ],
+  "seconds": 59.7,
+  "error": null
+ }
+]

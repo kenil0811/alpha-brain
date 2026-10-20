@@ -1,0 +1,50 @@
+[
+ {
+  "name": "helpers_side_by_side",
+  "title": "Two sources compared, each read by a helper alongside",
+  "steps": [
+   {
+    "seed": "table leads_north with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "table leads_south with 3 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "compare my two lead sources side by side: how many leads each has and their total value; have a helper read each one",
+    "ok": true,
+    "reply": "I've started two helpers, one reading Leads North and one reading Leads South. When both are back, I'll give you the side-by-side comparison.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 52026,
+    "tokens_cache_made": 11403,
+    "tokens_out": 569,
+    "first_text_ms": 1809,
+    "seconds": 13.9
+   },
+   {
+    "wait_for_work": 2,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 78.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer says Leads North has 2 leads worth 42,000 in total and Leads South has 3 leads worth 58,000 in total (or the same in other words). Fails if a count or total is wrong.",
+     "facts": "Leads North: Acme Tools 12,000 and Birch Labs 30,000 (2 leads, 42,000). Leads South: Cedar Foods 8,000, Delta Freight 45,000, Elm Studio 5,000 (3 leads, 58,000)."
+    },
+    "ok": true,
+    "why": "The answer gives the correct figures: North has 2 leads worth 42,000 and South has 3 leads worth 58,000. These match the world state and the helper reads. One flaw is that the closing line wrongly says the South helper is still pending, but the rubric does not cover that.",
+    "seconds": 3.9
+   }
+  ],
+  "seconds": 95.9,
+  "error": null
+ }
+]

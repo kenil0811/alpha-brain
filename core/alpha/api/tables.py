@@ -187,8 +187,8 @@ def routes(app: FastAPI, s: Served) -> None:
         if not words:
             raise Problem("The button sent no words.")
         title = next((p["title"] for p in world.pages.all(m["id"]) if p["name"] == name), name)
-        thread = world.pages.thread_of(m["id"], name)
-        return s.running.start(AskBody(text=words, module=m["id"], conversation=thread),
+        # to the desk, as every sentence is (section C): the page's module rides with it
+        return s.running.start(AskBody(text=words, module=m["id"]),
                                journal_as=f"From the {title} page: {words}")
 
     @app.post("/api/modules/{ref}/kit", dependencies=[api])

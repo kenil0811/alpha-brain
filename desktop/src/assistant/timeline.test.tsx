@@ -48,32 +48,32 @@ describe("the question card", () => {
 });
 
 describe("one timeline", () => {
-  it("puts the question where it was asked, folds an answered one, and places a work item's card at its time", async () => {
+  it("puts the question where it was asked, folds an answered one, and places work beside the desk at its time", async () => {
     const turns = [
       entry("s_1", "said", "log my lunch", "2026-10-16T09:00:00Z"),
       entry("r_1", "replied", "What did you have?", "2026-10-16T09:00:01Z", { turn: "s_1", duration_ms: 2000, num_turns: 1 }),
       entry("q_1", "asked", "What did you have for lunch?", "2026-10-16T09:00:02Z", { turn: "s_1", options: [], derived: true }),
-      // a sentence that opened a work item: Home keeps the routing line, shown as the card
-      entry("d_1", "did", 'Started a work item for "watch We Work Remotely": Watch We Work Remotely.', "2026-10-16T09:02:00Z", { routed: "t_1", sentence: "watch We Work Remotely", opened: true }),
+      // where the desk started work beside it (section C): its one live message
+      entry("d_1", "did", "Started work beside the conversation: Watch We Work Remotely", "2026-10-16T09:02:00Z", { work: "w_1" }),
       entry("s_2", "said", "a salad", "2026-10-16T09:05:00Z"),
       entry("r_2", "replied", "Logged a salad.", "2026-10-16T09:05:03Z", { turn: "s_2", duration_ms: 3000, num_turns: 2 }),
       // asked while the reply was still being written: it still shows after the reply
       entry("q_2", "asked", "Dressing?", "2026-10-16T09:05:01Z", { turn: "s_2", options: ["Olive oil", "None"] }),
     ];
-    const item: Convo = { id: "t_1", title: "Watch We Work Remotely", kind: "work", state: "working", module: null, scope: "General", question: null, last: null, last_line: "Reading the board…", last_at: "2026-10-16T09:02:00Z", updated_at: "2026-10-16T09:02:00Z" };
+    const work = { id: "w_1", title: "Watch We Work Remotely", state: "working", last_line: "Reading the board…", module: null, created_at: "2026-10-16T09:02:00Z", updated_at: "2026-10-16T09:02:00Z" };
     const home: Convo = { ...convo, kind: "home", title: "Home" };
     const client = {
-      conversation: vi.fn().mockResolvedValue({ turns, threads: [], actions: [], workflows: [], asks: [ask("q_2", "Dressing?", ["Olive oil", "None"], { turn: "s_2", at: "2026-10-16T09:05:04Z" })], conversations: [home, item], conversation: home }),
-      newConversation: vi.fn(), agents: vi.fn().mockResolvedValue([]),
+      conversation: vi.fn().mockResolvedValue({ turns, threads: [], actions: [], workflows: [], asks: [ask("q_2", "Dressing?", ["Olive oil", "None"], { turn: "s_2", at: "2026-10-16T09:05:04Z" })], conversations: [home], conversation: home, work: { w_1: work }, now: [work], needs: [] }),
+      agents: vi.fn().mockResolvedValue([]),
     } as unknown as Client;
     const { container } = render(<Conversation layout="page" client={client} scopeName="Assistant" module={null} version={0} onChanged={vi.fn()} draft={null} onDraftTaken={vi.fn()} />);
     await screen.findByText("Dressing?");
-    const kinds = [...container.querySelectorAll(".assist__content > *")].map((el) => (el.classList.contains("said") ? "said" : el.classList.contains("reply") ? "reply" : el.classList.contains("asked") ? "asked" : el.classList.contains("itemcard") ? "item" : el.classList.contains("askcard") ? "ask" : el.classList.contains("intro") ? "intro" : el.className));
-    expect(kinds).toEqual(["said", "reply", "asked", "said", "item", "said", "reply", "ask"]);
+    const kinds = [...container.querySelectorAll(".assist__content > *")].map((el) => (el.classList.contains("said") ? "said" : el.classList.contains("reply") ? "reply" : el.classList.contains("asked") ? "asked" : el.classList.contains("work") ? "work" : el.classList.contains("askcard") ? "ask" : el.classList.contains("intro") ? "intro" : el.className));
+    expect(kinds).toEqual(["said", "reply", "asked", "work", "said", "reply", "ask"]);
     expect(within(container.querySelector(".asked") as HTMLElement).getByText("What did you have for lunch?")).toBeInTheDocument();
-    const card = screen.getByRole("button", { name: "Watch We Work Remotely: open the work item" });
-    expect(card.querySelector(".badge")?.textContent).toBe("working");
-    expect(card.textContent).toContain("Reading the board…");
+    const live = screen.getByRole("article", { name: "Work: Watch We Work Remotely" });
+    expect(live.querySelector(".badge")?.textContent).toBe("working");
+    expect(live.textContent).toContain("Reading the board…");
   });
 });
 

@@ -178,10 +178,10 @@ def test_dropped_files_are_kept_and_alpha_reads_them(world: World, tmp_path: Pat
     assert row["_provenance"]["by"] == "person"
 
 
-def test_alphas_reading_turn_runs_in_an_item_of_its_own(world: World) -> None:
-    """The turn that reads the files the person added starts with no thread: it opens a work
-    item in the module, said in Home, and runs there (19 Oct: it died on `assert thread`
-    since slice 3, so adding a file did nothing)."""
+def test_alphas_reading_turn_runs_at_the_desk_with_its_module(world: World) -> None:
+    """The turn that reads the files the person added is Alpha's own, at the desk with the
+    module (section C; 19 Oct: it died on `assert thread` since slice 3, so adding a file did
+    nothing)."""
     advisory(world, turn=said(world, "x"))
     seen: list[TurnRequest] = []
 
@@ -198,12 +198,10 @@ def test_alphas_reading_turn_runs_in_an_item_of_its_own(world: World) -> None:
         assert time.monotonic() < deadline, turns.state[started["id"]]
         time.sleep(0.02)
     assert turns.state[started["id"]]["state"] == "done", turns.state[started["id"]]
-    item = world.modules.thread(str(seen[0].thread_id))
-    assert item["kind"] == "work" and item["module"] == mid
-    assert item["title"] == "Read pl.xlsx the person added."
     home = world.modules.home_thread()["id"]
-    assert any(e["text"] == "Started a work item: Read pl.xlsx the person added."
-               for e in world.journal.recent(10) if e["thread"] == home)
+    assert seen[0].thread_id == home and seen[0].module_id == mid
+    did = world.journal.read(str(turns.state[started["id"]]["said"]))
+    assert did["kind"] == "did" and did["text"] == "Read pl.xlsx the person added."
 
 
 def test_removing_the_module_removes_its_files(world: World) -> None:

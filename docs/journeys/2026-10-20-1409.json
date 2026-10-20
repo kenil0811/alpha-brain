@@ -1,0 +1,64 @@
+[
+ {
+  "name": "compaction_keeps_what_was_made",
+  "title": "A conversation compacted still knows what it made",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** for you. Each entry records what you ate, when, which meal, how much, calories, protein, carbs and fat, plus any notes. There's also a chart of your calories per day.\n\nTo log something, just tell me in plain words, like \"two eggs and toast for breakfast\" or \"a latte at 3pm.\" I'll fill in the rest. If you don't give me the numbers, I'll estimate the calories and macros and mark them as estimates. If you don't give a time, I'll use the time you tell me.\n\nWhat have you eaten so far today? If you also have a goal, like a daily calorie target, losing weight or getting mor",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 85664,
+    "tokens_cache_made": 13962,
+    "tokens_out": 1021,
+    "first_text_ms": 11049,
+    "seconds": 15.1
+   },
+   {
+    "say": "log two boiled eggs for breakfast",
+    "ok": true,
+    "reply": "Logged two boiled eggs for breakfast: about **156 kcal**, 12.6 g protein, 1 g carbs and 10.6 g fat.\n\nThe numbers are estimates based on USDA values for large eggs. You didn't say what time you ate, so I put it at 8:00 this morning. Just tell me if the eggs were a different size or you ate at a different time, and I'll change it.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 70642,
+    "tokens_cache_made": 1175,
+    "tokens_out": 673,
+    "first_text_ms": 7082,
+    "seconds": 11.0
+   },
+   {
+    "compact": "Home",
+    "ok": false,
+    "detail": "no compaction came back",
+    "seconds": 1231.8
+   },
+   {
+    "say": "what have we set up for tracking my food so far, and what's logged in it?",
+    "ok": true,
+    "reply": "Here's your food tracking so far.\n\n**What's set up**\n- A **Food** area whose goal is \"Keep a record of what I eat.\"\n- A **Food log**. Each entry has the food, when you ate it, the meal (breakfast, lunch, dinner, snack or drink), the amount, calories, protein, carbs and fat, plus optional notes.\n- A **Calories per day** chart that totals your calories for each day.\n\nTo add something, just tell me what you ate in plain words. I fill in the rest and mark anything I estimated.\n\n**What's logged (1 entry)**\n\n| When | Meal | Food | Amount | Calories | Protein | Carbs | Fat |\n|---|---|---|---|---|---|",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 95797,
+    "tokens_cache_made": 10487,
+    "tokens_out": 666,
+    "first_text_ms": 8125,
+    "seconds": 8.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries.",
+     "facts": "In this conversation Alpha made a food log table (in a Food or Nutrition module) and logged two boiled eggs for breakfast today. Nothing else is logged."
+    },
+    "ok": true,
+    "why": "The answer names the Food log table in the Food area that was set up in this conversation, and correctly reports one entry: two boiled eggs logged for breakfast today, with no invented entries.",
+    "seconds": 4.1
+   }
+  ],
+  "seconds": 1270.9,
+  "error": null
+ }
+]

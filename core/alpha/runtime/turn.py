@@ -220,7 +220,10 @@ def ask(
     # with every sentence.
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     rules_hash = hashlib.sha256(fixed.encode()).hexdigest()[:12]
-    start = layers.start_layer(world, module=module_id, thread=thread)
+    # The desk's session serves every module (section C, Q107): its start layer is the same
+    # whichever page the first sentence came from; a sentence's module rides on its turn layer.
+    desk_turn = bool(thread_row and thread_row["kind"] == "home")
+    start = layers.start_layer(world, module=None if desk_turn else module_id, thread=thread)
     layer = layers.turn_layer(world, sentence, module=module_id, thread=thread, said=said)
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
     if (resume and thread_row and thread_row.get("session_tools") != engine.fingerprint()

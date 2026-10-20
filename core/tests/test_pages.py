@@ -190,9 +190,9 @@ def test_a_kit_carries_the_pages_and_removal_takes_them(tmp_path: Path, world: W
 
 
 def test_a_pages_button_speaks_as_the_person_from_the_page(world: World) -> None:
-    """A7 (Q98): a press on a page's button starts a turn with its words as the person's, in
-    the page's own item of its module, journaled as coming from the page; a second press uses
-    the same item; a page that isn't there, or a press with no words, is refused."""
+    """A7 (Q98): a press on a page's button starts a turn with its words as the person's, at
+    the desk with the page's module (section C), journaled as coming from the page; a page
+    that isn't there, or a press with no words, is refused."""
     import time
 
     from alpha.runtime.running import RunResult, TurnRequest
@@ -216,9 +216,11 @@ def test_a_pages_button_speaks_as_the_person_from_the_page(world: World) -> None
     said = world.journal.read(turn["said"])
     assert said["text"] == "From the Summary page: log a banana for lunch"
     assert said["actor"] == "person" and said["data"]["prompt"] == "log a banana for lunch"
-    item = world.modules.thread(said["thread"])
-    assert item["title"] == "Summary page" and item["module"] == world.modules.get("Food")["id"]
+    # to the desk, with the page's module (section C): no item of the page's own
+    assert said["thread"] == world.modules.home_thread()["id"]
+    assert said["module"] == world.modules.get("Food")["id"]
     assert seen[-1].sentence == "log a banana for lunch"
+    assert "THIS SENTENCE CAME FROM A MODULE'S PAGE" in seen[-1].turn_layer
     again = c.post("/api/modules/Food/pages/summary/act", json={"words": "and an apple"}).json()
     assert again["conversation"]["id"] == said["thread"]
     assert c.post("/api/modules/Food/pages/nope/act", json={"words": "x"}).status_code == 400

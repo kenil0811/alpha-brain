@@ -61,6 +61,7 @@ from alpha.mcp.tools import Tools
 from alpha.runtime import (
     acting,
     conversations,
+    desk,
     engine,
     look,
     pipeline,
@@ -214,6 +215,13 @@ class Run:
         builtin.ensure(world)
         self.mark = mark(world)
 
+    def _desk_runner(self) -> turn.Runner:
+        """The desk of this journey's world when the journey thinks with the real model, as
+        the app's sentences do (section C); a fake runner in the suite's own tests."""
+        if self.runner is route.run:
+            return desk.of(self.world).run
+        return self.runner
+
     # steps
 
     def step(self, spec: dict[str, Any]) -> dict[str, Any]:
@@ -224,43 +232,29 @@ class Run:
             stop_answering = threading.Event()
             threading.Thread(target=self._answer_permissions, args=(stop_answering,),
                              daemon=True).start()
-            routed: dict[str, Any] | None = None
             try:
-                if spec.get("here") and self.last_thread:
-                    # typed in the same conversation's own box, as the person does with a
-                    # follow-up: no routing, the turn in that thread and its session
-                    outcome = turn.ask(self.world, spec["say"], thread=self.last_thread,
-                                       runner=self.runner, conversation=True)
-                elif spec.get("home"):
-                    # Typed in Home (harness §7): routed first, by structure or the
-                    # judgement, then the turn in the thread it went to, as the app does.
-                    routed = conversations.route(self.world, spec["say"],
-                                                 module=spec.get("module"), runner=self.runner)
-                    if "ask" in routed:
-                        self.last_routing = routed
-                        raise Problem("Alpha asked which this is about instead of routing it:"
-                                      f" {routed['options']}")
-                    self.last_routing = routed
-                    self.last_thread = routed["thread"]
-                    outcome = turn.ask(self.world, spec["say"], thread=routed["thread"],
-                                       runner=self.runner, conversation=True)
-                    deferred = [a for a in self.world.journal.open_asks()
-                                if a["data"].get("tool_use")
-                                and a["data"].get("turn") == outcome.said]
-                    if deferred:
-                        # a conversation's removal ended its turn on the card (P3 item 7): the
-                        # suite answers yes as the app does, and the item's next turn resumes
-                        self.world.journal.append(
-                            "answered", "Yes, remove it", actor="person",
-                            data={"ask": deferred[-1]["id"]}, thread=routed["thread"])
-                        outcome = turn.ask(self.world, "Yes, remove it", thread=routed["thread"],
-                                           runner=self.runner, conversation=True)
-                    conversations.settle(self.world, routed["thread"], ok=outcome.ok,
-                                         stopped=outcome.result.stopped,
-                                         last_line=conversations.first_line(outcome.reply))
-                else:
-                    outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
-                                       runner=self.runner)
+                # Every sentence is the desk's (section C, Q107): Home's session, kept open,
+                # with no routing before it, as the app does. `home:` and `here:` once chose
+                # between routing and an item's own box; both are the desk now.
+                home = self.world.modules.home_thread()["id"]
+                runner = self._desk_runner()
+                outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
+                                   thread=home, runner=runner, conversation=True)
+                deferred = [a for a in self.world.journal.open_asks()
+                            if a["data"].get("tool_use")
+                            and a["data"].get("turn") == outcome.said]
+                if deferred:
+                    # a removal ended the turn on its card (P3 item 7): the suite answers yes
+                    # as the app does, and the desk's next turn carries on
+                    self.world.journal.append(
+                        "answered", "Yes, remove it", actor="person",
+                        data={"ask": deferred[-1]["id"]}, thread=home)
+                    outcome = turn.ask(self.world, "Yes, remove it", thread=home,
+                                       runner=runner, conversation=True)
+                conversations.settle(self.world, home, ok=outcome.ok,
+                                     stopped=outcome.result.stopped,
+                                     last_line=conversations.first_line(outcome.reply))
+                self.last_thread = home
             finally:
                 stop_answering.set()
             self.last_turn, self.last_reply = outcome.said, outcome.reply
@@ -278,10 +272,6 @@ class Run:
             replied = self.world.journal.read(outcome.replied)["data"]
             record.update({k: replied[k] for k in (*turn.TOKENS, "first_text_ms")
                            if replied.get(k) is not None})
-            if routed:
-                record["routed"] = ("a new item" if routed["opened"] else "Home" if routed["here"]
-                                    else self.world.modules.thread(routed["thread"])["title"])
-                record["routed_by"] = routed["by"]
         elif "reader" in spec:
             r = spec["reader"]
             out = pipeline.run_reader(self.world, r["name"], r["into"], r["key"],
@@ -295,13 +285,35 @@ class Run:
             record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
                       "result": self.last_agent.get("last_result"),
                       "problem": self.last_agent.get("last_error")}
+        elif "wait_for_work" in spec:
+            # what the person does while work runs beside the desk (section C): nothing; the
+            # step waits until every piece of work this journey started has ended and the
+            # desk has said what came of it
+            limit = float((spec["wait_for_work"] or {}).get("seconds", 900))
+            end = time.monotonic() + limit
+            unfinished: list[str] = []
+            while time.monotonic() < end:
+                unfinished = [str(w["title"]) for w in self._work()
+                              if w["state"] in ("working", "needs_you")
+                              or not self._outcome_reply(str(w["id"]))]
+                if not unfinished:
+                    break
+                time.sleep(2)
+            # the desk's words on the work are the answer the checks read from now on
+            spoken = [r["text"] for w in self._work()
+                      if (r := self._outcome_reply(str(w["id"])))]
+            if spoken:
+                self.last_reply = "\n\n".join(dict.fromkeys(spoken))
+            record = {"wait_for_work": len(self._work()), "ok": not unfinished,
+                      "detail": ("all ended, each with the desk's words on it" if not unfinished
+                                 else "still waiting on: " + "; ".join(unfinished))}
         elif "compact" in spec:
             # the last sentence's conversation is compacted as a long one would be (B6): the
             # SDK's own /compact, in that session; it passes when the summary ran and the start
             # layer was given again after it
             thread = self.last_thread or self.world.modules.home_thread()["id"]
-            squeezed = turn.ask(self.world, "/compact", thread=thread, runner=self.runner,
-                                conversation=True,
+            squeezed = turn.ask(self.world, "/compact", thread=thread,
+                                runner=self._desk_runner(), conversation=True,
                                 journal_as="(the journey compacts this conversation)")
             kept = self.world.journal.context(squeezed.said)
             again = bool(kept and "GIVEN AGAIN AFTER A COMPACTION" in str(kept["context"]))
@@ -590,16 +602,18 @@ class Run:
                       "state": final["state"], "reply": doing.reply}
         elif "press" in spec:
             # a press on a page's button, as the window passes it (A7): the words as the
-            # person's, in the page's own item, journaled as from the page
+            # person's, to the desk with the page's module (section C), journaled as from the
+            # page
             a = spec["press"]
             m = self.world.modules.get(a["module"])
             title = next((p["title"] for p in self.world.pages.all(m["id"])
                           if p["name"] == a["page"]), a["page"])
-            thread = self.world.pages.thread_of(m["id"], a["page"])
-            outcome = turn.ask(self.world, a["words"], thread=thread, runner=self.runner,
-                               conversation=True, journal_as=f"From the {title} page: {a['words']}")
+            home = self.world.modules.home_thread()["id"]
+            outcome = turn.ask(self.world, a["words"], module=m["id"], thread=home,
+                               runner=self._desk_runner(), conversation=True,
+                               journal_as=f"From the {title} page: {a['words']}")
             self.last_turn, self.last_reply = outcome.said, outcome.reply
-            self.last_thread = thread
+            self.last_thread = home
             record = {"press": a["words"], "ok": outcome.ok, "reply": outcome.reply[:600]}
         elif "add_row" in spec:
             # A thing added as the person would, then the parts that run when it arrives.
@@ -768,6 +782,40 @@ class Run:
         words = (f"{arg['field']} = {', '.join(str(v) for v in values)}"
                  f" (wanted {target} ±{within:.0%})")
         return bool(hit), words
+
+    def _work(self) -> list[dict[str, Any]]:
+        """The work beside the desk this journey started (section C)."""
+        return [t for t in self.world.modules.items(limit=200)
+                if t["created_at"] >= self.mark.at and t.get("session_tools") == desk.WORK]
+
+    def _outcome_reply(self, thread: str) -> dict[str, Any] | None:
+        home = self.world.modules.home_thread()["id"]
+        return next((e for e in self.world.journal.recent(200, thread=home)
+                     if e["kind"] == "replied" and thread in (e["data"].get("work") or [])),
+                    None)
+
+    def check_work(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Work beside the desk (section C, C2's proof): how many pieces ran (`count`), each
+        ended with its outcome on its thread and the desk's words on it in Home carrying its
+        id; `answered_while_running`: a reply to the person came while the first piece ran."""
+        work = self._work()
+        words = "; ".join(f"{t['title']} ({t['state']})" for t in work) or "none"
+        if "count" in arg and len(work) < int(arg["count"]):
+            return False, f"{len(work)} piece(s) of work, wanted {arg['count']}: {words}."
+        for t in work:
+            if not self._outcome_reply(t["id"]):
+                return False, f"No reply in Home carries the work {t['title']}: {words}."
+        if arg.get("answered_while_running") and work:
+            first = min(work, key=lambda t: t["created_at"])
+            ended = self._outcome_reply(first["id"])
+            home = self.world.modules.home_thread()["id"]
+            between = [e for e in self.world.journal.recent(200, thread=home)
+                       if e["kind"] == "replied" and not e["data"].get("work")
+                       and first["created_at"] < e["at"] < (ended or {}).get("at", "~")]
+            if not between:
+                return False, f"Nothing was answered while {first['title']} ran."
+            words += f"; answered meanwhile: {between[-1]['text'][:80]}"
+        return True, f"{len(work)} piece(s): {words}."
 
     def check_items(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """The work items the journey opened (harness §7): exactly `count`, or at most
@@ -1508,6 +1556,7 @@ def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
         for journey in journeys:
             outcomes.append(run_journey(world, journey, runner))
     finally:
+        desk.close_all()  # the desk's client and any work still running with it
         world.close()
     folder = out_dir or (Path(__file__).resolve().parents[3] / "docs" / "journeys")
     folder.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,64 @@
+[
+ {
+  "name": "compaction_keeps_what_was_made",
+  "title": "A conversation compacted still knows what it made",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a **Food log** for you, with a chart that adds up your calories for each day.\n\nTo log something, just tell me in plain words, like \"two eggs and toast for breakfast\" or \"had a latte at 4\". I'll write down the time and the meal, and estimate the calories, protein, carbs and fat. Those numbers are marked as estimates, and if you give me real ones from a label I'll use those.\n\nWhat have you eaten today so far?",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 87422,
+    "tokens_cache_made": 15857,
+    "tokens_out": 997,
+    "first_text_ms": 10574,
+    "seconds": 13.7
+   },
+   {
+    "say": "log two boiled eggs for breakfast",
+    "ok": true,
+    "reply": "Logged two boiled eggs for breakfast: about **156 kcal**, with 12.6 g protein, 1.1 g carbs and 10.6 g fat.\n\nI estimated those numbers from standard values for large eggs. You didn't say when you ate, so I put it down as 8:00. Tell me the real time if it was different and I'll change it.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 74329,
+    "tokens_cache_made": 1050,
+    "tokens_out": 636,
+    "first_text_ms": 6297,
+    "seconds": 8.7
+   },
+   {
+    "compact": "Home",
+    "ok": true,
+    "detail": "compacted; the start layer given again",
+    "seconds": 17.0
+   },
+   {
+    "say": "what have we set up for tracking my food so far, and what's logged in it?",
+    "ok": true,
+    "reply": "So far there's one **Food** section, with two parts:\n\n- **Food log**: a table with a row for each thing you eat. Each row has what you ate, when, which meal (breakfast, lunch, dinner, snack or drink), how much, the calories, the protein, carbs and fat in grams, and notes.\n- **Calories per day**: a chart that adds up your calories for each day.\n\nHere's what's logged so far:\n\n| When | What | Meal | Amount | kcal | Protein | Carbs | Fat |\n|---|---|---|---|---|---|---|---|\n| Today, 8:00 | Boiled eggs | Breakfast | 2 large eggs | 156 | 12.6 g | 1.1 g | 10.6 g |\n\nYou told me the eggs. I estimated th",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 25435,
+    "tokens_cache_made": 7262,
+    "tokens_out": 339,
+    "first_text_ms": 1007,
+    "seconds": 3.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries.",
+     "facts": "In this conversation Alpha made a food log table (in a Food or Nutrition module) and logged two boiled eggs for breakfast today. Nothing else is logged."
+    },
+    "ok": true,
+    "why": "The answer names the Food section and its Food log table made in this conversation, and lists only the two boiled eggs at breakfast today, with no invented extra entries; it also says the nutrition values and the 8:00 time are estimates.",
+    "seconds": 4.3
+   }
+  ],
+  "seconds": 47.2,
+  "error": null
+ }
+]

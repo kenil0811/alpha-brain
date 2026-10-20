@@ -1,0 +1,67 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your food log is ready, in a new **Food** section. It has a chart of calories per day.\n\nTo log something, just tell me what you ate in plain words, like \"two eggs and toast for breakfast\" or \"a latte at 4\". I'll write down when you ate it, which meal it was and how much. I'll also add calories, protein, carbs and fat. Those are my estimates and are marked that way, unless you give me exact numbers from a label.\n\nWhat have you eaten today so far? And are you aiming for anything, like a calorie or protein target, or are you just keeping a record?",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 124055,
+    "tokens_cache_made": 15843,
+    "tokens_out": 1082,
+    "first_text_ms": 22428,
+    "seconds": 26.2
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs at 14:35 today. That's about **144 kcal, 12.6 g protein, 0.8 g carbs and 9.5 g fat**. Those figures are estimates for two large eggs cooked with no oil or butter.\n\nIf you fried them or ate them earlier, tell me and I'll correct the entry. A teaspoon of butter adds about 35 kcal. I also didn't pick a meal: was this lunch or a snack?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 74356,
+    "tokens_cache_made": 1140,
+    "tokens_out": 709,
+    "first_text_ms": 11977,
+    "seconds": 12.0
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I took the eggs out, so your food log is empty again.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 115244,
+    "tokens_cache_made": 781,
+    "tokens_out": 233,
+    "first_text_ms": 8938,
+    "seconds": 12.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "1 asked entry: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken|took"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 50.8,
+  "error": null
+ }
+]

@@ -1,0 +1,61 @@
+[
+ {
+  "name": "work_beside_the_desk",
+  "title": "Section C · a long piece of work runs beside the desk while the next sentence is answered",
+  "steps": [
+   {
+    "say": "Find out the three biggest car wash chains in the US by number of locations, with each one's founding year and a source for every number. It's a longer job, so do it in the background and carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started the research in the background. It will check the current US location counts against industry rankings and company sources, find each chain's founding year, and give a source for every number. It will also point out where sources disagree, for example franchise versus company-owned counts. I'll tell you what it finds when it reports back.\n\nIn the meantime, what else would you like to talk about?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52034,
+    "tokens_cache_made": 10850,
+    "tokens_out": 576,
+    "first_text_ms": 7605,
+    "seconds": 15.9
+   },
+   {
+    "say": "Meanwhile: what is 15% of 840,000?",
+    "ok": true,
+    "reply": "15% of 840,000 is **126,000**.\n\nThe car wash research is still running.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 31919,
+    "tokens_cache_made": 428,
+    "tokens_out": 27,
+    "first_text_ms": 694,
+    "seconds": 8.9
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 104.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1,
+     "answered_while_running": true
+    },
+    "ok": true,
+    "why": "1 piece(s): Research top US car wash chains (done); answered meanwhile: 15% of 840,000 is **126,000**.\n\nThe car wash research is still running..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "126,000|126000"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 129.0,
+  "error": null
+ }
+]

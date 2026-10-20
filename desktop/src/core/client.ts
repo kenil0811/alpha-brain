@@ -1050,6 +1050,8 @@ export interface Ask {
   hint?: string | null;
   /** The agent whose run asked it (Q92); none when Alpha asked. */
   by?: string | null;
+  /** A yes asked mid-turn (a removal, a host): the turn waits on it (section C). */
+  permission?: string | null;
   /** Where it came from (P3). */
   from?: CardFrom;
 }
@@ -1116,6 +1118,19 @@ export interface Turn {
   started_at: string;
 }
 
+/** A piece of work beside the desk (section C, Q107): a background subagent the desk started,
+ *  with its state and its last step; its steps are its thread's journal (`thread`). */
+export interface Work {
+  id: string;
+  title: string;
+  state: string;
+  last_line: string | null;
+  module: string | null;
+  created_at: string;
+  updated_at: string;
+  live?: Live | null;
+}
+
 export interface Conversation {
   turns: JournalEntry[];
   threads: Thread[];
@@ -1125,6 +1140,12 @@ export interface Conversation {
   asks?: Ask[];
   conversation?: Convo | null;
   conversations?: Convo[];
+  /** The work the stream's entries name, by its thread (section C). */
+  work?: Record<string, Work>;
+  /** The work running now or waiting on the person: the Now strip. */
+  now?: Work[];
+  /** The other cards waiting on the person (staged rows, pairs, a suggestion, a fact). */
+  needs?: NeedItem[];
 }
 
 /** What changed since a stamp (`/api/changes`): the window's one poll. */
@@ -1363,13 +1384,18 @@ export class Client {
   };
   /** A table as CSV or Excel; with `shown`, exactly those rows in that order and those columns (slice 2 G5). */
   exportTable = (name: string, format: "csv" | "xlsx", shown?: { records: string[]; columns: string[] }) => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format, ...shown });
-  conversation = (module?: string | null, conversation?: string | null) => {
+  /** The stream (section C): `module` narrows it to a module's page, `work` to one piece of
+   *  work; a `conversation` that is an agent's own thread is that thread's. */
+  conversation = (module?: string | null, conversation?: string | null, work?: string | null) => {
     const qs = new URLSearchParams();
     if (module) qs.set("module", module);
     if (conversation) qs.set("conversation", conversation);
+    if (work) qs.set("work", work);
     const q = qs.toString();
     return this.call<Conversation>("GET", `/api/conversation${q ? `?${q}` : ""}`);
   };
+  /** The person's Stop on a piece of work beside the desk. */
+  stopWork = (id: string) => this.call<Work>("POST", `/api/work/${encodeURIComponent(id)}/stop`);
   /** Live conversations and work items; `done` adds the finished ones (the Assistant page's history). */
   conversations = (module?: string | null, done = false) => {
     const qs = new URLSearchParams();
