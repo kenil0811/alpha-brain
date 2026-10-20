@@ -212,6 +212,8 @@ class Run:
         self.last_kit: str | None = None
         self.last_document: dict[str, Any] | None = None
         self.last_thread: str | None = None  # the conversation the last sentence went to
+        # hosts allowed on their cards during a turn, with the card's module
+        self.allowed_hosts: list[tuple[str, str | None]] = []
         builtin.ensure(world)
         self.mark = mark(world)
 
@@ -230,7 +232,11 @@ class Run:
             # A hand that asks for the person's yes on a card (a row's removal, harness §8)
             # gets it from the suite: on a scratch world, yes, journaled like any answer.
             stop_answering = threading.Event()
+            # `answer_cards: false` leaves the yes cards of work beside the desk to the
+            # person's words (C4); one the desk's own turn waits on is still answered as their
+            # button press would be, since the desk takes no sentence until it is (Q108)
             threading.Thread(target=self._answer_permissions, args=(stop_answering,),
+                             kwargs={"desk_only": not spec.get("answer_cards", True)},
                              daemon=True).start()
             try:
                 # Every sentence is the desk's (section C, Q107): Home's session, kept open,
@@ -251,6 +257,16 @@ class Run:
                         data={"ask": deferred[-1]["id"]}, thread=home)
                     outcome = turn.ask(self.world, "Yes, remove it", thread=home,
                                        runner=runner, conversation=True)
+                while self.allowed_hosts:
+                    # hosts the person allowed during the turn: the desk is told, and runs
+                    # again what needed them (Q109)
+                    pairs, self.allowed_hosts = list(dict.fromkeys(self.allowed_hosts)), []
+                    hosts = [h for h, _ in pairs]
+                    outcome = turn.ask(self.world,
+                                       " ".join(engine.ALLOWED.format(host=h) for h in hosts),
+                                       module=pairs[0][1], thread=home, runner=runner,
+                                       conversation=True, actor="alpha",
+                                       journal_as=f"{', '.join(hosts)} now allowed for scripts.")
                 conversations.settle(self.world, home, ok=outcome.ok,
                                      stopped=outcome.result.stopped,
                                      last_line=conversations.first_line(outcome.reply))
@@ -285,6 +301,20 @@ class Run:
             record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
                       "result": self.last_agent.get("last_result"),
                       "problem": self.last_agent.get("last_error")}
+        elif "wait_for_card" in spec:
+            # work beside the desk asks the person's yes on a card (a host its script reaches)
+            # while the desk is free: the step waits until `count` such cards are open
+            want = int((spec["wait_for_card"] or {}).get("count", 1))
+            end = time.monotonic() + float((spec["wait_for_card"] or {}).get("seconds", 300))
+            open_now: list[dict[str, Any]] = []
+            while time.monotonic() < end:
+                open_now = [a for a in self.world.journal.open_asks()
+                            if a["data"].get("permission")]
+                if len(open_now) >= want:
+                    break
+                time.sleep(1)
+            record = {"wait_for_card": want, "ok": len(open_now) >= want,
+                      "detail": "; ".join(a["text"][:80] for a in open_now) or "none open"}
         elif "wait_for_work" in spec:
             # what the person does while work runs beside the desk (section C): nothing; the
             # step waits until every piece of work this journey started has ended and the
@@ -636,10 +666,24 @@ class Run:
         record["seconds"] = round(time.monotonic() - began, 1)
         return record
 
-    def _answer_permissions(self, stop: threading.Event) -> None:
+    def _answer_permissions(self, stop: threading.Event, desk_only: bool = False) -> None:
         answered: set[str] = set()
+        home = self.world.modules.home_thread()["id"]
         while not stop.wait(0.2):
             for a in self.world.journal.recent(5, kinds=["asked"]):
+                if desk_only and a["thread"] != home:
+                    continue
+                if a["data"].get("permission") == "network" and a["id"] not in answered:
+                    # a host's card holds nothing (Q109): the yes lists it, and the desk is
+                    # told after the turn, as the app does
+                    answered.add(a["id"])
+                    self.world.journal.append("answered", "Yes (the journey suite)",
+                                              actor="person", data={"ask": a["id"]},
+                                              thread=a["thread"], module=a["module"])
+                    host = engine.host_answered(self.world, a, "Yes, always")
+                    if host and not self.world.agents.of_thread(str(a["thread"] or "")):
+                        self.allowed_hosts.append((host, a["module"]))
+                    continue
                 if a["data"].get("permission") and a["id"] not in answered:
                     answered.add(a["id"])
                     if engine.answer_permission(a["id"], "Yes"):
@@ -794,6 +838,27 @@ class Run:
                      if e["kind"] == "replied" and thread in (e["data"].get("work") or [])),
                     None)
 
+    def check_answered_in_words(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Yes cards the desk answered on the person's words (C4): exactly `count`."""
+        got = [e for e in self.world.journal.recent(200, kinds=["answered"])
+               if e["at"] >= self.mark.at and e["data"].get("in_words")]
+        words = "; ".join(f"{e['text']} (\"{e['data']['in_words']}\")" for e in got) or "none"
+        return len(got) == int(arg.get("count", 1)), f"{len(got)} answered in words: {words}."
+
+    def check_asked_which(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """After words that don't say which card, Alpha asks which on a card of its own (C4)."""
+        said = self.world.journal.read(self.last_turn) if self.last_turn else None
+        asked = [a for a in self.world.journal.open_asks()
+                 if not a["data"].get("permission") and said and a["at"] >= said["at"]]
+        return bool(asked), ("Asked: " + asked[-1]["text"][:120] if asked
+                             else "No question asked after the last sentence.")
+
+    def check_yes_cards_open(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """How many yes cards are still open (`count`): none answered on words that didn't say
+        which."""
+        still = [a for a in self.world.journal.open_asks() if a["data"].get("permission")]
+        return len(still) == int(arg.get("count", 0)), f"{len(still)} yes card(s) open."
+
     def check_work(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """Work beside the desk (section C, C2's proof): how many pieces ran (`count`), each
         ended with its outcome on its thread and the desk's words on it in Home carrying its
@@ -833,19 +898,6 @@ class Run:
         """A built-in agent's own item (Watson's, Columbo's): on its page, never Home's."""
         owner = self.world.agents.of_thread(thread)
         return bool(owner and owner["kind"] != "custom")
-
-    def check_routed(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        """Where the last Home sentence went (harness §7): `to` is "home", "new" (an item
-        opened for it) or "item" (an existing item continued)."""
-        routed = getattr(self, "last_routing", None)
-        if not routed:
-            return False, "The last sentence was not typed in Home (say with home: true)."
-        if "ask" in routed:
-            return False, f"Alpha asked instead of routing: {routed['options']}."
-        went = "new" if routed["opened"] else "home" if routed["here"] else "item"
-        title = self.world.modules.thread(routed["thread"])["title"]
-        words = f"went to {title} ({went}; {routed['by']})"
-        return went == arg.get("to", went), words
 
     def check_made_since(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """What the journey made: at least `tables`, `readers`, `agents`, `modules` (counts),

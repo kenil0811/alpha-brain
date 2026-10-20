@@ -17,7 +17,8 @@ def test_the_hands_that_put_a_card_are_the_four_gates_and_the_question() -> None
     cards = {name for name in dir(Tools)
              if getattr(getattr(Tools, name), "served", False)
              and getattr(getattr(Tools, name), "card", False)}
-    assert cards == {"ask_person", "world_change", "act_outward", "connect"}
+    # and the desk's answer to a yes card on the person's words (section C, C4)
+    assert cards == {"ask_person", "world_change", "act_outward", "connect", "card_answer"}
 
 
 def test_the_server_lists_them_always_loaded_and_runs_every_call() -> None:

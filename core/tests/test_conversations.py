@@ -1,12 +1,11 @@
-"""Home and the work items (harness §7, slice 3): routed by structure or one judgement over the
-roster, never by name matching; each with its own session, resumed only on the same tools."""
+"""Home and the threads since section C (Q107): every sentence the desk's, with no routing
+judgement; its session resumed only on the same tools; the threads' reset and their words."""
 
 from __future__ import annotations
 
 import time
 from typing import Any
 
-from conftest import judge_answering
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -40,140 +39,16 @@ def item(world: World, title: str, module: str | None = None, *, said: str | Non
     return tid
 
 
-def never(req: TurnRequest) -> RunResult:
-    raise AssertionError("the judge was asked")
+def test_no_judge_is_called_from_conversations(world: World) -> None:
+    """Section C, C4's proof: routing is by structure only, then the desk; the judgement, its
+    roster, its unsure card and the person's corrections are gone."""
+    import inspect
 
-
-def test_home_is_one_thread_and_the_judge_sends_a_question_there(world: World) -> None:
-    home = conversations.home(world)
-    assert home["kind"] == "home" and conversations.home(world)["id"] == home["id"]
-    seen: list[TurnRequest] = []
-
-    def runner(req: TurnRequest) -> RunResult:
-        seen.append(req)
-        return RunResult(ok=True, reply='{"answer": "answer here", "confidence": 0.9,'
-                                        ' "why": "a question"}')
-
-    out = conversations.route(world, "how many eggs this week?", runner=runner)
-    assert out["thread"] == home["id"] and out["here"] and not out["opened"]
-    assert seen[0].kind == "judge" and "No work items are open" in seen[0].sentence
-    assert "answer here" in seen[0].sentence and "new item" in seen[0].sentence
-    line = world.journal.recent(1, thread=home["id"], kinds=["did"])[-1]
-    assert line["data"]["routed"] == home["id"] and line["text"].startswith("Answering")
-
-
-def test_new_work_opens_an_item_with_a_card_line_in_home(world: World) -> None:
-    world.modules.create("Jobs")
-    out = conversations.route(world, "watch We Work Remotely for back-end roles",
-                              module="Jobs", runner=judge_answering("new item"))
-    tid = out["thread"]
-    t = world.modules.thread(tid)
-    assert out["opened"] and t["kind"] == "work" and t["state"] == "open"
-    assert t["title"] == "Watch We Work Remotely for back-end roles"
-    assert t["module"] == world.modules.get("Jobs")["id"]
-    card = world.journal.recent(1, thread=conversations.home(world)["id"], kinds=["did"])[-1]
-    assert card["data"] == {"routed": tid, "sentence": "watch We Work Remotely for back-end"
-                            " roles", "opened": True, "by": "judge", "confidence": 0.9,
-                            "why": "test"}
-    assert conversations.focus(world) == tid
-
-
-def test_a_follow_up_continues_the_item_the_judge_names_from_the_roster(world: World) -> None:
-    a = item(world, "Watch We Work Remotely", said="watch wwr")
-    world.modules.update_thread(a, state="done", last_line="Watching; 12 roles so far.")
-    b = item(world, "Deals today", said="what came in")
-    conversations.set_focus(world, b)
-    seen: list[TurnRequest] = []
-
-    def runner(req: TurnRequest) -> RunResult:
-        seen.append(req)
-        return RunResult(ok=True, reply='{"answer": "continue: Watch We Work Remotely",'
-                                        ' "confidence": 0.85, "why": "the watch"}')
-
-    out = conversations.route(world, "make that check every day at 7", runner=runner)
-    assert out["thread"] == a and out["by"].startswith("judge") and not out["opened"]
-    state = seen[0].sentence
-    assert "continue: Watch We Work Remotely (done)" in state
-    assert "last: Watching; 12 roles so far." in state
-    assert "continue: Deals today (open; the one in focus)" in state
-    assert conversations.focus(world) == a
-
-
-def test_structure_routes_without_the_judge(world: World) -> None:
-    # @title names an item
-    a = item(world, "LinkedIn sync", said="sync my connections")
-    item(world, "Food log", said="track what I eat")
-    out = conversations.route(world, "@LinkedIn sync how many so far?", runner=never)
-    assert out["thread"] == a and out["by"] == "named"
-    # a short sentence when exactly one item asked a question
-    b = item(world, "Logging the shake", asked="Which size was the shake?")
-    out = conversations.route(world, "330 ml", runner=never)
-    assert out["thread"] == b and out["by"] == "answers the open question"
-
-
-def test_when_unsure_the_judge_asks_with_choices_and_the_pick_routes(world: World) -> None:
-    a = item(world, "Deals today", said="what came in today")
-    item(world, "Logging the shake", said="log a shake")
-    conversations.set_focus(world, a)
-    out = conversations.route(world, "change that to weekly",
-                              runner=judge_answering("continue: Logging the shake", 0.3))
-    # the judge's pick, a new item and here: never the whole roster
-    assert "ask" in out and out["options"] == ["continue: Logging the shake",
-                                                conversations.NEW, conversations.HERE]
-    asked = world.journal.read(out["ask"])
-    assert asked["thread"] == conversations.home(world)["id"]
-    assert asked["data"]["verdict"]["confidence"] == 0.3
-    picked = conversations.routed_answer(world, asked, "continue: Logging the shake")
-    assert picked and picked["thread"] != a and picked["text"] == "change that to weekly"
-    # the item in focus is a structural prior: the judge's pick of it stands at any confidence
-    conversations.set_focus(world, a)
-    sure = conversations.route(world, "and the other one?",
-                               runner=judge_answering("continue: Deals today", 0.3))
-    assert sure["thread"] == a and "ask" not in sure
-    fresh = conversations.routed_answer(world, asked, conversations.NEW)
-    assert fresh and fresh["thread"] != a and fresh["text"] == "change that to weekly"
-    assert world.modules.thread(fresh["thread"])["title"] == "Change that to weekly"
-    here = conversations.routed_answer(world, asked, conversations.HERE)
-    assert here and here["thread"] == conversations.home(world)["id"]
-
-
-def test_a_correction_is_kept_counted_and_shown_to_the_judge(world: World) -> None:
-    a = item(world, "LinkedIn sync", said="sync my connections")
-    item(world, "Food log", said="track what I eat")
-    conversations.correct(world, "how many are at Wise?", said=None, to=a)
-    assert conversations.misroutes(world) == 1
-    assert conversations.corrections(world) == ['"how many are at Wise?" belonged to LinkedIn'
-                                                ' sync']
-    seen: list[TurnRequest] = []
-
-    def runner(req: TurnRequest) -> RunResult:
-        seen.append(req)
-        return RunResult(ok=True, reply='{"answer": "answer here", "confidence": 0.9}')
-
-    conversations.route(world, "and at Monzo?", runner=runner)
-    assert "Corrections the person made lately" in seen[0].sentence
-    assert "belonged to LinkedIn sync" in seen[0].sentence
-
-
-def test_the_roster_carries_each_items_line_and_what_it_touches(world: World) -> None:
-    world.modules.create("Network")
-    a = item(world, "LinkedIn sync", "Network", said="sync")
-    world.journal.append("made", "Made the table connections.", actor="alpha", thread=a,
-                         data={"table": "connections"})
-    world.journal.append("did", "Ran the reader.", actor="alpha", thread=a,
-                         data={"skill": "linkedin_connections",
-                               "url": "https://www.linkedin.com/mynetwork/"})
-    world.modules.update_thread(a, state="done", last_line="1,553 connections kept.")
-    old = item(world, "Old one", said="x")
-    world.modules.update_thread(old, state="done")
-    with world.store.tx() as db:
-        db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00' WHERE id = ?",
-                   (old,))
-    rows = conversations.roster(world)
-    assert [r["title"] for r in rows] == ["LinkedIn sync"]  # done long ago: off the roster
-    assert rows[0]["line"] == "1,553 connections kept."
-    assert rows[0]["touches"] == ("Network; tables connections; skills linkedin_connections;"
-                                  " linkedin.com")
+    source = inspect.getsource(conversations)
+    assert "judge" not in source.split('"""', 2)[2]  # nothing below the module's words
+    for gone in ("route", "roster", "corrections", "misroutes", "routed_answer", "correct",
+                 "CONFIDENT"):
+        assert not hasattr(conversations, gone), gone
 
 
 def test_every_sentence_is_the_desks_and_keeps_its_session_on_the_same_tools(

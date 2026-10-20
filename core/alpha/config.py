@@ -68,11 +68,6 @@ class Readers:
 
 
 @dataclass(frozen=True)
-class Conversations:
-    confident: float
-
-
-@dataclass(frozen=True)
 class Workflows:
     most_chars: int
     most_questions: int
@@ -177,7 +172,6 @@ class Settings:
     scheduler: Scheduler
     runs: Runs
     readers: Readers
-    conversations: Conversations
     workflows: Workflows
     browser: Browser
     files: Files

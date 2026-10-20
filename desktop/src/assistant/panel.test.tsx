@@ -90,6 +90,26 @@ describe("the assistant panel", () => {
     fireEvent.keyDown(box, { key: "Enter" });
     expect(await screen.findByText('Remove "Eggs" from Food log?')).toBeInTheDocument();
     expect(screen.queryByText("Which size?")).toBeNull();
+    // the box points to the card's buttons while the turn waits on it (C4)
+    expect(screen.getByText("Alpha is waiting for your yes on the card above: answer it with its buttons.")).toBeInTheDocument();
+    expect((box as HTMLTextAreaElement).placeholder).toBe("Answer the card first");
+  });
+
+  it("keeps a card waiting on the person at the bottom, below what was said after it", async () => {
+    const turns = [
+      { ...entry("s_1", "said", "look into two sites"), at: "2026-10-20T09:00:00Z" },
+      { ...entry("r_1", "replied", "Both helpers started."), at: "2026-10-20T09:00:05Z" },
+      { ...entry("r_2", "replied", "The joke helper is back."), at: "2026-10-20T09:02:00Z" },
+    ];
+    const client = core(turns, []);
+    const asks = [{ id: "q_host", text: "Let Alpha's scripts reach dog.ceo?", at: "2026-10-20T09:00:03Z", options: ["Yes, always", "No"], thread: "w_1", module: null, turn: "s_1", permission: "network" }];
+    client.conversation.mockResolvedValue({ turns, threads: [], actions: [], asks, conversations: [], conversation: null, work: {}, now: [], needs: [] });
+    const { container } = panel(client);
+    await screen.findByText("Let Alpha's scripts reach dog.ceo?");
+    const texts = [...container.querySelectorAll(".assist__content > *")].map((el) => el.textContent ?? "");
+    const card = texts.findIndex((t) => t.includes("dog.ceo"));
+    const later = texts.findIndex((t) => t.includes("The joke helper is back."));
+    expect(card).toBeGreaterThan(later);
   });
 
   it("sends the sentence again on Retry under a turn that didn't finish", async () => {

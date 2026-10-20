@@ -560,12 +560,11 @@ def test_a_subagent_runs_in_the_turn_not_in_the_background() -> None:
     assert hooks["PreToolUse"][0].matcher == "Agent|Task"
 
 
-def test_a_scripts_host_is_listed_or_asked_on_a_card(tmp_path: Path) -> None:
-    """A3 (Q98, 20 Oct 2026): a host on the module's list or the world's is the sandbox's own
-    allow; any other asks the person on a card, a yes puts it on the module's list (and in its
-    module.yaml), a no refuses and names the Settings card."""
-    import threading
-
+def test_a_scripts_host_is_listed_or_refused_and_asked_on_one_card(tmp_path: Path) -> None:
+    """A3 (Q98) as Q109 left it: a host on the module's list or the world's is the sandbox's
+    own allow; any other is refused at once and asked on a card (one per host while it is
+    open), which holds nothing; a yes on it lists the host on the module's list (and its
+    module.yaml), a no lists nothing."""
     from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
 
     from alpha.world import grants
@@ -579,26 +578,24 @@ def test_a_scripts_host_is_listed_or_asked_on_a_card(tmp_path: Path) -> None:
     grants.set_world_hosts(world, ["https://data.gov.uk/path"])
     assert grants.world_hosts(world) == ["data.gov.uk"]
 
-    def ask(host: str, answer: str | None) -> Any:
-        if answer is not None:
-            def reply() -> None:
-                end = time.time() + 5
-                while time.time() < end:
-                    asked = [a for a in world.journal.recent(5, kinds=["asked"])
-                             if a["data"].get("host") == host]
-                    if asked and engine.answer_permission(asked[-1]["id"], answer):
-                        return
-                    time.sleep(0.02)
-            threading.Thread(target=reply, daemon=True).start()
+    def ask(host: str) -> Any:
         return asyncio.run(can_use("SandboxNetworkAccess", {"host": host}, None))
 
-    assert isinstance(ask("data.gov.uk", None), PermissionResultAllow)  # listed: no card
-    assert isinstance(ask("api.example.com", "Yes, always for Prices"), PermissionResultAllow)
+    assert isinstance(ask("data.gov.uk"), PermissionResultAllow)  # listed: no card
+    refused = ask("api.example.com")  # at once, never waiting on the person
+    assert isinstance(refused, PermissionResultDeny) and "asked on a card" in refused.message
+    again = ask("api.example.com")  # the same host again: the same card, not a second
+    assert isinstance(again, PermissionResultDeny)
+    cards = [a for a in world.journal.open_asks() if a["data"].get("host") == "api.example.com"]
+    assert len(cards) == 1
+    assert cards[0]["text"].startswith("Let scripts in Prices reach api.example.com?")
+    assert engine.host_answered(world, cards[0], "Yes, always for Prices") == "api.example.com"
     assert grants.module_hosts(world, module) == ["api.example.com"]
-    card = [a for a in world.journal.recent(5, kinds=["asked"])][-1]
-    assert card["text"].startswith("Let scripts in Prices reach api.example.com?")
-    refused = ask("tracker.example.net", "No")
-    assert isinstance(refused, PermissionResultDeny) and "Folders and network" in refused.message
+    assert isinstance(ask("api.example.com"), PermissionResultAllow)
+    ask("tracker.example.net")
+    no = next(a for a in world.journal.open_asks()
+              if a["data"].get("host") == "tracker.example.net")
+    assert engine.host_answered(world, no, "No") is None
     assert "tracker.example.net" not in grants.hosts(world, module)
     # the run's sandbox lists both
     opts = engine.options_for(req, None, hands=["world_query"], can_use=can_use,
@@ -697,3 +694,15 @@ def test_the_browser_opens_a_listed_private_host_and_never_this_mac(tmp_path: Pa
     assert opens("printer.local") and opens("printer.local", "Office")  # the world's list
     grants.set_world_hosts(world, ["localhost", "127.0.0.1"])
     assert not opens("localhost") and not opens("127.0.0.1", "Office")  # this Mac: never
+
+
+def test_every_run_carries_the_certificates_alpha_has(monkeypatch: pytest.MonkeyPatch,
+                                                       tmp_path: Path) -> None:
+    """A script's Python checks sites against the bundle Alpha carries, on every install (20 Oct
+    2026: python.org's Python has none until its installer step runs); one the person set
+    stays theirs."""
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    env = engine.environment(request(tmp_path))
+    assert Path(env["SSL_CERT_FILE"]).is_file() and env["SSL_CERT_FILE"].endswith(".pem")
+    monkeypatch.setenv("SSL_CERT_FILE", "/their/own.pem")
+    assert "SSL_CERT_FILE" not in engine.environment(request(tmp_path))

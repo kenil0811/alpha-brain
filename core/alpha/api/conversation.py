@@ -14,7 +14,6 @@ from fastapi.responses import StreamingResponse
 from alpha.api.bodies import (
     AskBody,
     ConversationBody,
-    MoveBody,
     RenameConversationBody,
 )
 from alpha.api.served import Served
@@ -83,15 +82,6 @@ def routes(app: FastAPI, s: Served) -> None:
                 "needs_you": needs_you(world),
                 "troubles": troubles(world),
                 "look": world.preferences.get("companion_look")}
-
-    @app.post("/api/turns/{key}/move", dependencies=[api])
-    def move_turn(key: str, body: MoveBody) -> dict[str, Any]:
-        """A sentence that went to the wrong item: the correction is kept and counted
-        (§7), and the sentence is asked again in the right one."""
-        state = running.get(key)
-        conversations.correct(world, state["text"], said=state.get("said"),
-                              to=world.modules.thread(body.conversation)["id"])
-        return running.start(AskBody(text=state["text"], conversation=body.conversation))
 
     @app.get("/api/conversation", dependencies=[api])
     def conversation(limit: int = 60, module: str | None = None,

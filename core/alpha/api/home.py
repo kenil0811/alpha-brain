@@ -25,7 +25,7 @@ from alpha.api.views import (
     staged_view,
 )
 from alpha.connectors.calendar import Calendar
-from alpha.runtime import conversations, engine, staging
+from alpha.runtime import engine, staging
 from alpha.runtime.agents import columbo, scout, watson
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import people
@@ -106,6 +106,19 @@ def routes(app: FastAPI, s: Served) -> None:
                              answered=answered, runner=s.runner)
         return {"turn": None, "agent": agent["id"]}
 
+    def hosts_allowed(world_: Any, asked: list[dict[str, Any]],
+                      answers: dict[str, str]) -> dict[str, Any] | None:
+        """Hosts the person allowed on their cards (Q109): each on its list, and the desk told
+        so it runs again what needed them; an agent's run finds them listed on its next run."""
+        allowed = [(a, engine.host_answered(world_, a, answers.get(a["id"], ""))) for a in asked]
+        for_desk = [h for a, h in allowed
+                    if h and not world_.agents.of_thread(str(a["thread"] or ""))]
+        if not for_desk:
+            return None
+        words = " ".join(engine.ALLOWED.format(host=h) for h in for_desk)
+        return running.start(AskBody(text=words, module=asked[0]["module"]), actor="alpha",
+                             journal_as=f"{', '.join(for_desk)} now allowed for scripts.")
+
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
         asked = world.journal.read(ask_id)
@@ -115,6 +128,11 @@ def routes(app: FastAPI, s: Served) -> None:
                                    data={"ask": ask_id, **({"to": back[0]["id"]} if back else {}),
                                          **({"reason": reason} if reason else {})},
                                    module=asked["module"], thread=asked["thread"])
+        if asked["data"].get("permission") == "network":
+            # a host's card holds nothing (Q109): a yes lists the host, and the conversation
+            # is told so it runs again what needed it
+            return {"answered": jid, "permission": "network",
+                    "turn": hosts_allowed(world, [asked], {ask_id: body.text})}
         if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
             # A hand waiting for the person's yes (harness §8): the turn carries on with it.
             return {"answered": jid, "turn": None, "permission": asked["data"]["permission"]}
@@ -149,10 +167,12 @@ def routes(app: FastAPI, s: Served) -> None:
         if decided:
             # Columbo's question (two values, two sources): the pick binds, by code; no turn.
             return {"answered": jid, "turn": None, "decision": decided["decision"]["id"]}
-        routed = conversations.routed_answer(world, asked, body.text)
-        if routed:
-            # "Which is this about?": the pick sends the original sentence there.
-            started = running.start(AskBody(text=routed["text"], conversation=routed["thread"]))
+        routing = asked["data"].get("routing")
+        if routing:
+            # a "Which is this about?" card from before section C: the sentence goes to the
+            # desk, as every sentence does now
+            started = running.start(AskBody(text=str(routing.get("text") or body.text),
+                                            module=routing.get("module")))
             return {"answered": jid, "turn": started}
         if back:
             return {"answered": jid, **carry_on(*back, [asked], {ask_id: body.text})}
@@ -181,6 +201,14 @@ def routes(app: FastAPI, s: Served) -> None:
                                          data={"ask": a["id"],
                                                **({"to": back[0]["id"]} if back else {})},
                                          module=a["module"], thread=a["thread"]) for a in asked]
+        hosts = [a for a in asked if a["data"].get("permission") == "network"]
+        if hosts:
+            # hosts' cards answered together (Q109): each yes lists its host, and the
+            # conversation is told once
+            turn = hosts_allowed(world, hosts, answers)
+            asked = [a for a in asked if a not in hosts]
+            if not asked:
+                return {"answered": answered, "turn": turn}
         if back:
             # one agent's run asked them all: they go back to it together (Q92)
             return {"answered": answered, **carry_on(*back, asked, answers)}

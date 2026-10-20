@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from alpha.mcp.tools.base import Base, hand, tool
+from alpha.runtime import engine
 from alpha.world.store import Problem
 
 
@@ -103,6 +104,44 @@ class Modules(Base):
             actor=self.actor, module=self.module, thread=self.thread,
         )
         return {"asked": jid}
+
+    @hand(writes="asks", card=True)
+    def card_answer(self, card: str, option: str, words: str) -> dict[str, Any]:
+        """Answer an open yes card (a removal, a host a script reaches) on the person's words,
+        when they said yes or no to it here ("go ahead", "no, keep it"): `card` is its id
+        (among the cards open in the conversation), `option` one of its own options, `words`
+        what the person said. A yes in general ("go ahead") says yes to every host's card open
+        at that moment: answer each. Only the conversation itself answers a card this way; a
+        piece of work or an agent never does."""
+        home = self.world.modules.home_thread()["id"]
+        if self.actor != "alpha" or self.thread != home:
+            raise Problem("Only the conversation answers a card on the person's words; a"
+                          " piece of work or an agent never does.")
+        asked = self.world.journal.read(card)
+        if asked["kind"] != "asked" or not asked["data"].get("permission"):
+            raise Problem("That is no yes card: only a card asking the person's yes (a"
+                          " removal, a host) is answered this way; a question is answered on"
+                          " its card.")
+        if card not in {a["id"] for a in self.world.journal.open_asks()}:
+            raise Problem("That card is no longer open.")
+        options = [str(o) for o in asked["data"].get("options") or []]
+        if option not in options:
+            raise Problem(f"Answer with one of its options: {'; '.join(options)}.")
+        # the person's answer, given in words at the desk (Q75's audit rule in its section C
+        # form: by the card's button, its own reply, or the desk on the person's words)
+        jid = self.world.journal.append(
+            "answered", option, actor="person",
+            data={"ask": card, "in_words": words, "turn": self.turn},
+            module=asked["module"], thread=asked["thread"])
+        if asked["data"].get("permission") == "network":
+            # a host's card holds nothing (Q109): a yes lists it, and you run again what
+            # needed it
+            host = engine.host_answered(self.world, asked, option)
+            return {"answered": jid, "allowed": host,
+                    **({"note": "Run again what needed it."} if host else {})}
+        carried_on = engine.answer_permission(card, option)
+        return {"answered": jid, "carried_on": carried_on,
+                **({} if carried_on else {"note": "Nothing was waiting on it any more."})}
 
     @tool(writes="proposals")
     def propose(self, text: str, why: str) -> dict[str, Any]:

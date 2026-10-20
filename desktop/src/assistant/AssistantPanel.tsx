@@ -545,25 +545,31 @@ export function Conversation({
       ),
     });
   }
-  // the open questions, several from one turn as one form, at their time; a yes asked
-  // mid-turn (a permission) shows while the turn waits on it, the rest after the turn
-  {
-    groupAsks(openAsks.filter((a) => !pending || a.permission)).forEach((group) =>
-      items.push({ at: askedAt(group[0]), node: group.length > 1 ? <AskGroup key={group[0].id} asks={group} client={client} onAnswered={onAnswered} /> : <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={onAnswered} /> }),
-    );
-  }
+  // Every card waiting on the person sits at the bottom, just above the box, in the order it
+  // was asked, until answered; then it is a dim line where it was asked (Kenil, 20 Oct 2026:
+  // "the cards are coming above some text, so its difficult for user to scroll up an select
+  // answers"). A question a running turn asks waits for that turn's reply; a yes it waits on
+  // (a removal) shows at once.
+  const waitingCards: { at: number; node: ReactNode }[] = [];
+  groupAsks(openAsks.filter((a) => !pending || a.permission)).forEach((group) =>
+    waitingCards.push({ at: askedAt(group[0]), node: group.length > 1 ? <AskGroup key={group[0].id} asks={group} client={client} onAnswered={onAnswered} /> : <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={onAnswered} /> }),
+  );
   if (!filter) {
-    workflows.forEach((w) => items.push({ at: stamp(w.created_at), node: <WorkflowCard key={`wf-${w.id}`} workflow={w} client={client} onDecided={decided} /> }));
+    workflows.forEach((w) => (w.state === "drafted" ? waitingCards : items).push({ at: stamp(w.created_at), node: <WorkflowCard key={`wf-${w.id}`} workflow={w} client={client} onDecided={decided} /> }));
     actions
       .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
       // A failed attempt is history once Alpha proposed the same thing again.
       .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
-      .forEach((a) => items.push({ at: stamp(a.created_at), node: <ActionCard key={`act-${a.id}`} action={a} client={client} compact onDecided={decided} /> }));
-    needs.forEach((n) => items.push({ at: stamp(n.at), node: <Need key={`need-${n.id}`} item={n} client={client} onDone={decided} /> }));
+      .forEach((a) => (a.state === "proposed" ? waitingCards : items).push({ at: stamp(a.created_at), node: <ActionCard key={`act-${a.id}`} action={a} client={client} compact onDecided={decided} /> }));
+    needs.forEach((n) => waitingCards.push({ at: stamp(n.at), node: <Need key={`need-${n.id}`} item={n} client={client} onDone={decided} /> }));
   }
   items.sort((a, b) => a.at - b.at);
-  const timeline = [...items.map((it) => it.node), pendingItem];
+  waitingCards.sort((a, b) => a.at - b.at);
+  const timeline = [...items.map((it) => it.node), pendingItem, ...waitingCards.map((it) => it.node)];
   const filtered = filter ? work[filter] ?? null : null;
+  // a turn waiting on a yes card (a removal, a host): the box points to the card's buttons,
+  // since the desk takes the next sentence only once the turn is free (C4, Q108)
+  const waitingYes = pending ? openAsks.find((a) => a.permission === "world_change") ?? null : null;
   const waiting = asks.length + needs.length + actions.filter((a) => a.state === "proposed").length;
 
   return (
@@ -606,6 +612,14 @@ export function Conversation({
         </div>
       </div>
       <NowStrip now={now} filter={filter} onFilter={setFilter} needsYou={waiting} />
+      {waitingYes ? (
+        <div className="yeswait" role="status">
+          <span>Alpha is waiting for your yes on the card above: answer it with its buttons.</span>
+          <Button size="sm" variant="ghost" onClick={() => body.current?.scrollTo?.({ top: body.current.scrollHeight })}>
+            Show the card
+          </Button>
+        </div>
+      ) : null}
       <Composer
         text={text}
         onChange={(words) => { spoken.stop(); setText(words); }}
@@ -613,7 +627,7 @@ export function Conversation({
         onKeyDown={key}
         onFiles={(files) => void addFiles(files)}
         canSend={Boolean(text.trim()) && !pending}
-        placeholder="Say what to do, ask, or log something…"
+        placeholder={waitingYes ? "Answer the card first" : "Say what to do, ask, or log something…"}
         inputRef={input}
         mentionable={mentionable}
         onMention={mention}

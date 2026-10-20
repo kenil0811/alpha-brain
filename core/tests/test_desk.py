@@ -223,9 +223,14 @@ def test_work_left_running_when_alpha_closed_is_stopped_with_a_line(world: World
     t = world.modules.open_thread("Deal research", "work")
     world.modules.set_session(t["id"], "task_1", tools=desk.WORK)
     world.modules.update_thread(t["id"], state="working")
+    ended = world.modules.open_thread("Dog picture", "work")
+    world.modules.set_session(ended["id"], "task_2", tools=desk.WORK)
+    world.modules.update_thread(ended["id"], state="needs_you", last_line="Refused: dog.ceo")
     conversations.reset_working(world)
     row = world.modules.thread(t["id"])
     assert row["state"] == "stopped" and row["last_line"] == conversations.RESTARTED
+    # one only waiting on a host's card had ended already: left as it was (Q109)
+    assert world.modules.thread(ended["id"])["last_line"] == "Refused: dog.ceo"
 
 
 def test_a_slash_command_with_no_prompt_hook_still_gets_its_result(world: World) -> None:
@@ -283,3 +288,56 @@ class CompactingCLI(FakeCLI):
         self.again = (await self.hook("SessionStart", {"source": "compact"})).get(
             "hookSpecificOutput", {}).get("additionalContext")
         await self.out.put(result("Compacted."))
+
+
+def test_a_scripts_host_is_asked_for_the_work_whose_shell_is_running(world: World) -> None:
+    """The sandbox asks for a host with no agent's id (the spike): the running shell says
+    whose it is, so the card is the work's, never the desk's own turn's."""
+    global DESK
+    SCRIPTS.clear()
+    SCRIPTS["look into which deals are new"] = START
+    DESK = desk.Desk(world.path, client_factory=FakeCLI)
+    home = world.modules.home_thread()["id"]
+    try:
+        turn.ask(world, "look into which deals are new", thread=home, runner=DESK.run,
+                 conversation=True)
+        tid = until(lambda: DESK.work.get("task_1"))
+        cli = FakeCLI.made[-1]
+        asyncio.run_coroutine_threadsafe(
+            call("Bash", {"command": "python3 fetch.py"}, "call_7", agent="task_1")(cli),
+            DESK.loop).result()
+        req = DESK._req_for(list(DESK.shells.values())[-1])
+        assert req.thread_id == tid
+    finally:
+        DESK.close()
+
+
+def test_a_removal_card_left_waiting_closes_when_the_core_starts(world: World) -> None:
+    """A removal's card waited on its turn, gone with the core; a host's card stays (Q109)."""
+    removal = world.journal.append("asked", 'Remove "Eggs" from Food log?',
+                                   data={"options": ["Yes, remove it", "No, keep it"],
+                                         "permission": "world_change"})
+    host = world.journal.append("asked", "Let Alpha's scripts reach dog.ceo?",
+                                data={"options": ["Yes, always", "No"], "permission": "network",
+                                      "host": "dog.ceo"})
+    conversations.reset_working(world)
+    still = {a["id"] for a in world.journal.open_asks()}
+    assert removal not in still and host in still
+
+
+def test_the_desk_allows_a_host_any_module_lists(world: World) -> None:
+    """One desk serves every module (Q107): a host on any module's list is allowed, read fresh,
+    so a host listed by a yes on one module's card is reached again whatever the turn's page."""
+    from claude_agent_sdk import PermissionResultAllow
+
+    from alpha.world import grants
+
+    module = world.modules.create("Lists")["id"]
+    grants.allow_host(world, module, "jsonplaceholder.typicode.com", actor="person")
+    d = desk.Desk(world.path, client_factory=FakeCLI)
+    try:
+        out = asyncio.run(d._can_use("SandboxNetworkAccess",
+                                     {"host": "jsonplaceholder.typicode.com"}, None))
+        assert isinstance(out, PermissionResultAllow)
+    finally:
+        d.close()

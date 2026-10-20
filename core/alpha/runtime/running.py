@@ -273,6 +273,7 @@ TOOL_WORDS = {
     "note_write": "Writing a note", "instruction_add": "Keeping an instruction",
     "procedure_save": "Keeping the steps", "action_propose": "Preparing it for your yes",
     "agent_create": "Setting up the agent", "ask_person": "Asking you",
+    "card_answer": "Answering the card on your word",
     "entity_resolve": "Linking a person", "thread_brief": "Updating the brief",
     "source_add": "Noting a source", "goal_set": "Keeping a goal",
 }

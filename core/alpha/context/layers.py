@@ -340,8 +340,18 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
             for e in today[:TURN_DUE]
         ]))
 
-    here = [f"- Asked the person ({a['id']}): {one_line(a['text'], 200)}"
-            for a in world.journal.open_asks() if (a["thread"] or home["id"]) == chat["id"]]
+    # at the desk every open card is in the stream (C3), wherever it arose; elsewhere, this
+    # thread's own; a yes card says its options, for card_answer on the person's words (C4)
+    here = []
+    for a in world.journal.open_asks():
+        if chat["kind"] != "home" and (a["thread"] or home["id"]) != chat["id"]:
+            continue
+        if a["data"].get("permission"):
+            options = "; ".join(str(o) for o in a["data"].get("options") or [])
+            here.append(f"- A yes card ({a['id']}): {one_line(a['text'], 200)} Options:"
+                        f" {options}.")
+        else:
+            here.append(f"- Asked the person ({a['id']}): {one_line(a['text'], 200)}")
     if here:
         sections.append(("OPEN HERE", here))
 

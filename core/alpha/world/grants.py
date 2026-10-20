@@ -3,9 +3,10 @@
 Reads and writes (A4, 20 Oct 2026): the folders the person connected (the watched folders,
 `connections` of the `files` connector), the module's own directory, and the whole Mac when
 the person switched that on; never under a `.claude` folder. The network from scripts (A3):
-the hosts on the module's list and the world's list; any other host asks the person on a card,
-and a yes puts it on the module's list. What leaves the world (a message, a post, a form, a
-payment) still goes only through `act_outward`: a host is for reading. The walls are the
+the hosts on the module's list and the world's list; any other host is refused at once and
+asked of the person on a card, and a yes puts it on the module's list (Q109). What leaves
+the world (a message, a post, a form, a payment) still goes only through `act_outward`: a host
+is for reading. The walls are the
 sandbox and the permission callback in `runtime/engine.py`; this module says what was granted.
 """
 
@@ -82,7 +83,8 @@ def describe(world: World, module_id: str | None) -> list[str]:
                      " (connect what=folder) or switches on the whole Mac in Settings.")
     reach = hosts(world, module_id)
     lines.append("- Hosts your scripts may reach (the shell): " + (", ".join(reach) if reach
-                 else "none listed yet") + "; any other host asks the person on a card first."
+                 else "none listed yet") + "; any other host is refused at once and asked of the"
+                 " person on a card: their yes lists it and you are told, so you run it again."
                  " Anything that leaves the world (a message, a post, a form) goes through"
                  " act_outward and their yes.")
     return lines

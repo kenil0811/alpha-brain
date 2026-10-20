@@ -22,9 +22,6 @@ drop = 0.5                         # a reader returning fewer than half the rows
 held = 0.75                        # fewer than three quarters of the rows it found before and that are still listed: it reads part of the list
 missing = 0.2                      # more than a fifth of the rows without a required field: broken
 
-[conversations]
-confident = 0.6                    # the judge routes a sentence under this confidence by asking, never by guessing
-
 [workflows]
 most_chars = 600                   # a workflow page field's words, at most
 most_questions = 6                 # the interview asks at most this many questions on one page

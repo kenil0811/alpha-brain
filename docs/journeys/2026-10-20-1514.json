@@ -1,0 +1,103 @@
+[
+ {
+  "name": "go_ahead",
+  "title": "Section C · \"go ahead\" in words answers the one yes card open; with two, Alpha asks which",
+  "steps": [
+   {
+    "say": "Start a helper in the background, as a piece of work beside us, that uses a short Python script (not WebFetch) to read https://jsonplaceholder.typicode.com/todos/1 and tell me its title. Don't run the script yourself; carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started a helper in the background. It will write a short Python script that reads that address and pulls out the title. I'll tell you what it finds once it reports back. One thing to know: that site hasn't been approved for scripts yet, so you may get a card asking whether to allow it.\n\nWhat would you like to talk about while it runs?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52609,
+    "tokens_cache_made": 10733,
+    "tokens_out": 427,
+    "first_text_ms": 6183,
+    "seconds": 12.9
+   },
+   {
+    "wait_for_card": 1,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach jsonplaceholder.typicode.com? Reading from it only: an",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I tried to record your \"go ahead\" as a yes to letting scripts reach jsonplaceholder.typicode.com, but that request had already closed. You may have answered it on the card, or it may have expired. The helper is still running, so I'll know which once it reports. If it was turned away, I'll ask you about that site again.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 64687,
+    "tokens_cache_made": 727,
+    "tokens_out": 289,
+    "first_text_ms": 5129,
+    "seconds": 5.2
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 4.0
+   },
+   {
+    "say": "Start two helpers in the background at once, as two pieces of work beside us: one uses a short Python script (not WebFetch) to read https://httpbin.org/json and tell me its slideshow title, the other uses a short Python script (not WebFetch) to read https://api.github.com/zen and tell me what it says. Don't run the scripts yourself.",
+    "ok": true,
+    "reply": "Both helpers are now running side by side:\n\n- **One** is reading httpbin.org/json to get the slideshow title.\n- **The other** is reading GitHub's zen page to get its message.\n\nNeither site has been approved for scripts yet, so you may get a card for each one asking whether to allow it. I'll tell you what each one finds once it reports back.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 67970,
+    "tokens_cache_made": 2319,
+    "tokens_out": 781,
+    "first_text_ms": 8012,
+    "seconds": 11.1
+   },
+   {
+    "wait_for_card": 2,
+    "ok": false,
+    "detail": "Let Alpha's scripts reach api.github.com? Reading from it only: anything sent st",
+    "seconds": 300.3
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I tried to record your \"go ahead\" as a yes for api.github.com, but that card had already closed, same as last time. So I can't tell whether GitHub is allowed now.\n\nI've started the GitHub helper again anyway, and this time it will wait up to a minute. If a new card asks about api.github.com, approve it on the card itself so it doesn't close before your answer gets through. I'll tell you the zen message, or what went wrong, when it reports back.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 115675,
+    "tokens_cache_made": 1855,
+    "tokens_out": 674,
+    "first_text_ms": 10011,
+    "seconds": 10.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "answered_in_words",
+    "arg": {
+     "count": 1
+    },
+    "ok": false,
+    "why": "0 answered in words: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "yes_cards_open",
+    "arg": {
+     "count": 2
+    },
+    "ok": false,
+    "why": "0 yes card(s) open.",
+    "seconds": 0.0
+   },
+   {
+    "check": "asked_which",
+    "arg": {},
+    "ok": false,
+    "why": "No question asked after the last sentence.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 343.5,
+  "error": null
+ }
+]

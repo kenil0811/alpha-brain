@@ -1,0 +1,96 @@
+[
+ {
+  "name": "go_ahead",
+  "title": "Section C · \"go ahead\" in words says yes to every host's card open at that moment",
+  "steps": [
+   {
+    "say": "Start a helper in the background, as a piece of work beside us, that uses a short Python script (not WebFetch) to read https://jsonplaceholder.typicode.com/todos/1 and tell me its title. Don't run the script yourself; carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started a helper in the background. It's writing a short Python script to read that page and pull out the title, and I'll tell you what it finds when it reports back.\n\nThat host isn't on the allowed list for scripts yet, so you may get a card asking whether the script can reach jsonplaceholder.typicode.com. If you say yes, the helper can finish.\n\nWhat else would you like to look at while it runs?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 31290,
+    "tokens_cache_made": 32058,
+    "tokens_out": 443,
+    "first_text_ms": 7357,
+    "seconds": 11.3
+   },
+   {
+    "wait_for_card": 1,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach jsonplaceholder.typicode.com? Reading from it only: an",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "The helper finished. The title is **delectus aut autem**.\n\nIts first try was blocked because the site wasn't approved yet. After your yes, the second try went through.\n\nThe script was short. It reads the page with Python's built-in tools and prints the `title` field. Scripts can now reach that site whenever they need to, without asking again.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 132640,
+    "tokens_cache_made": 4053,
+    "tokens_out": 468,
+    "first_text_ms": 9482,
+    "seconds": 9.5
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 8.0
+   },
+   {
+    "say": "Start two helpers in the background at once, as two pieces of work beside us: one uses a short Python script (not WebFetch) to read https://httpbin.org/json and tell me its slideshow title, the other uses a short Python script (not WebFetch) to read https://api.github.com/zen and tell me what it says. Don't run the scripts yourself.",
+    "ok": true,
+    "reply": "The httpbin.org helper has stopped: the request was refused because that site isn't approved for scripts yet. The block also said \"user denied\", but that's the same thing as last time. You haven't turned httpbin.org down; the card asking you hasn't been answered yet.\n\nIf you say yes to it, I'll have that helper run its script again. The GitHub helper is still running.",
+    "steps": 1,
+    "tokens_input": 4,
+    "tokens_cache_read": 39415,
+    "tokens_cache_made": 1152,
+    "tokens_out": 160,
+    "first_text_ms": 14144,
+    "seconds": 19.4
+   },
+   {
+    "wait_for_card": 2,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach httpbin.org? Reading from it only: anything sent still; Let Alpha's scripts reach api.github.com? Reading from it only: anything sent st",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "The httpbin.org helper is done. The slideshow title is **Sample Slide Show**. It worked on the second try, now that the site is approved. The GitHub helper is still running.",
+    "steps": 1,
+    "tokens_input": 4,
+    "tokens_cache_read": 43533,
+    "tokens_cache_made": 891,
+    "tokens_out": 59,
+    "first_text_ms": 15858,
+    "seconds": 16.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "answered_in_words",
+    "arg": {
+     "count": 3
+    },
+    "ok": true,
+    "why": "3 answered in words: Yes, always (\"go ahead\"); Yes, always (\"go ahead\"); Yes, always (\"go ahead\").",
+    "seconds": 0.0
+   },
+   {
+    "check": "yes_cards_open",
+    "arg": {
+     "count": 0
+    },
+    "ok": true,
+    "why": "0 yes card(s) open.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 64.6,
+  "error": null
+ }
+]

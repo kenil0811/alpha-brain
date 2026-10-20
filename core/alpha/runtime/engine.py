@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import getpass
 import logging
+import os
 import threading
 import time
 import uuid
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import certifi
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
@@ -86,7 +88,18 @@ def environment(req: TurnRequest) -> dict[str, str]:
     # tool search on (A8, Q98): the hands' schemas load when the model looks for them, not on
     # every turn (the spike of 19 Oct: the hands still found and called; input 6% and 32% lower
     # on track_then_log's two turns, one step more each)
-    return {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "true"}
+    return {"USER": getpass.getuser(), "ENABLE_TOOL_SEARCH": "true", **certificates()}
+
+
+def certificates() -> dict[str, str]:
+    """The certificates a script's Python checks a site against: the bundle Alpha carries, on
+    every install. A script runs whatever Python the Mac finds first, and python.org's comes
+    with none until its own installer step is run (found 20 Oct 2026 in Kenil's app: every
+    https read failed with CERTIFICATE_VERIFY_FAILED). A bundle the person set stays theirs."""
+    if os.environ.get("SSL_CERT_FILE"):
+        return {}
+    bundle = Path(certifi.where())
+    return {"SSL_CERT_FILE": str(bundle)} if bundle.is_file() else {}
 
 
 def sessions_dir(world_path: Path) -> Path:
@@ -344,10 +357,16 @@ def removal_card(world: World, req: TurnRequest, input_data: dict[str, Any],
 
 
 def network_card(world: World, req: TurnRequest, host: str) -> tuple[str, str]:
-    """A script's reach to a host on no list (A3): a card asks the person, and the turn waits
-    for the answer in memory. A host is reached by the sandbox's own request, never a tool
-    call, so there is no call to defer as a removal's is (the spike's read of the CLI, 20 Oct
-    2026); a restart while it waits asks again the next time."""
+    """A script's reach to a host on no list (A3): a card asks the person, once per host while
+    it is open. It holds nothing: the sandbox gives up on a request in under a minute or two,
+    so a card left for later broke the work it was for (Kenil's two helpers, 20 Oct 2026). The
+    script is refused at once; the person's yes, whenever it comes, lists the host and the
+    conversation is told, so the work runs again (`host_answered`)."""
+    asked = next((a for a in world.journal.open_asks()
+                  if a["data"].get("permission") == "network" and a["data"].get("host") == host),
+                 None)
+    if asked is not None:
+        return asked["id"], asked["text"]
     where = world.modules.get(req.module_id)["name"] if req.module_id else None
     text = (f"Let scripts in {where} reach {host}?" if where else
             f"Let Alpha's scripts reach {host}?") + " Reading from it only: anything sent still" \
@@ -357,9 +376,25 @@ def network_card(world: World, req: TurnRequest, host: str) -> tuple[str, str]:
         data={"options": ["Yes, always" + (f" for {where}" if where else ""), "No"],
               "kind": "one", "turn": req.turn_id, "permission": "network", "host": host},
         module=req.module_id, thread=req.thread_id)
-    LIVE.note(_keys(req), doing=WAITING)
-    _line(world, req.thread_id, "needs_you", f"Waiting for your yes: {text[:150]}")
     return ask, text
+
+
+# What the conversation is told when the person allows a host on its card (Q109): the desk
+# runs again what needed it, in its own words to them.
+ALLOWED = ("{host} is now allowed for scripts: the person said yes on its card. Run again what"
+           " needed it, if it still matters.")
+
+
+def host_answered(world: World, asked: dict[str, Any], option: str, *,
+                  actor: str = "person") -> str | None:
+    """A host's card answered (its button, its own reply, or the desk on the person's words): a
+    yes puts the host on the module's list, or the world's; returns the host, or None on a
+    no."""
+    host = str(asked["data"].get("host") or "")
+    if not host or not yes(option):
+        return None
+    grants.allow_host(world, asked["module"], host, actor=actor)
+    return host
 
 
 def removal_hook(req: TurnRequest,
@@ -422,30 +457,19 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
     async def can_use(tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
         name = tool_name.removeprefix("mcp__alpha__")
         if name == "SandboxNetworkAccess":
-            # A3 (Q98): a listed host is the sandbox's own allow; any other asks on a card,
-            # and a yes puts it on the module's list. What leaves the world (a message, a
-            # post, a form) still goes only through act_outward.
+            # A3 (Q98): a listed host is the sandbox's own allow; any other is refused at once
+            # and asked on a card (Q109: a card that held the script outlived its request). What
+            # leaves the world (a message, a post, a form) still goes only through act_outward.
             host = grants.host_of(str(input_data.get("host") or ""))
             if not host:
                 return PermissionResultDeny(message="A script reached for a host with no name.")
             if host in grants.hosts(world, req.module_id):
                 return PermissionResultAllow()
             ask, _ = network_card(world, req, host)
-            loop = asyncio.get_running_loop()
-            waiting: asyncio.Future[str] = loop.create_future()
-            PENDING.add(ask, loop, waiting)
-            try:
-                answer = await waiting
-            except asyncio.CancelledError:
-                _line(world, req.thread_id, "working", "The wait for your yes was stopped.")
-                return PermissionResultDeny(message="The wait for your yes was stopped.")
-            if yes(answer):
-                grants.allow_host(world, req.module_id, host, actor="person")
-                _line(world, req.thread_id, "working", "Carrying on after your yes.")
-                return PermissionResultAllow()
-            _line(world, req.thread_id, "working", "Carrying on after your no.")
-            return PermissionResultDeny(message=f"The person said no to {host}. They can list"
-                                                " a host in Settings › Folders and network.")
+            return PermissionResultDeny(message=(
+                f"{host} is not on the list yet, so the script could not reach it. The person"
+                f" is asked on a card ({ask}); when they say yes you are told and can run it"
+                " again. Say so in a line, and never reach it another way."))
         if name in ("Read", "Glob", "Grep", "Write", "Edit", "NotebookEdit"):
             own = grants.module_dir(world, req.module_id)
             path = str(input_data.get("file_path") or input_data.get("path")

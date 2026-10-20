@@ -1107,6 +1107,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .nowstrip__head { display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
 .nowstrip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
 .nowstrip__needs { margin-left: auto; }
+.yeswait { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 12px 0; padding: 6px 10px; border: 1px solid var(--warn); border-radius: 8px; background: var(--warn-soft); font-size: var(--text-sm); }
 .itemcard { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 2px 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, transparent); text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .itemcard:hover { background: var(--hover); }
 .itemcard__body { display: flex; flex-direction: column; min-width: 0; flex: 1; }

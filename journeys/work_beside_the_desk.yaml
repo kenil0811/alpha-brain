@@ -13,4 +13,4 @@ steps:
   - wait_for_work: {seconds: 900}
 checks:
   - work: {count: 1, answered_while_running: true}
-  - reply: {matches: "126,000|126000"}
+  - journal: {kind: replied, contains: "126,000"}

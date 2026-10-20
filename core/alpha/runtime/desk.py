@@ -45,6 +45,7 @@ from claude_agent_sdk import (
     ClaudeSDKClient,
     HookContext,
     HookMatcher,
+    PermissionResultAllow,
     ResultMessage,
     SystemMessage,
     UserMessage,
@@ -116,6 +117,7 @@ class Desk:
         self.sent: deque[Turn] = deque()  # the person's, sent, their prompt not yet given
         self.turns: deque[Turn] = deque()  # begun, in order, waiting for their results
         self.calls: dict[str, str | None] = {}  # a call's id → the agent (work) making it
+        self.shells: dict[str, str | None] = {}  # the shell calls running now → whose
         self.agent_calls: dict[str, dict[str, Any]] = {}  # the Agent call's id → its origin
         self.work: dict[str, str] = {}  # a task's id → its thread
         self.origin: dict[str, dict[str, Any]] = {}  # a task's id → the turn and module asking
@@ -335,6 +337,16 @@ class Desk:
 
     async def _can_use(self, tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
         agent = getattr(context, "agent_id", None)
+        if tool_name == "SandboxNetworkAccess" and grants.host_of(
+                str((input_data or {}).get("host") or "")) in self._hosts(self._world()):
+            # one desk serves every module (Q107): a host on any module's list or the world's
+            # is allowed, read fresh (one listed since the client connected, by a yes, too)
+            return PermissionResultAllow()
+        if tool_name == "SandboxNetworkAccess" and not agent and self.shells:
+            # a script's host is asked by the sandbox with no agent's id and no id of the call
+            # that made it (the spike of 20 Oct 2026): it comes from a shell running now, the
+            # newest one, whose work it is (or the desk's own)
+            agent = list(self.shells.values())[-1]
         req = self._req_for(agent)
         return await engine.permission_for(req, self._world())(tool_name, input_data, context)
 
@@ -373,6 +385,8 @@ class Desk:
             call = dict(data.get("tool_input") or {})
             if tool_use_id:
                 desk.calls[tool_use_id] = agent
+                if name == "Bash":
+                    desk.shells[tool_use_id] = agent
             if agent:
                 desk._thread_of(agent)  # work's thread, opened by its first call if need be
             if name in ("Agent", "Task") and not agent and tool_use_id:
@@ -392,7 +406,13 @@ class Desk:
                                                "updatedInput": call}}
             return {}
 
+        async def after_call(input_data: Any, tool_use_id: str | None,
+                             context: HookContext) -> SyncHookJSONOutput:
+            desk.shells.pop(tool_use_id or "", None)
+            return {}
+
         hooks = engine._hooks(_Current(self))  # type: ignore[arg-type]
+        hooks["PostToolUse"] = [HookMatcher(matcher="Bash", hooks=[after_call])]
         hooks["UserPromptSubmit"] = [HookMatcher(matcher=None, hooks=[sentence_given])]
         # the desk's own work runs in the background: S2's foreground hook is the runs' alone
         hooks["PreToolUse"] = [HookMatcher(matcher=None, hooks=[before_call])]

@@ -25,6 +25,7 @@ name = "alpha"
 version = "0.1.0"
 source = { editable = "core" }
 dependencies = [
+    { name = "certifi" },
     { name = "claude-agent-sdk" },
     { name = "duckdb" },
     { name = "fastapi" },
@@ -46,6 +47,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "certifi", specifier = "==2026.7.22" },
     { name = "claude-agent-sdk", specifier = "==0.2.168" },
     { name = "duckdb", specifier = "==1.5.6" },
     { name = "fastapi", specifier = "==0.141.1" },

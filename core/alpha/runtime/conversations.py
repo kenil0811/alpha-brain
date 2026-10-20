@@ -1,23 +1,13 @@
-"""Home and the work items: where a sentence goes (harness design §7, slice 3, 18 Oct 2026).
+"""Home, the threads, and where a sentence goes (section C, Q107, 20 Oct 2026).
 
-**Home** is the one conversation: the companion's voice and Home's box. Its session is the
-coordinator: it answers what can be answered now and routes the rest. **A work item** is a
-thread with its own model session, a state, one plain line (its card in Home) and its own box:
-a build, a watch with its runs, a long answer, an agent's work. Memory is shared only through
-the world, never through a session.
-
-Routing, for a sentence typed in Home (or on a module's page) with no item of its own:
-1. **Structure, where it is certain, in code.** Typed in an item's own box → that item (the
-   API, before this module is asked). A reply to a card → the item that owns it (the answer
-   route). `@item` → the item named. `@agent` → the agent's own item (the API). A short
-   sentence when exactly one item has asked a question → that item.
-2. **One judgement, the System One seam** (`judge.py`), over the roster of the open items
-   (title, state, last line, what each touches; never their transcripts): answer here,
-   continue an item, or a new item. Under a confidence it does not guess: it asks the person
-   with the candidates as choices, and the answer routes the original sentence.
-3. Every decision is a journal line in Home; a correction the person makes (a turn moved) is
-   journaled too and shown to the judge the next time, so a misroute is counted and learned.
-4. No name matching beyond the explicit `@`, no keyword rules: a rule here never reads meaning.
+Every sentence the person types is the desk's (`runtime/desk.py`): Home's session, kept open,
+with no routing before it. Two cases stay by structure, in the API: an `@Name` reaches that
+agent in its own thread (`mentioned` journals the line in Home), and a reply to a card, or its
+button, answers that card (the answer routes). The judgement over a roster of items, its
+unsure card and the person's corrections went with C4 (until then, slice 3 of 18 Oct). What
+is left here: Home, the threads' state and line after a turn (`settle`), the reset when the
+core starts (`reset_working`, which also stops work beside the desk left running), and the
+items from before C, kept as history (`open_item`, `rename`, `finish`).
 """
 
 from __future__ import annotations
@@ -25,22 +15,13 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.parse import urlsplit
 
-from alpha import config
-from alpha.config import settings
-from alpha.runtime import judge
 from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
 
-CONFIDENT = settings.conversations.confident
-NEW = "new item"
-HERE = "answer here"
-CONTINUE = "continue: "
 FOCUS_KEY = "companion_focus"
-ROSTER = 12
 # Done items stay on the roster (and on Home) this long after their last turn: a follow-up
 # ("make that watch check at 7") continues the item that did the work.
 DONE_FOR_H = 24
@@ -63,19 +44,9 @@ def open_item(world: World, sentence: str, module: str | None) -> dict[str, Any]
     return world.modules.open_thread(title_for(sentence), "work", module_id)
 
 
-def alphas_item(world: World, words: str, module: str | None) -> str:
-    """A turn Alpha starts by itself with nowhere to live (the files the person added on a
-    module's page, read): a work item of its own, said in Home like a routed sentence's
-    (harness §7). Before 19 Oct such a turn died on its missing thread and nothing ran."""
-    item = open_item(world, words, module)
-    world.journal.append("did", f"Started a work item: {item['title']}", actor="alpha",
-                         data={"routed": item["id"], "sentence": words, "opened": True,
-                               "by": "alpha"}, thread=home(world)["id"])
-    return str(item["id"])
-
-
 UNNAMED = "New conversation"
 RESTARTED = "Alpha closed while this ran, so it stopped. Try again to start it afresh."
+REMOVAL_GONE = "No longer waiting: Alpha closed before the yes. Ask again if it still matters."
 
 
 def rename(world: World, cid: str, title: str) -> dict[str, Any]:
@@ -126,11 +97,18 @@ def reset_working(world: World) -> list[str]:
     checkpoint)."""
     # Work beside the desk (section C) lived in the desk's process, which is gone: it stopped,
     # and its thread says so (Try again starts it afresh).
+    # Only work that was running: one waiting on a host's card had already ended (Q109: the
+    # card holds nothing; Kenil's two finished helpers read "closed while this ran", 20 Oct).
     for t in world.store.all("SELECT id FROM threads WHERE session_tools = 'desk-work'"
-                             " AND state IN ('working', 'needs_you')"):
+                             " AND state = 'working'"):
         world.modules.update_thread(t["id"], state="stopped", last_line=RESTARTED)
         world.journal.append("changed", RESTARTED, actor="alpha", thread=t["id"],
                              data={"work": t["id"]})
+    # A removal's card waited on the turn that asked it, gone with the core: it closes, saying
+    # so (a host's card holds nothing and stays answerable, Q109).
+    for a in world.journal.open_asks():
+        if a["data"].get("permission") == "world_change":
+            world.journal.close_ask(a["id"], REMOVAL_GONE, actor="alpha", closed="withdrawn")
     reset = [t["id"] for t in world.store.all(
         "SELECT id FROM threads WHERE state = 'working'")]
     for tid in reset:
@@ -199,195 +177,6 @@ def set_focus(world: World, cid: str | None) -> None:
 # ---- the roster ----
 
 
-def touches(world: World, tid: str) -> str:
-    """What an item is about, from its own journal: its module, the tables, skills, sites and
-    people its steps name. A short line for the roster and the card, never a transcript."""
-    thread = world.modules.thread(tid)
-    tables: dict[str, None] = {}
-    skills: dict[str, None] = {}
-    sites: dict[str, None] = {}
-    people: dict[str, None] = {}
-    for e in world.journal.recent(120, thread=tid):
-        d = e.get("data") or {}
-        for key in ("table", "collection"):
-            if isinstance(d.get(key), str):
-                tables[d[key]] = None
-        for key in ("skill", "reader", "procedure"):
-            if isinstance(d.get(key), str):
-                skills[d[key]] = None
-        if isinstance(d.get("site"), str):
-            sites[d["site"]] = None
-        if isinstance(d.get("url"), str):
-            host = urlsplit(d["url"]).hostname
-            if host:
-                sites[host.removeprefix("www.")] = None
-        for eid in e.get("entity_ids") or []:
-            if len(people) < 4:
-                try:
-                    people[world.entities.get(eid)["name"]] = None
-                except Exception:
-                    continue
-    parts = []
-    if thread.get("module"):
-        parts.append(world.modules.path_words(thread["module"]))
-    if tables:
-        parts.append("tables " + ", ".join(list(tables)[:4]))
-    if skills:
-        parts.append("skills " + ", ".join(list(skills)[:3]))
-    if sites:
-        parts.append(", ".join(list(sites)[:3]))
-    if people:
-        parts.append(", ".join(people))
-    return "; ".join(parts)
-
-
-def _open_question(world: World, cid: str) -> str | None:
-    for a in world.journal.open_asks():
-        if a["thread"] == cid:
-            return str(a["text"])
-    return None
-
-
-def roster(world: World) -> list[dict[str, Any]]:
-    """The open work items as the judge and the coordinator see them: the ones not over,
-    and the ones done in the last day (a follow-up continues them); newest first."""
-    since = (datetime.now(UTC) - timedelta(hours=DONE_FOR_H)).replace(microsecond=0).isoformat()
-    out = []
-    for t in world.modules.items(limit=ROSTER * 3):
-        if t["state"] in ("done", "stopped") and t["updated_at"] < since:
-            continue
-        owner = world.agents.of_thread(t["id"])
-        if owner and owner["kind"] != "custom":
-            continue  # a built-in agent's own work lives on its page (§10), never here
-        out.append({"id": t["id"], "title": t["title"], "state": t["state"],
-                    "line": t.get("last_line") or "", "touches": touches(world, t["id"]),
-                    "question": _open_question(world, t["id"]),
-                    "agent": owner["name"] if owner else None, "module": t.get("module")})
-        if len(out) >= ROSTER:
-            break
-    return out
-
-
-def corrections(world: World, limit: int = 5) -> list[str]:
-    """The last turns the person moved (a misroute corrected), as lines for the judge: what
-    the sentence was and where it belonged."""
-    out = []
-    for e in reversed(world.journal.recent(40, kinds=["changed"])):
-        d = e.get("data") or {}
-        if d.get("misroute") and d.get("to"):
-            try:
-                to = world.modules.thread(str(d["to"]))["title"]
-            except Problem:
-                continue
-            out.append(f'"{str(d.get("sentence") or "")[:100]}" belonged to {to}')
-            if len(out) >= limit:
-                break
-    return out
-
-
-def misroutes(world: World) -> int:
-    """How many turns the person moved, ever: the measure of the judgement (design §7)."""
-    row = world.store.one("SELECT COUNT(*) AS n FROM journal WHERE kind = 'changed'"
-                          " AND json_extract(data, '$.misroute') IS NOT NULL")
-    return int(row["n"]) if row else 0
-
-
-# ---- routing ----
-
-
-def named(world: World, sentence: str, items: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """`@<title>` at the start of a sentence names an item: the whole title, or a prefix only
-    one item's title starts with (case-insensitive). Structure, not meaning."""
-    words = sentence.strip()
-    if not words.startswith("@"):
-        return None
-    rest = words[1:].strip().lower()
-    hits = [i for i in items if rest.startswith(i["title"].lower())]
-    if len(hits) == 1:
-        return hits[0]
-    prefix = [i for i in items if i["title"].lower().startswith(rest.split("\n")[0][:40])]
-    return prefix[0] if len(prefix) == 1 and rest else None
-
-
-def route(world: World, sentence: str, *, module: str | None = None, runner: Any = None,
-          ask_when_unsure: bool = True) -> dict[str, Any]:
-    """Where a sentence typed in Home (or on a module's page, `module`) goes. Returns
-    {"thread": id, "by": …, "opened": bool} (Home's own id for an answer here) or, when the
-    judge is unsure and asking is allowed, {"ask": journal id, "options": [...]}: the question
-    carries the sentence, and the answer routes it."""
-    home_row = home(world)
-    items = roster(world)
-    current = focus(world)
-    # Structure first.
-    hit = named(world, sentence, items)
-    if hit:
-        return _settled(world, sentence, hit["id"], "named", home_row)
-    asking = [i for i in items if i["question"]]
-    if len(asking) == 1 and len(sentence.split()) <= 12:
-        return _settled(world, sentence, asking[0]["id"], "answers the open question", home_row)
-    # Then one judgement, from the roster.
-    labels: dict[str, str] = {}
-    lines = []
-    for i in items:
-        label = f"{CONTINUE}{i['title']}"
-        labels[label] = i["id"]
-        marks = [i["state"].replace("_", " ")]
-        if i["id"] == current:
-            marks.append("the one in focus")
-        if i["agent"]:
-            marks.append(f"{i['agent']}'s own work")
-        if i["question"]:
-            marks.append(f"it asked: {i['question'][:160]}")
-        lines.append(f"- {label} ({'; '.join(marks)})"
-                     + (f"\n  last: {i['line'][:160]}" if i["line"] else "")
-                     + (f"\n  touches: {i['touches'][:200]}" if i["touches"] else ""))
-    where = (f" on the page of the module {world.modules.get(module)['name']}" if module
-             else " in Home")
-    state = f'The person said{where}: "{sentence}"\n\n'
-    state += ("Open work items:\n" + "\n".join(lines)) if lines else "No work items are open."
-    fixed = corrections(world)
-    if fixed:
-        state += "\n\nCorrections the person made lately: " + "; ".join(fixed)
-    question = judge.Question(kind="choose", text=config.prompt("route_home"), state=state,
-                              options=[HERE, *labels, NEW])
-    kwargs: dict[str, Any] = {"world_path": world.path}
-    if runner is not None:
-        kwargs["runner"] = runner
-    verdict = judge.ask(question, **kwargs)
-    if verdict.confidence >= CONFIDENT and verdict.answer == HERE:
-        return _settled(world, sentence, home_row["id"], "judge", home_row, verdict=verdict)
-    if verdict.confidence >= CONFIDENT and verdict.answer == NEW:
-        new = open_item(world, sentence, module)
-        return _settled(world, sentence, new["id"], "judge", home_row, verdict=verdict,
-                        opened=True)
-    if verdict.answer in labels and (verdict.confidence >= CONFIDENT
-                                     or labels[verdict.answer] == current):
-        # the item in focus is a structural prior (the person was just there): the judge's
-        # pick of it stands whatever its confidence (18 Oct: a card over an obvious follow-up)
-        return _settled(world, sentence, labels[verdict.answer], "judge", home_row,
-                        verdict=verdict)
-    if not verdict.answer or not ask_when_unsure:
-        # No answer at all (the judge did not run, or gave none): Home takes it, which has
-        # every hand and makes what stands if the sentence turns out to need it (rule 11);
-        # never a card for a question nobody asked.
-        stay = not ask_when_unsure and current in {i["id"] for i in items}
-        tid = str(current) if stay else str(home_row["id"])
-        return _settled(world, sentence, tid, "unsure; stayed", home_row, verdict=verdict)
-    # Unsure: ask, with the judge's own pick (when it made one), a new item and here as the
-    # choices, never the whole roster (18 Oct: a card of ten rows); the answer routes the
-    # sentence, and the card keeps the judge's verdict for the record.
-    picked = {verdict.answer: labels[verdict.answer]} if verdict.answer in labels else {}
-    choices = {**picked, NEW: "", HERE: home_row["id"]}
-    options = list(choices)
-    jid = world.journal.append(
-        "asked", f"Which is this about? \"{sentence[:120]}\"", thread=home_row["id"],
-        data={"options": options, "turn": None,
-              "verdict": {"answer": verdict.answer, "confidence": verdict.confidence,
-                          "why": verdict.why},
-              "routing": {"text": sentence, "module": module, "choices": choices}})
-    return {"ask": jid, "options": options, "confidence": verdict.confidence}
-
-
 def mentioned(world: World, sentence: str, tid: str) -> dict[str, Any]:
     """A sentence typed in Home to one of the person's agents by name ("@Deal Analyst ...")
     goes to that agent's own item, said in Home like a routed sentence and the focus moved
@@ -396,9 +185,9 @@ def mentioned(world: World, sentence: str, tid: str) -> dict[str, Any]:
 
 
 def _settled(world: World, sentence: str, tid: str, by: str, home_row: dict[str, Any], *,
-             verdict: judge.Verdict | None = None, opened: bool = False) -> dict[str, Any]:
-    """The decision, journaled in Home (every routing decision is a line there: a card under
-    the sentence when it went to an item), and the focus moved."""
+             opened: bool = False) -> dict[str, Any]:
+    """Where an `@Name` went, journaled in Home (the stream shows its sentence and the agent's
+    answer from it, Q107), and the focus moved."""
     here = tid == home_row["id"]
     title = world.modules.thread(tid)["title"]
     if opened:
@@ -408,37 +197,6 @@ def _settled(world: World, sentence: str, tid: str, by: str, home_row: dict[str,
     else:
         text = f"Sent \"{sentence[:80]}\" to {title}."
     data: dict[str, Any] = {"routed": tid, "sentence": sentence, "opened": opened, "by": by}
-    if verdict is not None:
-        data.update({"confidence": verdict.confidence, "why": verdict.why})
     world.journal.append("did", text, actor="alpha", data=data, thread=home_row["id"])
     set_focus(world, None if here else tid)
-    out = {"thread": tid, "by": by if verdict is None else f"judge: {verdict.why}",
-           "opened": opened, "here": here}
-    if verdict is not None:
-        out["confidence"] = verdict.confidence
-    return out
-
-
-def routed_answer(world: World, ask: dict[str, Any], answer: str) -> dict[str, Any] | None:
-    """The person's pick for a routing question: the thread to send the original sentence to
-    (an item opened when they chose something new), and that sentence."""
-    routing = (ask.get("data") or {}).get("routing")
-    if not routing:
-        return None
-    chosen = next((k for k in routing["choices"] if k.lower() == answer.strip().lower()), None)
-    if chosen is None:
-        return None
-    opened = not routing["choices"][chosen]
-    tid = str(routing["choices"][chosen] or open_item(world, routing["text"],
-                                                       routing.get("module"))["id"])
-    _settled(world, routing["text"], tid, "card", home(world), opened=opened)
-    return {"thread": tid, "text": routing["text"]}
-
-
-def correct(world: World, sentence: str, *, said: str | None, to: str) -> None:
-    """The person moved a sentence to another item: journaled as a correction, counted, and
-    shown to the judge from then on."""
-    title = world.modules.thread(to)["title"]
-    world.journal.append("changed", f"Moved \"{sentence[:80]}\" to {title}.", actor="person",
-                         data={"turn": said, "to": to, "misroute": True, "sentence": sentence})
-    set_focus(world, to)
+    return {"thread": tid, "by": by, "opened": opened, "here": here}

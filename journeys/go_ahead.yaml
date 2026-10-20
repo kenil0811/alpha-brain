@@ -1,0 +1,25 @@
+name: go_ahead
+title: "Section C · \"go ahead\" in words says yes to every host's card open at that moment"
+why: >
+  Section C, C4 (Q108, Q110, 20 Oct 2026): a yes card is answered by its button, its own reply,
+  or the desk on the person's words. Work beside the desk asks for a host on a card while the
+  desk is free; "go ahead" then answers it through card_answer, and the work runs again. With
+  two hosts' cards open, "go ahead" says yes to both (Kenil: "go ahead says yes to every site
+  card open at that moment"). No word list reads the person's words; the model does, and the
+  hand checks the card and the option.
+fresh: true
+steps:
+  - say: "Start a helper in the background, as a piece of work beside us, that uses a short Python script (not WebFetch) to read https://jsonplaceholder.typicode.com/todos/1 and tell me its title. Don't run the script yourself; carry on talking with me meanwhile."
+    answer_cards: false
+  - wait_for_card: {count: 1, seconds: 240}
+  - say: "go ahead"
+    answer_cards: false
+  - wait_for_work: {seconds: 600}
+  - say: "Start two helpers in the background at once, as two pieces of work beside us: one uses a short Python script (not WebFetch) to read https://httpbin.org/json and tell me its slideshow title, the other uses a short Python script (not WebFetch) to read https://api.github.com/zen and tell me what it says. Don't run the scripts yourself."
+    answer_cards: false
+  - wait_for_card: {count: 2, seconds: 300}
+  - say: "go ahead"
+    answer_cards: false
+checks:
+  - answered_in_words: {count: 3}
+  - yes_cards_open: {count: 0}

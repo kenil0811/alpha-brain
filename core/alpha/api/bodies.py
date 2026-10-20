@@ -20,10 +20,6 @@ class ConversationBody(BaseModel):
     title: str | None = None
 
 
-class MoveBody(BaseModel):
-    conversation: str
-
-
 class MoveModuleBody(BaseModel):
     parent: str | None = None
 

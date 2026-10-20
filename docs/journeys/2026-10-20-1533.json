@@ -1,0 +1,62 @@
+[
+ {
+  "name": "work_beside_the_desk",
+  "title": "Section C · a long piece of work runs beside the desk while the next sentence is answered",
+  "steps": [
+   {
+    "say": "Find out the three biggest car wash chains in the US by number of locations, with each one's founding year and a source for every number. It's a longer job, so do it in the background and carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started the research in the background. For each chain it will find the current number of US locations, the founding year and a source for each figure. I'll bring you the results as soon as they're in.\n\nIn the meantime, I'm free to talk about anything you like. Is there something behind this question, like an investment, a business idea or just curiosity? Knowing that would tell me what to look at next.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52593,
+    "tokens_cache_made": 11097,
+    "tokens_out": 822,
+    "first_text_ms": 10654,
+    "seconds": 17.9
+   },
+   {
+    "say": "Meanwhile: what is 15% of 840,000?",
+    "ok": true,
+    "reply": "15% of 840,000 is **126,000** (0.15 × 840,000).\n\nThe car wash research is still running. Right now it's checking Mister Car Wash's latest quarterly results for its location count.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 32440,
+    "tokens_cache_made": 441,
+    "tokens_out": 65,
+    "first_text_ms": 766,
+    "seconds": 5.4
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 296.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1,
+     "answered_while_running": true
+    },
+    "ok": true,
+    "why": "1 piece(s): Research top US car wash chains (done); answered meanwhile: 15% of 840,000 is **126,000** (0.15 × 840,000).\n\nThe car wash research is still .",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "replied",
+     "contains": "126,000"
+    },
+    "ok": true,
+    "why": "1 replied entry: 15% of 840,000 is **126,000** (0.15 × 840,000).\n\nThe car wash research is still running. Right now it's checking Mister Car Wash's latest quarterly results for .",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 319.8,
+  "error": null
+ }
+]
