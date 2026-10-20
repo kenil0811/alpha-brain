@@ -15,10 +15,8 @@ from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world import people
 from alpha.world.actions import file_fields
 from alpha.world.journal import entry
-from alpha.world.store import Problem, loads, local_midnight_utc
+from alpha.world.store import Problem, loads
 from alpha.world.world import World
-
-STEP_KINDS = {"did", "saw", "made", "changed", "failed", "noticed", "asked", "checked"}
 
 
 def _cell(value: Any) -> Any:
@@ -248,33 +246,6 @@ def conversation_view(world: World, cid: str,
             "updated_at": t["updated_at"], "live": running.LIVE.progress_for(cid)}
 
 
-def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
-    """Open threads with what Alpha has done in each lately, so a build is watched, not
-    waited for: its last few journal entries, newest last (a prompt line is left out).
-    `done=True` adds the finished ones, for the Assistant page's history."""
-    out = []
-    for t in world.modules.threads(done=done):
-        owner = world.agents.of_thread(t["id"])
-        if owner and owner["kind"] != "custom":
-            continue  # a built-in agent's own work lives on its page (harness §10)
-        entries = world.journal.recent(40, thread=t["id"])
-        steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
-                 if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",
-                                                                          "Continue the build"))]
-        out.append({**t, "steps": steps[-6:], "step_count": len(steps),
-                    "last_at": entries[-1]["at"] if entries else t["updated_at"],
-                    "live": running.LIVE.progress_for(t["id"])})
-    return out
-
-
-def items_today(world: World) -> list[dict[str, Any]]:
-    """The work items Home and the Assistant list show: the ones not over, and the ones done
-    or stopped today (the lanes are the window's)."""
-    since = local_midnight_utc()
-    return [t for t in thread_views(world, done=True)
-            if t["state"] not in ("done", "stopped") or t["updated_at"] >= since]
-
-
 def relation_titles(world: World, desc: dict[str, Any],
                     records: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
     """For each relation field into another table, the titles of the records the rows point
@@ -321,7 +292,6 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
     return {**m, "tables": tables,
             "records": sum(t["records"] for t in tables if t.get("name") != "settings"),
             "last_at": last["at"] if last else None, "last_text": last["text"] if last else None,
-            "threads": [t for t in world.modules.threads() if t["module"] == m["id"]],
             "path": [p["name"] for p in world.modules.path(m["id"])],
             "children": [c["id"] for c in world.modules.children(m["id"])]}
 

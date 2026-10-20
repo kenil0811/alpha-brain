@@ -1,4 +1,4 @@
-"""Routes for search, conversations, the companion, turns and threads."""
+"""Routes for search, the stream, the companion, turns and the threads of work."""
 
 from __future__ import annotations
 
@@ -11,26 +11,18 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
-from alpha.api.bodies import (
-    AskBody,
-    ConversationBody,
-    RenameConversationBody,
-)
+from alpha.api.bodies import AskBody
 from alpha.api.served import Served
 from alpha.api.views import (
     action_view,
     asked_by,
-    conversation_view,
     fold_failures,
-    items_today,
     needs_you,
-    thread_views,
     troubles,
 )
 from alpha.connectors.files import Files
 from alpha.runtime import conversations, desk
 from alpha.runtime.running import LIVE
-from alpha.world.purge import conversation_removal, remove_conversation
 from alpha.world.store import Problem
 from alpha.world.tasks import TABLE as TASKS
 
@@ -45,41 +37,11 @@ def routes(app: FastAPI, s: Served) -> None:
         return {"records": world.collections.search(q, 20), "documents": Files(world).search(q),
                 "people": world.entities.find(name=q), "journal": world.journal.search(q, 20)}
 
-    @app.get("/api/conversations", dependencies=[api])
-    def list_conversations(module: str | None = None, done: bool = False) -> list[dict[str, Any]]:
-        """Home first, then the work items, newest first (not over; `done=true` adds the
-        finished and stopped ones, the Assistant page's history)."""
-        module_id = world.modules.get(module)["id"] if module else None
-        head = [conversation_view(world, conversations.home(world)["id"])] if not module_id \
-            else []
-        rows = thread_views(world, done=True) if done else items_today(world)
-        return head + [conversation_view(world, t["id"], t) for t in rows
-                       if module_id is None or t["module"] == module_id]
-
-    @app.post("/api/conversations", dependencies=[api])
-    def new_conversation(body: ConversationBody) -> dict[str, Any]:
-        """A work item the person opens deliberately (+ New); its first sentence names it."""
-        item = conversations.open_item(world, body.title or conversations.UNNAMED, body.module)
-        return conversation_view(world, item["id"])
-
-    @app.post("/api/conversations/{cid}/close", dependencies=[api])
-    def close_conversation(cid: str) -> dict[str, Any]:
-        return conversation_view(world, conversations.finish(world, cid)["id"])
-
-    @app.post("/api/conversations/{cid}/focus", dependencies=[api])
-    def focus_conversation(cid: str) -> dict[str, Any]:
-        world.modules.thread(cid)
-        conversations.set_focus(world, cid)
-        return {"focus": cid}
-
     @app.get("/api/companion", dependencies=[api])
     def companion() -> dict[str, Any]:
-        """What the companion shows: its focus, the live conversations, what needs the person."""
-        current = conversations.focus(world) or conversations.home(world)["id"]
-        return {"focus": conversation_view(world, current),
-                "conversations": [conversation_view(world, t["id"], t)
-                                  for t in thread_views(world)],
-                "needs_you": needs_you(world),
+        """What the companion shows besides the stream: what needs the person, what didn't
+        work, its look."""
+        return {"needs_you": needs_you(world),
                 "troubles": troubles(world),
                 "look": world.preferences.get("companion_look")}
 
@@ -117,7 +79,7 @@ def routes(app: FastAPI, s: Served) -> None:
         for e in entries:
             if e["kind"] == "did" and not (isinstance(e["data"].get("work"), str)
                                            and e["thread"] == home_id):
-                continue  # only the line where work started stays: routing lines, steps go
+                continue  # only the line where work started stays (an @Name's comes below)
             if work and work not in works_of(e) and e["id"] not in asked_for:
                 continue
             if module_id and e["module"] != module_id and not any(
@@ -136,12 +98,10 @@ def routes(app: FastAPI, s: Served) -> None:
         now = [t for t in desk_work.values() if t["state"] in ("working", "needs_you")
                and (not module_id or t.get("module") == module_id)]
         return {"turns": fold_failures(kept),
-                "conversation": conversation_view(world, home_id),
-                "conversations": [conversation_view(world, home_id)],
                 "work": {tid: work_view(t) for tid, t in desk_work.items()
                          if tid in shown or t in now},
                 "now": [work_view(t) for t in sorted(now, key=lambda t: t["created_at"])],
-                "threads": thread_views(world), "running": running.running(),
+                "running": running.running(),
                 # every card where it arose (C3): a page drafted, an action proposed, a question
                 # asked, by the desk, its work or an agent's run
                 "workflows": [w for w in world.workflows.recent()
@@ -205,10 +165,8 @@ def routes(app: FastAPI, s: Served) -> None:
             limit, thread=chat["id"], kinds=["answered"]) if e["data"].get("to")}
         turns_ = [({**e, "by": asked_by(world, e), "answer": to_agents.get(e["id"])}
                    if e["kind"] == "asked" else e) for e in turns_]
-        return {"turns": fold_failures(turns_),
-                "conversation": conversation_view(world, chat["id"], chat),
-                "conversations": [], "work": {}, "now": [],
-                "threads": thread_views(world), "running": running.running(),
+        return {"turns": fold_failures(turns_), "work": {}, "now": [],
+                "running": running.running(),
                 "workflows": [w for w in world.workflows.recent()
                               if w.get("conversation") == chat["id"]],
                 "actions": [action_view(world, a) for a in world.actions.all(limit=20)
@@ -239,24 +197,7 @@ def routes(app: FastAPI, s: Served) -> None:
     def ask(body: AskBody) -> dict[str, Any]:
         if not body.text.strip():
             raise Problem("Say something first.")
-        if body.conversation:
-            conversations.name_from_first(world, body.conversation, body.text)
         return running.start(body)
-
-    @app.post("/api/conversations/{cid}/rename", dependencies=[api])
-    def rename_conversation(cid: str, body: RenameConversationBody) -> dict[str, Any]:
-        """The person's title for a conversation (13 Oct, slice 2 G1)."""
-        return conversation_view(world, conversations.rename(world, cid, body.title)["id"])
-
-    @app.get("/api/conversations/{cid}/removal", dependencies=[api])
-    def conversation_removal_plan(cid: str) -> dict[str, Any]:
-        """What deleting a conversation would do, before it does (C9)."""
-        return conversation_removal(world, cid)
-
-    @app.delete("/api/conversations/{cid}", dependencies=[api])
-    def delete_conversation(cid: str) -> dict[str, Any]:
-        """Delete a conversation from the lists (C9); the journal keeps its turns."""
-        return remove_conversation(world, cid)
 
     @app.get("/api/turns/{key}", dependencies=[api])
     def turn_state(key: str) -> dict[str, Any]:
@@ -316,7 +257,7 @@ def routes(app: FastAPI, s: Served) -> None:
                         if live.get(kind) and live.get(kind) != seen[kind]:
                             seen[kind] = live[kind]
                             yield line({"type": kind, "text": live[kind]})
-                if state["state"] not in ("running", "routing"):
+                if state["state"] != "running":
                     yield line({"type": "done", "turn": state})
                     return
                 await asyncio.sleep(0.1)

@@ -891,22 +891,14 @@ class Run:
             words += f"; answered meanwhile: {between[-1]['text'][:80]}"
         return True, f"{len(work)} piece(s): {words}."
 
-    def check_items(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        """The work items the journey opened (harness §7): exactly `count`, or at most
-        `at_most`; one sentence of work is one item, never two."""
-        made = [t for t in self.world.modules.items(limit=200) if t["created_at"] >= self.mark.at
-                and not self._builtin_owned(t["id"])]
+    def check_opened(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Nothing opened as an item (section C's acceptance): every thread the journey made
+        is work beside the desk or an agent's own; `count` is how many others there may be."""
+        made = [t for t in self.world.modules.items(limit=200)
+                if t["created_at"] >= self.mark.at and t.get("session_tools") != desk.WORK
+                and not self.world.agents.of_thread(t["id"])]
         words = "; ".join(f"{t['title']} ({t['state']})" for t in made) or "none"
-        if "count" in arg and len(made) != int(arg["count"]):
-            return False, f"{len(made)} item(s) opened, wanted {arg['count']}: {words}."
-        if "at_most" in arg and len(made) > int(arg["at_most"]):
-            return False, f"{len(made)} item(s) opened, at most {arg['at_most']}: {words}."
-        return True, f"{len(made)} item(s): {words}."
-
-    def _builtin_owned(self, thread: str) -> bool:
-        """A built-in agent's own item (Watson's, Columbo's): on its page, never Home's."""
-        owner = self.world.agents.of_thread(thread)
-        return bool(owner and owner["kind"] != "custom")
+        return len(made) == int(arg.get("count", 0)), f"{len(made)} opened: {words}."
 
     def check_made_since(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """What the journey made: at least `tables`, `readers`, `agents`, `modules` (counts),
@@ -1078,6 +1070,15 @@ class Run:
         # steps and its outcome; the desk holds only the outcome and reads the steps with one
         # query, which leaves no step either. An answer about the work is judged against them.
         worked = ""
+        if isinstance(arg, dict) and arg.get("stream"):
+            # section C's acceptance: the one stream as the person read it, in its order
+            home = self.world.modules.home_thread()["id"]
+            worked += "The conversation, oldest first:\n" + "\n".join(
+                f"- {e['at'][11:19]} {'Person' if e['kind'] == 'said' else 'Alpha'}:"
+                f" {' '.join(e['text'].split())[:600]}"
+                for e in self.world.journal.recent(200, thread=home,
+                                                   kinds=["said", "replied", "failed"])
+                if e["at"] >= self.mark.at) + "\n\n"
         if isinstance(arg, dict) and arg.get("work_journal"):
             home = self.world.modules.home_thread()["id"]
             for t in self._work():
@@ -1441,6 +1442,7 @@ class Run:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])
                    if e["at"] >= self.mark.at
                    and (not arg.get("contains") or arg["contains"].lower() in e["text"].lower())
+                   and (not arg.get("matches") or re.search(arg["matches"], e["text"], re.I))
                    and (not arg.get("url_contains")
                         or arg["url_contains"] in str((e.get("data") or {}).get("url", "")))]
         noun = "entry" if len(entries) == 1 else "entries"

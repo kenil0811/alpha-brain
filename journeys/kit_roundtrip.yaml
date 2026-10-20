@@ -8,7 +8,6 @@ why: >
 fresh: true
 steps:
   - say: "watch We Work Remotely for back-end roles"
-    home: true
   - kit_export: {}
   - module_remove: {}
   - kit_install: {}

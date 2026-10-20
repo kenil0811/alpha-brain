@@ -286,7 +286,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
+            <IconButton size="sm" label="Open the workspace" title="Open the conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)} />
             <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
           </header>
           <div className="avatar__turns" ref={listRef}>

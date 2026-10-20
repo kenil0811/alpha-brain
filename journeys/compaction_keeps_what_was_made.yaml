@@ -8,12 +8,9 @@ why: >
 fresh: true
 steps:
   - say: "track what I eat"
-    home: true
   - say: "log two boiled eggs for breakfast"
-    home: true
   - compact: true
   - say: "what have we set up for tracking my food so far, and what's logged in it?"
-    home: true
 checks:
   - judge:
       rubric: "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries."

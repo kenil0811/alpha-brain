@@ -5,7 +5,7 @@ import { iconFromName } from "./moduleIcons";
 import { Rail } from "./Rail";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace } from "./sidebarOrder";
 
-const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [name], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
+const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [name], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, created_at: "" });
 
 /** A core that keeps preferences and moves modules, as the real one does. */
 function fakeCore(kept: Record<string, unknown> = {}) {

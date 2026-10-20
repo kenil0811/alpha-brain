@@ -368,52 +368,6 @@ def remove_document(world: World, did: str) -> dict[str, Any]:
     return plan
 
 
-def conversation_removal(world: World, cid: str) -> dict[str, Any]:
-    """What deleting a conversation would do, before it does (13 Oct, slice 2 C9): its open
-    questions closed, the actions proposed in it and not yet decided declined; what Alpha
-    learned from it stays, and Activity keeps its turns."""
-    thread = world.modules.thread(cid)
-    if thread["kind"] != "work":
-        raise Problem("Home is the one conversation; it is never deleted.")
-    if world.agents.of_thread(cid):
-        raise Problem("An agent's own work goes with the agent; remove the agent instead.")
-    if thread["state"] == "working":
-        raise Problem("Alpha is working in this conversation; stop the turn first.")
-    asks = [a["id"] for a in world.journal.open_asks() if a["thread"] == cid]
-    actions = [r["id"] for r in world.store.all(
-        "SELECT id FROM actions WHERE thread = ? AND state IN ('proposed', 'approved')", (cid,))]
-    what = [plural(len(asks), "open question")] if asks else []
-    what += [plural(len(actions), "undecided action")] if actions else []
-    closed = f"its {and_join(what)} closed; " if what else ""
-    return {"conversation": cid, "title": thread["title"], "asks": asks, "actions": actions,
-            "what": f"{closed}what Alpha learned from it stays"}
-
-
-def remove_conversation(world: World, cid: str) -> dict[str, Any]:
-    """Delete a conversation from the lists: its thread and model session; its open questions
-    closed and undecided actions declined; a workflow page drafted in it stays with its module.
-    The journal keeps its turns, marked as from a removed conversation."""
-    plan = conversation_removal(world, cid)
-    thread = world.modules.thread(cid)
-    for ask in plan["asks"]:
-        world.journal.close_ask(ask, f"\"{thread['title']}\" was deleted.", actor="person",
-                                closed="removed")
-    with world.store.tx() as db:
-        for aid in plan["actions"]:
-            db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE id = ?",
-                       (now(), aid))
-        Cards.withdraw_in(db, thread=cid, refs=plan["actions"])  # P3
-        Staged.remove_in(db, thread=cid)
-        db.execute("UPDATE workflows SET conversation = NULL WHERE conversation = ?", (cid,))
-        db.execute("UPDATE agents SET thread = NULL WHERE thread = ?", (cid,))
-        db.execute("DELETE FROM notes WHERE scope = ?", (f"conversation:{cid}",))  # A12
-        db.execute("DELETE FROM threads WHERE id = ?", (cid,))
-    # the companion's focus on it reads as none once the thread is gone (conversations.focus)
-    _record_removal(world, "conversation", cid, f"the conversation \"{thread['title']}\"",
-                    plan["what"], threads=[cid], agents=[], readers=[])
-    return plan
-
-
 def _steps_text(store: Any, skill: str | None) -> str | None:
     """A pipeline's steps as text, for matching reader names (they live in its run skill)."""
     if not skill:

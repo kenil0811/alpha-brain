@@ -219,10 +219,9 @@ def test_tasks_due_today_ride_with_the_sentence(world: World) -> None:
 
 
 def test_a_conversations_checkpoint_keeps_what_it_decided_and_what_is_open(world: World) -> None:
-    from alpha.runtime import conversations
 
     mod = world.modules.create("Deals", goal="find a firm")
-    chat = conversations.open_item(world, "which list first?", mod["id"])
+    chat = world.modules.open_thread("Which list first?", "work", mod["id"])
     world.journal.append("said", "which list first, Austin or Dallas?", actor="person",
                          thread=chat["id"], module=mod["id"])
     world.journal.append("replied", "Austin has better data.", thread=chat["id"], module=mod["id"])

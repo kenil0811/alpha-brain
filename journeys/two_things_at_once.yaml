@@ -1,22 +1,58 @@
 name: two_things_at_once
-title: "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item"
-why: The harness design's §7 (slice 3, 18 Oct 2026). The person speaks in Home; work lives in
-  items. "watch We Work Remotely for back-end roles" opens one work item (a card); "how many
-  eggs have I logged this week" is answered in Home, no second item; "make that watch check
-  every day at 7" continues the watch's item. Before slice 3, three sentences were three
-  conversations, or one conversation that did everything in line.
+title: "Section C · two things at once in one stream: work beside the desk, a question answered meanwhile, a follow-up about the work, nothing opened"
+why: >
+  Section C's acceptance (Kenil's spec, 20 Oct 2026), rewritten from slice 3's journey, whose
+  items and routing went with C4 and C7. Two unrelated requests in one stream: the first starts
+  work beside the desk, the second is answered while it runs. A follow-up about the first
+  reaches the work, or is answered after its outcome and says so. Both outcomes are in the
+  stream, and nothing is opened as an item.
 fresh: true
 steps:
-  - say: "watch We Work Remotely for back-end roles"
-    home: true
-  - check: {routed: {to: new}}
-  - say: "how many eggs have I logged this week"
-    home: true
-  - check: {routed: {to: home}}
-  - say: "make that watch check every day at 7"
-    home: true
-  - check: {routed: {to: item}}
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+        - {name: locations, kind: number}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000, locations: 4}
+        - {business: "Corner Print Shop", asking_price: 210000, locations: 1}
+        - {business: "Lakeside Bakery", asking_price: 450000, locations: 3}
+        - {business: "Sunbelt Laundry", asking_price: 990000, locations: 6}
+  - seed:
+      kind: table
+      name: food_log
+      title: Food log
+      module: Nutrition
+      fields:
+        - {name: food, kind: text}
+        - {name: quantity, kind: number}
+      title_field: food
+      rows:
+        - {food: "eggs", quantity: 2}
+        - {food: "toast", quantity: 1}
+        - {food: "eggs", quantity: 3}
+        - {food: "eggs", quantity: 1}
+  - say: "In the background, go through my Listings one by one and work out each one's asking price per location, then tell me which is cheapest per location. Carry on talking with me meanwhile."
+  - say: "How many eggs have I logged in total?"
+  - say: "About the listings: also tell me which one is the most expensive per location."
+  - wait_for_work: {seconds: 600}
 checks:
-  - items: {count: 1}
-  - made_since: {tables: 1, readers: 1, agents: 1}
-  - judge: "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?"
+  - work: {count: 1, answered_while_running: true}
+  - journal: {kind: replied, matches: "\\b6\\b[^.]*egg|egg[^.]*\\b6\\b"}
+  - journal: {kind: replied, contains: "Lakeside"}
+  - journal: {kind: replied, contains: "Harbour"}
+  - opened: {count: 0}
+  - judge:
+      stream: true
+      rubric: >
+        In the conversation: the eggs question is answered (6 eggs) while the listings work
+        runs; the listings work ends with the cheapest per location (Lakeside Bakery, 150,000
+        each); and the follow-up gets its answer, the most expensive per location (Harbour Car
+        Wash, 212,500 each), either from the work itself or after its outcome in words that
+        make clear it is about the listings. No question is left unanswered and no number
+        contradicts these.

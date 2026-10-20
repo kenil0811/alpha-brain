@@ -170,7 +170,7 @@ class Turns:
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(v) for v in self.state.values()
-                    if v["state"] in ("running", "routing")]
+                    if v["state"] == "running"]
 
     def stop(self, key: str) -> dict[str, Any]:
         """Stop a turn that is still working; it ends with "You stopped it."."""

@@ -19,7 +19,6 @@ from alpha.api.bodies import (
 )
 from alpha.api.served import Served
 from alpha.api.views import (
-    items_today,
     module_card,
     needs_you,
     staged_view,
@@ -63,7 +62,6 @@ def routes(app: FastAPI, s: Served) -> None:
             "loose_tables": [t for t in world.collections.overview()
                              if t["module"] is None and not t.get("world")],
             "coming_up": events[:6],
-            "threads": items_today(world),
             "picks": [p for p in scout.picks_of_day(world) if not p["decided"]],
         }
 

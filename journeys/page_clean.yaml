@@ -8,17 +8,14 @@ why: >
 fresh: true
 steps:
   - say: "track what I eat: a food log with the date, the item, calories and protein in grams"
-    home: true
   - say: >-
       log these for the last week: Mon 12 Oct oats 350 kcal 12 g protein, chicken salad 520 kcal
       42 g; Tue 13 Oct eggs 300 kcal 20 g, pasta 700 kcal 25 g; Wed 14 Oct yoghurt 200 kcal 15 g,
       steak 650 kcal 55 g; Thu 15 Oct toast 280 kcal 8 g, curry 800 kcal 30 g; Fri 16 Oct smoothie
       320 kcal 18 g, pizza 900 kcal 35 g; Sat 17 Oct pancakes 450 kcal 10 g, salmon 600 kcal 45 g;
       Sun 18 Oct granola 400 kcal 12 g, soup 350 kcal 14 g
-    home: true
   - check: {rows_since: {at_least: 14}}
   - say: "add a line chart of my daily calories and protein to the summary page, one line each"
-    home: true
 checks:
   - page: {module: Food, name: overview, front: true, count: 1, rows: 7, kit: true}
   - page_look: {module: Food}

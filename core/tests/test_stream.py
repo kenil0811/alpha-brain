@@ -115,3 +115,39 @@ def test_an_at_name_and_its_answer_show_in_the_stream_with_the_agents_name(world
     assert [(e["text"], e["data"].get("agent_name")) for e in turns] == [
         (sentence, None), ("Midwest HVAC is cheaper for its revenue.", "Deal Analyst")]
     assert all(e["thread"] != home for e in turns)  # they live in the agent's own thread
+
+
+def test_a_world_from_before_c_opens_with_its_history_and_its_one_pending_card(
+        world: World) -> None:
+    """C7's proof. A world made before section C: the person's items, one finished and one
+    waiting on a question. It opens with their sentences and replies as the stream's history
+    and the one pending card at the bottom; no item is listed anywhere, and the item routes
+    are gone."""
+    from alpha.runtime import conversations
+
+    done = world.modules.open_thread("Log the shake", "work")
+    world.journal.append("said", "log a shake", actor="person", thread=done["id"])
+    world.journal.append("replied", "Logged the shake.", actor="alpha", thread=done["id"])
+    world.modules.update_thread(done["id"], state="done", last_line="Logged the shake.")
+    waiting = world.modules.open_thread("Plan the car wash", "work")
+    world.journal.append("said", "plan the car wash visit", actor="person",
+                         thread=waiting["id"])
+    ask = world.journal.append("asked", "Which day suits you?",
+                               data={"options": ["Friday", "Saturday"]}, thread=waiting["id"])
+    world.modules.update_thread(waiting["id"], state="needs_you", last_line="Which day?")
+    conversations.reset_working(world)  # the core starting on it
+    assert world.modules.thread(waiting["id"])["state"] == "needs_you"
+    c = TestClient(create_app(world, live=False))
+    out = c.get("/api/conversation").json()
+    assert [e["text"] for e in out["turns"] if e["kind"] in ("said", "replied")] == [
+        "log a shake", "Logged the shake.", "plan the car wash visit"]
+    assert [a["id"] for a in out["asks"]] == [ask]
+    assert "threads" not in out and "conversations" not in out
+    assert "threads" not in c.get("/api/home").json()
+    assert set(c.get("/api/companion").json()) == {"needs_you", "troubles", "look"}
+    for method, path in (("GET", "/api/conversations"), ("POST", "/api/conversations"),
+                         ("POST", f"/api/conversations/{done['id']}/close"),
+                         ("POST", f"/api/conversations/{done['id']}/focus"),
+                         ("POST", f"/api/conversations/{done['id']}/rename"),
+                         ("DELETE", f"/api/conversations/{done['id']}")):
+        assert c.request(method, path, json={}).status_code in (404, 405), path

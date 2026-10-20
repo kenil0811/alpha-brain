@@ -10,11 +10,8 @@ why: >
 fresh: true
 steps:
   - say: "track what I eat"
-    home: true
   - say: "log two eggs"
-    home: true
   - say: "remove the eggs from the log"
-    home: true
 checks:
   - journal: {kind: asked, contains: "Remove "}
   - journal: {kind: answered, contains: "Yes"}

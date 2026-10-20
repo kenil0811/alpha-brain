@@ -4,7 +4,7 @@ import { CoreError, type Client, type ModuleCard } from "../core/client";
 import { Rail } from "./Rail";
 import { RemovedModulesList, RemoveModuleDialog } from "./RemoveModule";
 
-const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [name], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
+const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [name], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, created_at: "" });
 const plan = { module: "Deals", tables: 1, rows: 12, files: 0, readers: [], agents: 1, inside: [], what: "1 table (12 rows) and 1 agent" };
 
 function core() {

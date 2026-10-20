@@ -286,7 +286,6 @@ export interface ModuleCard {
   records: number;
   last_at: string | null;
   last_text: string | null;
-  threads: Thread[];
   created_at: string;
 }
 
@@ -641,7 +640,6 @@ export interface Home {
   modules: ModuleCard[];
   loose_tables: TableSummary[];
   coming_up: CalendarItem[];
-  threads: Thread[];
 }
 
 export interface Fact {
@@ -1061,7 +1059,7 @@ export type TurnEvent =
   | { type: "text"; delta?: string; reset?: boolean; text?: string }
   | { type: "thought" | "doing"; text: string }
   | { type: "step"; at: string; kind: string; text: string }
-  | { type: "state"; state: Turn["state"]; conversation?: Convo | null; ask?: string; options?: string[] }
+  | { type: "state"; state: Turn["state"]; conversation?: Convo | null }
   | { type: "done"; turn: Turn }
   | { type: "lost" };
 
@@ -1079,7 +1077,7 @@ export function applyTurnEvent(turn: Turn, event: TurnEvent): Turn {
     case "step":
       return { ...turn, steps: [...(turn.steps ?? []), { at: event.at, kind: event.kind, text: event.text }] };
     case "state":
-      return { ...turn, state: event.state, conversation: event.conversation ?? turn.conversation, ask: event.ask, options: event.options };
+      return { ...turn, state: event.state, conversation: event.conversation ?? turn.conversation };
     default:
       return turn;
   }
@@ -1102,13 +1100,9 @@ export function parseTurnEvent(block: string): TurnEvent | null {
 
 export interface Turn {
   id: string | null;
-  /** "routing": the companion's sentence is being placed in a conversation (a judge may run). */
-  state: "routing" | "running" | "done" | "failed" | "asked";
+  state: "running" | "done" | "failed";
   text: string;
   conversation?: Convo | null;
-  /** When the sentence had to be routed and Alpha wasn't sure: the question to answer. */
-  ask?: string;
-  options?: string[];
   steps?: { at: string; kind: string; text: string }[];
   live?: Live | null;
   reply?: string;
@@ -1133,13 +1127,10 @@ export interface Work {
 
 export interface Conversation {
   turns: JournalEntry[];
-  threads: Thread[];
   running: Turn[];
   workflows?: Workflow[];
   actions?: Action[];
   asks?: Ask[];
-  conversation?: Convo | null;
-  conversations?: Convo[];
   /** The work the stream's entries name, by its thread (section C). */
   work?: Record<string, Work>;
   /** The work running now or waiting on the person: the Now strip. */
@@ -1172,8 +1163,6 @@ export interface Trouble {
 }
 
 export interface Companion {
-  focus: Convo | null;
-  conversations: Convo[];
   needs_you: NeedItem[];
   troubles?: Trouble[];
   /** The look the person chose for the companion (`avatar/looks.ts` reads it), or null. */
@@ -1396,21 +1385,6 @@ export class Client {
   };
   /** The person's Stop on a piece of work beside the desk. */
   stopWork = (id: string) => this.call<Work>("POST", `/api/work/${encodeURIComponent(id)}/stop`);
-  /** Live conversations and work items; `done` adds the finished ones (the Assistant page's history). */
-  conversations = (module?: string | null, done = false) => {
-    const qs = new URLSearchParams();
-    if (module) qs.set("module", module);
-    if (done) qs.set("done", "true");
-    const q = qs.toString();
-    return this.call<Convo[]>("GET", `/api/conversations${q ? `?${q}` : ""}`);
-  };
-  newConversation = (module?: string | null, title?: string) => this.call<Convo>("POST", "/api/conversations", { module: module ?? null, title: title ?? null });
-  closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
-  /** A conversation renamed, and deleted from the lists (13 Oct, slice 2 G1, C9). */
-  renameConversation = (id: string, title: string) => this.call<Convo>("POST", `/api/conversations/${encodeURIComponent(id)}/rename`, { title });
-  conversationRemoval = (id: string) => this.call<{ conversation: string; title: string; what: string }>("GET", `/api/conversations/${encodeURIComponent(id)}/removal`);
-  deleteConversation = (id: string) => this.call<Record<string, unknown>>("DELETE", `/api/conversations/${encodeURIComponent(id)}`);
-  focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
   companion = () => this.call<Companion>("GET", "/api/companion");
   /** A choice of look the person made, kept in the world; the window owns its shape. */
   preference = (key: string) => this.call<{ key: string; value: unknown }>("GET", `/api/preferences/${encodeURIComponent(key)}`);
@@ -1428,7 +1402,7 @@ export class Client {
   /** A running turn pushed by the core as it happens (the conversation's slice 1, 16 Oct);
    * the poll takes over when the stream can't be opened or drops before the end. */
   async followOrWait(turn: Turn, onTick?: (t: Turn) => void, every = 1000): Promise<Turn> {
-    if (turn.id && (turn.state === "running" || turn.state === "routing")) {
+    if (turn.id && (turn.state === "running")) {
       try {
         const final = await this.followTurn(turn, onTick);
         if (final) return final;
@@ -1464,14 +1438,14 @@ export class Client {
       }
     }
   }
-  /** Follow a started turn to its end (a routing question comes back as is). A poll the core
+  /** Follow a started turn to its end. A poll the core
    * does not answer is tried again for a while before the turn counts as lost: one missed poll
    * used to end the turn in the window while the core kept working (3 Oct). A core that says
    * it knows no such turn (it restarted) ends the wait at once. */
   async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8, every = 1000): Promise<Turn> {
     let current = turn;
     let misses = 0;
-    while ((current.state === "running" || current.state === "routing") && current.id) {
+    while (current.state === "running" && current.id) {
       await new Promise((r) => setTimeout(r, every));
       try {
         current = await this.turn(current.id);

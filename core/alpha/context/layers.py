@@ -13,7 +13,7 @@ after a conversation's first turn):
   whole; an agent's own thread; and every open card;
 - the turn layer, with every sentence, a few lines: the clock, what changed elsewhere since the
   last turn here, what is due today, the cards open here, the strongest matches for the sentence
-  with their ids, who it names, and in Home the roster of work items.
+  with their ids, who it names, and at the desk the work beside it (outcomes, never its steps).
 
 Everything else the model fetches through its tools; the conversation is in the session it
 resumes. Deterministic and free: no model call; every line names where it came from. No section

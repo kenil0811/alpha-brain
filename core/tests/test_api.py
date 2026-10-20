@@ -444,24 +444,6 @@ def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
     assert listed["last_verdict"] == "partial"
 
 
-def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) -> None:
-    from alpha.runtime import conversations as convs
-
-    c = client(world)
-    open_one = convs.open_item(world, "Open one", None)
-    done_one = convs.open_item(world, "Done one", None)
-    world.modules.update_thread(done_one["id"], state="done")
-    live = [x["id"] for x in c.get("/api/conversations").json()]
-    assert open_one["id"] in live and done_one["id"] in live  # done today: still listed
-    with world.store.tx() as db:  # done before today: history
-        db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00' WHERE id = ?",
-                   (done_one["id"],))
-    live = [x["id"] for x in c.get("/api/conversations").json()]
-    assert open_one["id"] in live and done_one["id"] not in live
-    everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]
-    assert open_one["id"] in everything and done_one["id"] in everything
-
-
 def test_the_folders_alpha_may_read_and_the_whole_mac_switch(world: World, tmp_path: Any) -> None:
     from alpha.connectors.base import Connections
 

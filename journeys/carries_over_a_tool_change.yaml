@@ -8,9 +8,7 @@ why: >
 fresh: true
 steps:
   - say: "I'm reading Dune and Piranesi. Let's keep my books in a table called books with title and status; both are reading."
-    home: true
   - tools_change: {}
   - say: "which books did I tell you about, and what did we decide to keep them in?"
-    home: true
 checks:
   - judge: "Does the answer name Dune and Piranesi and say they are kept in a table called books (or Books), without asking the person to repeat themselves?"

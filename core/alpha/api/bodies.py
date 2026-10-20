@@ -11,13 +11,8 @@ class AskBody(BaseModel):
     text: str
     module: str | None = None
     thread: str | None = None
-    # The conversation this belongs to; without one the sentence is routed (the companion).
+    # An agent's own thread, which keeps its sentences; without one the sentence is the desk's.
     conversation: str | None = None
-
-
-class ConversationBody(BaseModel):
-    module: str | None = None
-    title: str | None = None
 
 
 class MoveModuleBody(BaseModel):
@@ -176,10 +171,6 @@ class AddFieldBody(BaseModel):
 
 class RelabelFieldBody(BaseModel):
     label: str
-
-
-class RenameConversationBody(BaseModel):
-    title: str
 
 
 class CorrectFactBody(BaseModel):

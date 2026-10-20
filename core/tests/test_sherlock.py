@@ -53,9 +53,8 @@ def alive(url: str) -> bool:
 
 def drafted(world: World, *, conversation: bool = True) -> dict[str, Any]:
     """A workflow page as the interview drafts it, in a conversation."""
-    from alpha.runtime import conversations
 
-    cid = conversations.open_item(world, "car wash sites", None)["id"] if conversation \
+    cid = world.modules.open_thread("Car wash sites", "work")["id"] if conversation \
         else None
     turn = world.journal.append("said", "I want help picking car wash sites to open",
                                 actor="person", thread=cid)
@@ -69,9 +68,8 @@ def drafted(world: World, *, conversation: bool = True) -> dict[str, Any]:
 def interviewing(world: World, title: str = "car wash sites") -> str:
     """An interview begun in a conversation: a card asked there (what starts Sherlock's look
     since the harness's slice 2a; a drafted page no longer does)."""
-    from alpha.runtime import conversations
 
-    cid = str(conversations.open_item(world, title, None)["id"])
+    cid = str(world.modules.open_thread(title, "work")["id"])
     turn = world.journal.append("said", "I want help picking car wash sites to open",
                                 actor="person", thread=cid)
     world.journal.append("replied", "A few questions first.", data={"turn": turn}, thread=cid)
@@ -142,9 +140,8 @@ def test_at_sherlock_answers_a_question_onto_a_page(world: World,
                                          "sources": ["https://example.com/gates"]}],
             "questions": []}), ok=True)
 
-    from alpha.runtime import conversations
 
-    cid = conversations.open_item(world, "site scoring", None)["id"]
+    cid = world.modules.open_thread("Site scoring", "work")["id"]
     out = agent_runner.mention(world, me, "hi @Sherlock, what do site scoring tools do first?",
                                rest="hi what do site scoring tools do first?", thread=cid,
                                runner=runner)

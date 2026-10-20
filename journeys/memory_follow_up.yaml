@@ -29,8 +29,6 @@ steps:
         - {business: "Bright Smile Dental Lab", asking_price: 640000, city: Bath, revenue: 380000, notes: "Two technicians stay on"}
         - {business: "Corner Print Shop", asking_price: 210000, city: Hull, revenue: 120000, notes: "Equipment five years old"}
   - say: "list the three deals with the highest asking price in the deal tracker, numbered"
-    home: true
   - say: "tell me more about the second one"
-    here: true
 checks:
   - judge: {rubric: "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.", history: 1}

@@ -176,10 +176,10 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.post("/api/modules/{ref}/pages/{name}/act", dependencies=[api])
     def page_act(ref: str, name: str, body: PageActBody) -> dict[str, Any]:
-        """A press on a page's button (A7): its words as the person's, in the page's own item
-        of the module, journaled as coming from the page; the turn goes through the engine and
-        the permission callback like any other, so what must ask still asks. A page never
-        writes (Q82)."""
+        """A press on a page's button (A7): its words as the person's, a sentence to the desk
+        with the page's module, journaled as coming from the page (section C); the turn goes
+        through the engine and the permission callback like any other, so what must ask still
+        asks. A page never writes (Q82)."""
         m = world.modules.get(ref)
         if name not in world.pages.names(m["id"]):
             raise Problem(f"There is no page {name} in {m['name']}.")

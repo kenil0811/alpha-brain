@@ -1,0 +1,123 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Section C · two things at once in one stream: work beside the desk, a question answered meanwhile, a follow-up about the work, nothing opened",
+  "steps": [
+   {
+    "seed": "table listings with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "table food_log with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the background, go through my Listings one by one and work out each one's asking price per location, then tell me which is cheapest per location. Carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started working through your four Listings in the background. For each one I'll divide the asking price by its number of locations. When it's done, I'll tell you which is cheapest per location and point out any gaps, like a missing price.\n\nWe can keep talking in the meantime. What would you like to do?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 53083,
+    "tokens_cache_made": 11302,
+    "tokens_out": 504,
+    "first_text_ms": 6571,
+    "seconds": 11.4
+   },
+   {
+    "say": "How many eggs have I logged in total?",
+    "ok": true,
+    "reply": "You've logged **6 eggs** in total, across three entries today: 2, then 3, then 1. The only other thing in your food log is one slice of toast.\n\nI'm still working out the price per location for your Listings. I'll tell you the answer when it's done.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 99689,
+    "tokens_cache_made": 2093,
+    "tokens_out": 253,
+    "first_text_ms": 4399,
+    "seconds": 8.4
+   },
+   {
+    "say": "About the listings: also tell me which one is the most expensive per location.",
+    "ok": true,
+    "reply": "**Harbour Car Wash** is the most expensive per location, at **212,500** (850,000 for 4 locations).\n\nCorner Print Shop is close behind at 210,000 for its single location, so the two are only 2,500 apart.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 35976,
+    "tokens_cache_made": 741,
+    "tokens_out": 77,
+    "first_text_ms": 707,
+    "seconds": 7.2
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1,
+     "answered_while_running": true
+    },
+    "ok": true,
+    "why": "1 piece(s): Price per location for Listings (done); answered meanwhile: You've logged **6 eggs** in total, across three entries today: 2, then 3, then 1.",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "replied",
+     "matches": "\\b6\\b[^.]*egg|egg[^.]*\\b6\\b"
+    },
+    "ok": true,
+    "why": "1 replied entry: You've logged **6 eggs** in total, across three entries today: 2, then 3, then 1. The only other thing in your food log is one slice of toast.\n\nI'm still workin.",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "replied",
+     "contains": "Lakeside"
+    },
+    "ok": true,
+    "why": "2 replied entries: I've worked out the price per location for your four Listings, and **Lakeside Bakery** is the cheapest at **150,000 per location** (450,000 for 3 locations).\n\n|.",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "replied",
+     "contains": "Harbour"
+    },
+    "ok": true,
+    "why": "3 replied entries: **Harbour Car Wash** is the most expensive per location, at **212,500** (850,000 for 4 locations).\n\nCorner Print Shop is close behind at 210,000 for its single .",
+    "seconds": 0.0
+   },
+   {
+    "check": "opened",
+    "arg": {
+     "count": 0
+    },
+    "ok": true,
+    "why": "0 opened: none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": {
+     "stream": true,
+     "rubric": "In the conversation: the eggs question is answered (6 eggs) while the listings work runs; the listings work ends with the cheapest per location (Lakeside Bakery, 150,000 each); and the follow-up gets its answer, the most expensive per location (Harbour Car Wash, 212,500 each), either from the work itself or after its outcome in words that make clear it is about the listings. No question is left unanswered and no number contradicts these.\n"
+    },
+    "ok": true,
+    "why": "The conversation answers the eggs question (6) while the listings work is still running, then gives Lakeside Bakery as cheapest at 150,000 per location, and the follow-up names Harbour Car Wash as most expensive at 212,500 per location, clearly about the listings; no number contradicts these, and calling it effectively tied with Corner Print Shop is consistent.",
+    "seconds": 5.1
+   }
+  ],
+  "seconds": 32.0,
+  "error": null
+ }
+]

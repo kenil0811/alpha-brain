@@ -8,7 +8,6 @@ why: >
 fresh: true
 steps:
   - say: "remind me to call Sara on Friday"
-    home: true
   - check: {made_since: {agents: 0}}
   - due_now: {}
   - agent: "Reminders"

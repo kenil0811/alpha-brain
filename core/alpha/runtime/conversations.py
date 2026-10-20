@@ -1,13 +1,12 @@
-"""Home, the threads, and where a sentence goes (section C, Q107, 20 Oct 2026).
+"""Home and the threads after a turn (section C, Q107, 20 Oct 2026).
 
 Every sentence the person types is the desk's (`runtime/desk.py`): Home's session, kept open,
 with no routing before it. Two cases stay by structure, in the API: an `@Name` reaches that
 agent in its own thread (`mentioned` journals the line in Home), and a reply to a card, or its
-button, answers that card (the answer routes). The judgement over a roster of items, its
-unsure card and the person's corrections went with C4 (until then, slice 3 of 18 Oct). What
-is left here: Home, the threads' state and line after a turn (`settle`), the reset when the
-core starts (`reset_working`, which also stops work beside the desk left running), and the
-items from before C, kept as history (`open_item`, `rename`, `finish`).
+button, answers that card. The judgement over a roster of items went with C4; the items
+themselves, their list, names, focus and Done with C7. What is left: Home, the threads' state
+and line after a turn (`settle`), and the reset when the core starts (`reset_working`, which
+also stops work beside the desk left running and closes the items from before C left open).
 """
 
 from __future__ import annotations
@@ -16,79 +15,20 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
 
-FOCUS_KEY = "companion_focus"
-# Done items stay on the roster (and on Home) this long after their last turn: a follow-up
-# ("make that watch check at 7") continues the item that did the work.
+# An item from before C left open this long after its last turn is over at the core's start.
 DONE_FOR_H = 24
-
-
-def title_for(sentence: str) -> str:
-    words = " ".join(sentence.split())
-    if len(words) <= 60:
-        return words[:1].upper() + words[1:]
-    cut = words[:60].rsplit(" ", 1)[0]
-    return cut[:1].upper() + cut[1:] + "…"
 
 
 def home(world: World) -> dict[str, Any]:
     return world.modules.home_thread()
 
 
-def open_item(world: World, sentence: str, module: str | None) -> dict[str, Any]:
-    module_id = world.modules.get(module)["id"] if module else None
-    return world.modules.open_thread(title_for(sentence), "work", module_id)
-
-
-UNNAMED = "New conversation"
 RESTARTED = "Alpha closed while this ran, so it stopped. Try again to start it afresh."
 REMOVAL_GONE = "No longer waiting: Alpha closed before the yes. Ask again if it still matters."
-
-
-def rename(world: World, cid: str, title: str) -> dict[str, Any]:
-    """The person's title for an item (13 Oct, slice 2 G1), kept from then on."""
-    thread = world.modules.thread(cid)
-    if thread["kind"] == "home":
-        raise Problem("Home is Home; it has no other name.")
-    clean = " ".join(title.split())
-    if not clean:
-        raise Problem("A work item needs a title.")
-    if clean == thread["title"]:
-        return world.modules.retitle(cid, clean, by_person=True)  # named now, even if the same
-    renamed = world.modules.retitle(cid, clean[:120], by_person=True)
-    world.journal.append("changed", f"You renamed {thread['title']} to {renamed['title']}.",
-                         actor="person", thread=cid, module=thread["module"],
-                         data={"conversation": cid, "before": thread["title"]})
-    return renamed
-
-
-def name_from_first(world: World, cid: str, sentence: str) -> None:
-    """An item started unnamed (+ New) takes its first message's words as its title, unless
-    the person named it."""
-    thread = world.modules.thread(cid)
-    if thread["kind"] == "work" and not thread.get("titled") and thread["title"] == UNNAMED:
-        world.modules.retitle(cid, title_for(sentence), by_person=False)
-
-
-def finish(world: World, cid: str, why: str = "done") -> dict[str, Any]:
-    """An item is over (the person's Done): its state; its session and its turns stay."""
-    thread = world.modules.thread(cid)
-    if thread["kind"] == "home":
-        raise Problem("Home never closes.")
-    if thread["state"] in ("done", "stopped"):
-        return thread
-    world.modules.update_thread(cid, state="done")
-    world.journal.append("changed", f"Closed \"{thread['title']}\" ({why}).",
-                         actor="alpha" if why != "done" else "person",
-                         data={"conversation": cid, "why": why}, thread=cid,
-                         module=thread["module"])
-    if focus(world) == cid:
-        set_focus(world, None)
-    return world.modules.thread(cid)
 
 
 def reset_working(world: World) -> list[str]:
@@ -156,47 +96,17 @@ def first_line(reply: str) -> str:
     return ""
 
 
-# ---- the companion's focus: the item a sentence last went to ----
-
-
-def focus(world: World) -> str | None:
-    row = world.store.one("SELECT value FROM meta WHERE key = ?", (FOCUS_KEY,))
-    if row is None:
-        return None
-    try:
-        return world.modules.thread(row["value"])["id"] if row["value"] else None
-    except Exception:
-        return None
-
-
-def set_focus(world: World, cid: str | None) -> None:
-    with world.store.tx() as db:
-        db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (FOCUS_KEY, cid or ""))
-
-
-# ---- the roster ----
+# ---- an @Name ----
 
 
 def mentioned(world: World, sentence: str, tid: str) -> dict[str, Any]:
     """A sentence typed in Home to one of the person's agents by name ("@Deal Analyst ...")
-    goes to that agent's own item, said in Home like a routed sentence and the focus moved
-    there (19 Oct 2026: the agent's answer sat in its item, and Home showed nothing)."""
-    return _settled(world, sentence, tid, "mention", world.modules.home_thread())
-
-
-def _settled(world: World, sentence: str, tid: str, by: str, home_row: dict[str, Any], *,
-             opened: bool = False) -> dict[str, Any]:
-    """Where an `@Name` went, journaled in Home (the stream shows its sentence and the agent's
-    answer from it, Q107), and the focus moved."""
-    here = tid == home_row["id"]
+    goes to that agent's own thread; the line in Home says so, and the stream shows its
+    sentence and the agent's answer from it (19 Oct 2026, Q107)."""
+    home_row = world.modules.home_thread()
     title = world.modules.thread(tid)["title"]
-    if opened:
-        text = f"Started a work item for \"{sentence[:80]}\": {title}."
-    elif here:
-        text = f"Answering \"{sentence[:80]}\" here."
-    else:
-        text = f"Sent \"{sentence[:80]}\" to {title}."
-    data: dict[str, Any] = {"routed": tid, "sentence": sentence, "opened": opened, "by": by}
-    world.journal.append("did", text, actor="alpha", data=data, thread=home_row["id"])
-    set_focus(world, None if here else tid)
-    return {"thread": tid, "by": by, "opened": opened, "here": here}
+    data: dict[str, Any] = {"routed": tid, "sentence": sentence, "opened": False,
+                            "by": "mention"}
+    world.journal.append("did", f"Sent \"{sentence[:80]}\" to {title}.", actor="alpha",
+                         data=data, thread=home_row["id"])
+    return {"thread": tid, "by": "mention", "opened": False, "here": False}

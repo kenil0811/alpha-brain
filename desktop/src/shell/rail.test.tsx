@@ -15,7 +15,7 @@ describe("the rail", () => {
 
   it("lists the modules and what needs the person", () => {
     render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
@@ -38,7 +38,7 @@ describe("records from the core", () => {
 
 
 describe("modules as a tree", () => {
-  const card = (id: string, name: string, parent: string | null = null) => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
+  const card = (id: string, name: string, parent: string | null = null) => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, created_at: "" });
   it("nests each module under its parent, any depth, and shows an orphan at the top", () => {
     const tree = treeOf([card("m_s", "Search", "m_j"), card("m_j", "Job"), card("m_r", "Resume", "m_j"), card("m_d", "Drafts", "m_r"), card("m_x", "Lost", "m_gone")]);
     expect(tree.map((b) => b.module.name)).toEqual(["Job", "Lost"]);
