@@ -1,0 +1,50 @@
+[
+ {
+  "name": "write_in_a_granted_folder",
+  "title": "A file is written into a folder the person granted",
+  "steps": [
+   {
+    "connect_folder": "/private/tmp/claude-501/-Users-kenil-Desktop-dev-alpha/3b45a6fb-68df-4380-adad-6e12ee3f68f5/scratchpad/tmps2/alpha-journeys/2026-10-20-0036/granted/Exports",
+    "ok": true,
+    "detail": "? file(s) read",
+    "seconds": 0.0
+   },
+   {
+    "seed": "table books with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "save my Books table as a CSV file in my Exports folder",
+    "ok": true,
+    "reply": "I saved your Books table to your Exports folder as **books.csv**. It has a title, author header and both of your books:\n\n- Dune, Frank Herbert\n- Piranesi, Susanna Clarke",
+    "steps": 5,
+    "tokens_input": 8,
+    "tokens_cache_read": 99560,
+    "tokens_cache_made": 14473,
+    "tokens_out": 726,
+    "first_text_ms": 17521,
+    "seconds": 22.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "file_in_folder",
+    "arg": {
+     "folder": "Exports",
+     "name_matches": "\\.csv$",
+     "contains": [
+      "Dune",
+      "Piranesi",
+      "Herbert"
+     ]
+    },
+    "ok": true,
+    "why": "books.csv in Exports, with every word named",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 22.2,
+  "error": null
+ }
+]

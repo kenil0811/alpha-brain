@@ -1,0 +1,76 @@
+[
+ {
+  "name": "sherlock_looks_into_it",
+  "title": "Sherlock looks into how others do a new kind of work and its suggestions land on the page",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "already absent": true
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "Happy to help. I need two things from you before I start, and I've put both on cards on Home:\n\n1. **Where:** the city or area you want sites in.\n2. **What kind of wash:** express tunnel, full-service, in-bay automatic or self-serve. The type changes what makes a site good. For example, an express tunnel usually needs a lot of about 1 acre and heavy daily traffic. A self-serve wash can work on a smaller lot.\n\nOnce I have those, my plan is:\n- **Score each area** on things that predict car wash sales: traffic counts, population and household income within 3 to 5 miles, how many people commute by ",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 41477,
+    "tokens_cache_made": 14895,
+    "tokens_out": 888,
+    "first_text_ms": 13912,
+    "seconds": 14.4
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles and the traffic on the road, then score visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've written up the plan for screening Austin sites. It's on the card for you to approve. Nothing gets built until you say yes, and you can change any part by telling me here.\n\n**How it works:**\n1. **A site arrives:** when a broker emails a site, I add it to your list.\n2. **Households:** I count Census households within 3 miles and check them against your 45,000.\n3. **Traffic:** I take the state transport department's (TxDOT's) count for the road the site faces and check it against your 30,000 cars a day.\n4. **Visibility and access:** I suggest a 1–10 score for each from the map and street vie",
+    "steps": 7,
+    "tokens_input": 10,
+    "tokens_cache_read": 153947,
+    "tokens_cache_made": 25798,
+    "tokens_out": 6035,
+    "first_text_ms": 76392,
+    "seconds": 77.4
+   },
+   {
+    "agent": "Sherlock",
+    "ok": true,
+    "result": "Nothing to look into.",
+    "problem": null,
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version_min": 2,
+     "sherlock_min": 1
+    },
+    "ok": false,
+    "why": "'Screen car wash sites from brokers and brief my investors' v1 is drafted: 7 steps: Pick up the site (alpha); Locate it (alpha); Count households within 3 miles (alpha); Check traffic on the road (alpha); Score visibility and access (both); Verdict (both); Write the investor memo (both, asks). Keeps site, broker, household check, traffic check, score, memo. 3 suggestions (0 Sherlock's): Competing washes within 3 miles; Divided roads and medians; Anchors within half a mile. Settings 7, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 91.8,
+  "error": null
+ }
+]

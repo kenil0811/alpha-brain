@@ -1,0 +1,82 @@
+[
+ {
+  "name": "removal_waits_on_its_card",
+  "title": "A removal in a conversation ends its turn on the card, and the answer resumes it",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your food log is set up, under a new **Food** section.\n\n**How to use it:** tell me what you ate in plain words, like \"two eggs and toast for breakfast\" or \"had a flat white at 3\". I'll add one entry per item with the time, the meal, the amount, and calories, protein, carbs and fat. If you don't give the nutrition numbers, I'll estimate them from a typical portion and mark them as estimates. If you don't give a time, I'll use the time you tell me.\n\nThere's also a **Calories per day** chart that fills in as you log.\n\nIf you have a daily target (calories, protein or anything else), tell me and I'",
+    "steps": 5,
+    "tokens_input": 8,
+    "tokens_cache_read": 99017,
+    "tokens_cache_made": 18016,
+    "tokens_out": 1450,
+    "first_text_ms": 20518,
+    "routed": "a new item",
+    "routed_by": "judge: 'Track what I eat' is ongoing, standing work (a food log kept current) rather than something finished in one turn, and no open item covers it.",
+    "seconds": 26.3
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged **2 eggs** as a snack at 00:22: about **144 kcal**, 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\nThose numbers are my estimate, using standard nutrition values for two large eggs cooked without added fat. Tell me if they were fried in butter or oil (about 40–100 kcal more), if you ate them at a different time, or if you want to call this a different meal and I'll update it.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 97229,
+    "tokens_cache_made": 2168,
+    "tokens_out": 768,
+    "first_text_ms": 17253,
+    "routed": "Track what I eat",
+    "routed_by": "judge: Logging eggs is an entry into the food log that the open item just set up, so it follows on from that item.",
+    "seconds": 20.5
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "Waiting for your yes on the card.",
+    "steps": 1,
+    "tokens_input": 2,
+    "tokens_cache_read": 34306,
+    "tokens_cache_made": 421,
+    "tokens_out": 110,
+    "routed": "Track what I eat",
+    "routed_by": "judge: Removing the eggs is a correction to the food_log entry the focused item just made.",
+    "seconds": 20.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "2 asked entries: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "answered",
+     "contains": "Yes, remove it"
+    },
+    "ok": true,
+    "why": "1 answered entry: Yes, remove it.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken"
+    },
+    "ok": false,
+    "why": "The reply doesn't match /removed|gone|deleted|taken/.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 67.3,
+  "error": null
+ }
+]

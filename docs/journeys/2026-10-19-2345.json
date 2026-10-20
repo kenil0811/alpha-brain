@@ -1,0 +1,44 @@
+[
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "seed": "table emails with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "meeting Intro call: Penelope Health",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos leads hiring at Penelope Health (sara.ramos@penelopehealth.com). She contacted you about their founding engineer role.\n\n**The last time you dealt with her was on Monday 5 October 2026, two weeks ago.** It was a calendar meeting called \"Intro call: Penelope Health.\"\n\nBefore that:\n- **28 September:** she emailed you about the founding engineer role.\n- **29 September:** you replied that you'd be happy to talk and that a call the next week would work.\n\nNothing from her or to her since the call is on record. If you want to follow up, I can remind you on a day you choose.",
+    "steps": 5,
+    "tokens_input": 6,
+    "tokens_cache_read": 64905,
+    "tokens_cache_made": 14035,
+    "tokens_out": 606,
+    "first_text_ms": 17617,
+    "seconds": 20.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health's founding engineer role, and the intro call) and gives the intro call, two weeks ago, as the latest contact. Fails if it says it doesn't know her, asks who she is, or says anything that contradicts what is true in the world.",
+     "facts": "Sara Ramos (sara.ramos@penelopehealth.com) emailed 21 days ago about Penelope Health's founding engineer role; the person replied 20 days ago; an intro call, 'Intro call: Penelope Health', with her 14 days ago. Nothing else."
+    },
+    "ok": true,
+    "why": "The answer identifies Sara Ramos from Alpha's records: her email of 28 September about Penelope Health's founding engineer role, the person's reply on 29 September, and the 'Intro call: Penelope Health' on Monday 5 October, two weeks ago, which it correctly gives as the latest contact. Nothing contradicts the world, though calling her the person who 'leads hiring' is an unsupported embellishment.",
+    "seconds": 11.4
+   }
+  ],
+  "seconds": 31.8,
+  "error": null
+ }
+]

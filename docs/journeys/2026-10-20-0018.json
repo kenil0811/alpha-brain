@@ -1,0 +1,99 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category. It checks every morning at 08:00 and tells you which roles are new and which have been taken down. The first check is this morning.\n\nThe category only has 5 listings right now, and all of them are in your Job search area:\n\n| Role | Company | Posted | Skills |\n|---|---|---|---|\n| [Senior Backend Developer (Python)](https://weworkremotely.com/remote-jobs/proxify-ab-senior-backend-developer-python-11) | Proxify AB | 19 Oct | Django, Python |\n| [Senior Backend Developer (Node.js / Nest.js)](https://weworkremotely.com/remote-jobs/pr",
+    "steps": 11,
+    "tokens_input": 16,
+    "tokens_cache_read": 257818,
+    "tokens_cache_made": 28630,
+    "tokens_out": 4255,
+    "first_text_ms": 45206,
+    "routed": "a new item",
+    "routed_by": "judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.",
+    "seconds": 76.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Back-end Job Watch (new; judge: A watch on a job board is standing work that persists beyond this turn, and no open item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs yet, this week or ever. The only thing I'm keeping for you so far is the back-end job watch.\n\nIf you'd like to start tracking them, just tell me as you go, e.g. \"3 eggs today\", and I'll keep a running log you can ask about anytime. Are these eggs you're eating, or eggs your hens are laying? I'll set it up to fit.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 69500,
+    "tokens_cache_made": 8241,
+    "tokens_out": 351,
+    "first_text_ms": 10283,
+    "routed": "Home",
+    "routed_by": "judge: Egg count is a simple lookup/question unrelated to the job watch item, answerable now from what Alpha holds.",
+    "seconds": 16.2
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: Egg count is a simple lookup/question unrelated to the job watch item, answerable now from what Alpha holds.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The back-end job watch now checks We Work Remotely every day at 07:00, so the first check is at 07:00 this morning. If your Mac is asleep at 07:00, it checks when the Mac next wakes.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 85626,
+    "tokens_cache_made": 1757,
+    "tokens_out": 218,
+    "first_text_ms": 9943,
+    "routed": "Back-end Job Watch",
+    "routed_by": "judge: The sentence changes the schedule of the existing watch, which currently checks at 08:00, so it follows on from that item.",
+    "seconds": 16.2
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Back-end Job Watch (item; judge: The sentence changes the schedule of the existing watch, which currently checks at 08:00, so it follows on from that item.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 item(s): Back-end Job Watch (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing Back-end Job Watch was changed to run every day at 07:00, which matches the journal's 'changed' entry and does not start anything new.",
+    "seconds": 4.9
+   }
+  ],
+  "seconds": 113.9,
+  "error": null
+ }
+]

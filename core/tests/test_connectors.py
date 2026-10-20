@@ -278,7 +278,7 @@ def test_calendar_without_access_needs_ok(world: World) -> None:
 
 
 def test_the_layers_show_reach_calendar_and_documents(world: World, tmp_path: Path) -> None:
-    assert "No folder is granted for reading" in layers.given(world, "x")
+    assert "No folder is granted beyond your own directory" in layers.given(world, "x")
     Calendar(world, FakeCalendar()).connect()
     folder = tmp_path / "notes"
     folder.mkdir()

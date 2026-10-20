@@ -103,8 +103,10 @@ def sessions_dir(world_path: Path) -> Path:
 SANDBOX: dict[str, Any] = {"enabled": True, "autoAllowBashIfSandboxed": True,
                            "allowUnsandboxedCommands": False, "network": {}}
 # The SDK's own hands a turn gets outright; Read, Write and Edit go through the callback,
-# which checks their paths (an allow in `allowed_tools` would shadow it).
-OWN_TOOLS = ["Bash", "Glob", "Grep"]
+# which checks their paths (an allow in `allowed_tools` would shadow it). `Agent` (once `Task`)
+# is the SDK's subagents (A2, Q98): a subagent has the turn's hands, its hooks and this
+# callback, and its shell the same sandbox (the spike of 20 Oct 2026).
+OWN_TOOLS = ["Bash", "Glob", "Grep", "Agent", "Task"]
 
 
 def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
@@ -266,6 +268,18 @@ def yes(text: str) -> bool:
         words in ("y", "yep", "yeah")
 
 
+# The hand's own words when a removal names no row it can act on: refused before any card is
+# put (20 Oct 2026: a subagent's call without the row's revision put a card, then failed, then
+# its second call put another).
+UNREADY = ("Give the row's id and its current revision (from world_query), or ids with"
+           " remove: true for several.")
+
+
+def removal_ready(call: dict[str, Any]) -> bool:
+    """Whether a removal names what it removes as the hand needs it."""
+    return bool(call.get("ids")) or (bool(call.get("id")) and call.get("revision") is not None)
+
+
 def removal_card(world: World, req: TurnRequest, input_data: dict[str, Any],
                  **more: Any) -> tuple[str, str]:
     """The removal's card in the journal, saying what goes with the rows (their open tasks,
@@ -333,6 +347,14 @@ def removal_hook(req: TurnRequest,
         call = (input_data or {}).get("tool_input") or {}
         if not call.get("remove") or not tool_use_id:
             return {}
+        if not removal_ready(call):
+            return decide("deny", UNREADY)
+        if (input_data or {}).get("agent_id"):
+            # A subagent's removal is not deferred: the yes resumes the conversation, never
+            # the subagent, which is gone by then (the spike of 20 Oct 2026: Fuji stayed and
+            # the next helper met the card again). It reaches the callback, which puts the
+            # same card and waits for the answer while the turn goes on.
+            return {}
         card = world.store.one(
             "SELECT c.state, c.answer FROM journal j JOIN cards c ON c.id = j.id WHERE"
             " j.kind = 'asked' AND json_extract(j.data, '$.tool_use') = ?", (tool_use_id,))
@@ -380,12 +402,18 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
                 return PermissionResultDeny(message=f"{path} is not in a folder the person"
                                                     " granted; they connect one (connect"
                                                     " what=folder) or switch on the whole Mac.")
-            if inside(path, [own]):
+            # A4 (Q98): writes follow the person's grants, as reads do; never under a .claude
+            # folder (its settings would be accepted without a word, the slice 1 spike)
+            if ".claude" in Path(path).expanduser().parts:
+                return PermissionResultDeny(message="Alpha never writes under a .claude folder.")
+            if grants.whole_mac(world) or inside(path, [own, *grants.folders(world)]):
                 return PermissionResultAllow()
-            return PermissionResultDeny(message="Alpha writes files only inside its own"
-                                                f" directory, {own}; the person's folders are"
-                                                " read, never written.")
+            return PermissionResultDeny(message=f"{path} is not in a folder the person granted;"
+                                                " they connect one (connect what=folder) or"
+                                                " switch on the whole Mac.")
         if name == "world_change" and input_data.get("remove"):
+            if not removal_ready(input_data):
+                return PermissionResultDeny(message=UNREADY)
             ask, _ = removal_card(world, req, input_data)
             loop = asyncio.get_running_loop()
             fut: asyncio.Future[str] = loop.create_future()
@@ -520,7 +548,22 @@ def _hooks(req: TurnRequest) -> dict[str, list[HookMatcher]]:
 
     return {"PreCompact": [HookMatcher(matcher=None, hooks=[compacted])],
             "UserPromptSubmit": [HookMatcher(matcher=None, hooks=[sentence_given])],
-            "SessionStart": [HookMatcher(matcher=None, hooks=[session_started])]}
+            "SessionStart": [HookMatcher(matcher=None, hooks=[session_started])],
+            "PreToolUse": [HookMatcher(matcher="Agent|Task", hooks=[in_the_turn])]}
+
+
+async def in_the_turn(input_data: Any, tool_use_id: str | None,
+                      context: HookContext) -> SyncHookJSONOutput:
+    """A subagent works inside the turn (A2): a turn's process ends with the turn, so a helper
+    left running in the background never reports back (20 Oct 2026: "I'll put the counts side
+    by side once both report back", and the turn ended there). Its call is run in the
+    foreground, and the turn waits for it."""
+    call = dict((input_data or {}).get("tool_input") or {})
+    if call.get("run_in_background") is False:
+        return {}
+    call["run_in_background"] = False
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+                                   "permissionDecision": "allow", "updatedInput": call}}
 
 
 async def run_async(req: TurnRequest, *,
@@ -566,7 +609,8 @@ async def run_async(req: TurnRequest, *,
         if world is not None and req.persist:
             # a conversation keeps its session, so its removal card can outlive the turn and a
             # restart (P3 item 7); any other turn waits on the card in memory, as before
-            hooks["PreToolUse"] = [HookMatcher(matcher="mcp__alpha__world_change",
+            hooks["PreToolUse"] = [*hooks.get("PreToolUse", []),
+                                   HookMatcher(matcher="mcp__alpha__world_change",
                                                hooks=[removal_hook(req, world)])]
         options = options_for(req, server, hooks, hands=hands, can_use=can_use,
                               cwd=cwd, add_dirs=add_dirs)

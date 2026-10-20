@@ -67,14 +67,13 @@ def describe(world: World, module_id: str | None) -> list[str]:
     lines = [f"- Your own directory, where you may write files (Write, Edit, the shell):"
              f" {where}"]
     if whole_mac(world):
-        lines.append("- You may read any folder on this Mac (Read, Glob, Grep, the shell); the"
-                     " person switched that on.")
+        lines.append("- You may read and write any folder on this Mac (Read, Write, Edit, Glob,"
+                     " Grep, the shell); the person switched that on.")
     elif granted:
-        lines.append("- Folders you may read (Read, Glob, Grep, the shell): "
-                     + ", ".join(str(f) for f in granted))
+        lines.append("- Folders you may read and write (Read, Write, Edit, Glob, Grep, the"
+                     " shell): " + ", ".join(str(f) for f in granted))
     else:
-        lines.append("- No folder is granted for reading beyond your own directory; the person"
-                     " connects one (connect what=folder) or switches on the whole Mac in"
-                     " Settings.")
+        lines.append("- No folder is granted beyond your own directory; the person connects one"
+                     " (connect what=folder) or switches on the whole Mac in Settings.")
     lines.append("- The shell has no network: what leaves the world goes through act_outward.")
     return lines

@@ -18,7 +18,7 @@ from typing import Any
 from alpha.config import settings
 
 ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]  # the engine lists the hands itself
-DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
+DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task", "Agent"]
 
 
 SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
@@ -269,6 +269,11 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     short = name.removeprefix("mcp__alpha__")
     if short == "ToolSearch":
         return "Finding the right tool"
+    if short in ("Agent", "Task"):
+        # a subagent (A2): part of the work done alongside, in its own words
+        what = " ".join(str(inputs.get("description") or "").split())
+        return f"Working on part of it alongside: {what[:70]}" if what else \
+            "Working on part of it alongside"
     if short == "Bash":
         cmd = " ".join(str(inputs.get("command", "")).split())
         return f"Running: {cmd[:90]}".rstrip() if cmd else "Running a command"

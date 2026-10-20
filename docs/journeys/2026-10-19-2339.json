@@ -1,0 +1,99 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's back-end category. Every morning at 08:00 I'll check it and tell you which jobs are new, changed or taken down. The first check is tomorrow, 20 October.\n\nThe category has only 5 jobs right now (the page itself says so), and all 5 are in a new **Job Search** table:\n\n| Role | Company | Who can apply |\n|---|---|---|\n| Senior Backend Developer (Python) | Proxify AB | Anywhere |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | Anywhere |\n| Staff Software Engineer, Revenue Systems | Squarespace | Anywhere |\n| Senior Java Developer | Twikey | Europe on",
+    "steps": 10,
+    "tokens_input": 16,
+    "tokens_cache_read": 258955,
+    "tokens_cache_made": 28057,
+    "tokens_out": 3880,
+    "first_text_ms": 44595,
+    "routed": "a new item",
+    "routed_by": "judge: A watch on a job board is standing work that persists beyond one turn, and no open item covers it.",
+    "seconds": 89.4
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: A watch on a job board is standing work that persists beyond one turn, and no open item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs. I don't have an egg log or food log for you, and nothing you've told me mentions eggs except this question.\n\nIf you want to start tracking, just tell me as you go, like \"had 2 eggs for breakfast.\" I'll keep a running log and can give you weekly totals.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 68915,
+    "tokens_cache_made": 7990,
+    "tokens_out": 300,
+    "first_text_ms": 5748,
+    "routed": "Home",
+    "routed_by": "judge: Counting logged eggs this week is a quick lookup unrelated to the WWR job watch, though the state doesn't show whether egg logs exist.",
+    "seconds": 11.4
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: Counting logged eggs this week is a quick lookup unrelated to the WWR job watch, though the state doesn't show whether egg logs exist.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The watch now checks We Work Remotely every day at 07:00 instead of 08:00, starting tomorrow, Tuesday 20 October. If your Mac is asleep at 7, it checks when the Mac next wakes.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 84213,
+    "tokens_cache_made": 1486,
+    "tokens_out": 254,
+    "first_text_ms": 5256,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: \"That watch\" refers to the WWR watch, and changing its check time from 08:00 to 7 follows on from that item.",
+    "seconds": 11.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: \"That watch\" refers to the WWR watch, and changing its check time from 08:00 to 7 follows on from that item.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 item(s): Watch We Work Remotely for back-end roles (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing WWR watch was rescheduled to run every day at 07:00, which matches the journal's 'changed' entry and means nothing new was started; the earlier 08:00 time it mentions doesn't appear in the evidence shown, but the rubric doesn't test that.",
+    "seconds": 5.6
+   }
+  ],
+  "seconds": 118.1,
+  "error": null
+ }
+]

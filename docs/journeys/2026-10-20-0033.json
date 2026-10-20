@@ -1,0 +1,42 @@
+[
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask gets a thin first version now, with its defaults named, not an interview",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I've set up a table of **16 AI conferences in London in 2026**, with a calendar view. Each one has its dates, venue, focus, organiser and website. Every Monday at 08:00 I'll check for new events and date changes and tell you what's coming up.\n\n**Still to come**\n| When | Conference | Where |\n|---|---|---|\n| **20–21 Oct (today)** | AI LIVE: The London Summit | Olympia |\n| 27 Oct (evening) | The London AI Conference | London. Dates not confirmed |\n| 2–6 Nov | Data & AI Conference Europe (IRM UK) | Fenchurch Street |\n| 10–11 Nov | AI and Games Conference | Here East |\n| 11–12 Nov | Connected Data ",
+    "steps": 22,
+    "tokens_input": 18,
+    "tokens_cache_read": 517075,
+    "tokens_cache_made": 76003,
+    "tokens_out": 8175,
+    "first_text_ms": 77541,
+    "seconds": 129.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "conference"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 129.3,
+  "error": null
+ }
+]

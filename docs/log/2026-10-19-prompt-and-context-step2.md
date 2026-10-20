@@ -106,3 +106,33 @@ then.
 
 On his word ("Yes: commit step 2 with its docs, move the remaining journeys to a frozen copy
 of that commit, and start step 3"): the commit after `7220475`.
+
+## The rest of step 2's journeys (added 20 Oct)
+
+All 33 ran on a frozen worktree of `fb0cc41`, each alone. The suite's other 40 had run before
+the commit.
+- **22 passed:**
+  - `two_things_at_once`, `memory_yesterday`, `memory_who_emailed`, `when_did_we_last_talk`;
+  - `carries_over_a_tool_change`, `agent_takes_a_task`, `agent_wakes_on_a_row`,
+    `answer_back_to_the_agent`;
+  - `files_in_a_turn`, `kit_roundtrip`, `memory_correction`, `memory_noticing`,
+    `memory_two_sources`;
+  - `page_clean`, `page_drawn`, `people_from_two_sources`, `scout_picks_the_day`,
+    `staged_from_a_run`, `statement_imported`, `task_where_it_belongs`, `vague_tracker`,
+    `value_says_where`.
+- **11 failed, none from section B:**
+  - Stale since the 18 Oct wipe or the 17–18 Oct harness (a card proposes reworking them):
+    `agent_verdict`, `automation_self_converts`, `doc_repairs_a_reader`, `attachment_in`,
+    `eta_daily`, `sherlock_looks_into_it`.
+  - `question_card` met today's guessed lunch in his world's copy.
+  - `memory_follow_up` ran as one-off turns; it now goes through a conversation.
+  - `branded_food` failed its independent check (an unstated assumption), on and off since
+    14 Oct.
+  - Wording checks that a right answer did not match, now widened:
+    - `memory_old_fact` said 177.8 cm (his own fact) where the check wanted "178";
+    - `removal_waits_on_its_card` removed the row after the card and the yes, and its reply
+      did not say removed, gone, deleted or taken.
+- **Reports.** The frozen run's reports were copied into `docs/journeys/` where their names
+  were free. 30 clashed with this checkout's own runs of the same minute, because a report is
+  named by the minute. Those are kept only in the run's console output (the session's
+  scratchpad), from which the tallies above were read.

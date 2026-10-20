@@ -179,7 +179,11 @@ Claude" is allowed.
 
   **Section B step 3 (19–20 Oct, night):**
   - a compaction is told what to keep (`config/prompts/compact.md`, the PreCompact hook's message), and Watson writes the conversation's checkpoint afresh after it;
-  - an agent's run is told only its brief's frame and paragraphs 2–5 (agent_run.md, 128 words), its brief and thread coming with the message. |
+  - an agent's run is told only its brief's frame and paragraphs 2–5 (agent_run.md, 128 words), its brief and thread coming with the message.
+
+  **Engine reach S2 (20 Oct, Q98):**
+  - A2: a turn may start subagents (the SDK's `Agent`), which run in the foreground of the turn, with its hands and sandbox; a subagent's removal asks on the callback's card;
+  - A4: Write and Edit follow the person's grants, never under `.claude`. |
 | Differs | The build's sandbox is still the settings JSON of `workspace.sandbox_settings` (Claude Code's own sandbox, as before), passed through the SDK's `settings`, not its `SandboxSettings` field; the same keys. The journal line for every call is still the tools' own, not a hook (it comes with slice 2's tools). The permission callback path (`default` mode, the sensitive tools out of `allowed_tools`) is verified by the spikes and waits for slice 2. |
 | Not built | Subagents, skills from the filesystem, `add_dirs`, the sandbox for a module's scripts, `defer` for approvals that outlive a restart: slices 2 to 6. |
 

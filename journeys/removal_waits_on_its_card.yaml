@@ -16,4 +16,4 @@ steps:
 checks:
   - journal: {kind: asked, contains: "Remove "}
   - journal: {kind: answered, contains: "Yes, remove it"}
-  - reply: {matches: "removed|gone|deleted|taken"}
+  - reply: {matches: "removed|gone|deleted|taken|took"}

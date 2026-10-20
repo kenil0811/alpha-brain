@@ -1,0 +1,85 @@
+[
+ {
+  "name": "statement_imported",
+  "title": "Documents · a sheet's rows imported by code, each value with its cell, one file one document",
+  "steps": [
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "kept as d_778e8d1077b6",
+    "seconds": 2.1
+   },
+   {
+    "file_document": "Bank statement Sept 2025.pdf",
+    "ok": true,
+    "detail": "kept as d_63a2d88a207c",
+    "seconds": 0.2
+   },
+   {
+    "say": "import the P&L sheet of RestoPros P&L Sept 2025.xlsx into a new table called ledger with account, amount and month",
+    "ok": true,
+    "reply": "I made a new **Ledger** table in Accounting and brought in the 4 rows from the P&L sheet. Each value is linked to the cell it came from.\n\n| Account | Amount | Month |\n|---|---|---|\n| Revenue | 48,200 | Sept |\n| Cost of sales | 21,400 | Sept |\n| Payroll | 12,800 | Sept |\n| Rent | 3,500 | Sept |\n\nThe file's Notes sheet says the figures were prepared by RestoPros on a cash basis.\n\nRows are matched by account name, so if you import another month's P&L into this table, it would replace September's numbers instead of adding new rows. When you have October, tell me and I'll change the setup to match ",
+    "steps": 5,
+    "tokens_input": 10,
+    "tokens_cache_read": 125664,
+    "tokens_cache_made": 16153,
+    "tokens_out": 961,
+    "first_text_ms": 19757,
+    "seconds": 25.6
+   },
+   {
+    "file_document": "RestoPros P&L Sept 2025.xlsx",
+    "ok": true,
+    "detail": "already kept as d_778e8d1077b6",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Imported"
+    },
+    "ok": true,
+    "why": "1 did entry: Imported 4 rows from RestoPros P&L Sept 2025.xlsx · P&L into Ledger..",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "ledger",
+     "at_least": 4
+    },
+    "ok": true,
+    "why": "4 rows (wanted at least 4).",
+    "seconds": 0.0
+   },
+   {
+    "check": "value_source",
+    "arg": {
+     "collection": "ledger",
+     "field": "amount",
+     "kind": "document",
+     "match_field": "account",
+     "row": "Revenue",
+     "cell": "B2"
+    },
+    "ok": true,
+    "why": "4 value(s), each from its place: 3500 from RestoPros P&L Sept 2025.xlsx · P&L!B5; 12800 from RestoPros P&L Sept 2025.xlsx · P&L!B4; 21400 from RestoPros P&L Sept 2025.xlsx · P&L!B3; 48200 from RestoPros P&L Sept 2025.xlsx · P&L!B2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "kept_once",
+    "arg": {
+     "title_contains": "P&L"
+    },
+    "ok": true,
+    "why": "1 document(s) titled like 'P&L'; the second taking said already kept.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 27.9,
+  "error": null
+ }
+]

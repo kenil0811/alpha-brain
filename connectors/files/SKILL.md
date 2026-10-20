@@ -16,4 +16,5 @@ description: Read and search documents in folders the person shared (resumes, no
   the full text, in pages (`start`, `length`) when it is long.
 - Readable kinds: Markdown, text, CSV/TSV, JSON, YAML, HTML, PDF, Word (.docx), Excel (.xlsx),
   PowerPoint (.pptx). A scanned PDF with no text layer reads as empty; say so.
-- Alpha never changes, moves or deletes the person's files.
+- In a granted folder Alpha reads and writes (Write, Edit); it never writes under a `.claude`
+  folder.

@@ -1285,6 +1285,18 @@ class Run:
         return bool(entries), (f"{len(entries)} {arg['kind']} {noun}"
                                + (f": {entries[-1]['text'][:160]}" if entries else "") + ".")
 
+    def check_file_in_folder(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A file Alpha wrote in a folder the person granted (A4): its name matches, and it
+        holds the words named."""
+        folder = Path(self.world.path).parent / "granted" / str(arg["folder"])
+        found = [f for f in sorted(folder.glob("*")) if f.is_file()
+                 and re.search(str(arg.get("name_matches") or "."), f.name)]
+        if not found:
+            return False, f"No file like /{arg.get('name_matches')}/ in {folder.name}."
+        text = found[-1].read_text(errors="replace")
+        missing = [w for w in arg.get("contains") or [] if w.lower() not in text.lower()]
+        return not missing, (f"{found[-1].name} in {folder.name}"
+                             + (f", missing {missing}" if missing else ", with every word named"))
 
 def _days_since(weekday: str) -> int:
     """How many days back the last `weekday` before today was (1 to 7)."""

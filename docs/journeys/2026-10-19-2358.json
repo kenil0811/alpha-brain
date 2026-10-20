@@ -1,0 +1,10 @@
+[
+ {
+  "name": "attachment_in",
+  "title": "An attachment is fetched from Gmail into the module and read",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: There is no module 'Advisory'."
+ }
+]

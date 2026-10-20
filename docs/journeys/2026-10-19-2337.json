@@ -1,0 +1,33 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha needs answered is a card, asked through its own hand",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "Today's lunch is already in your log. I added it about 40 minutes ago, when you last asked: a **paneer wrap** (680 kcal, 32 g protein, 75 g carbs, 24 g fat, 7 g fibre).\n\nYou didn't say what you ate that time either. So I guessed the paneer wrap because it's next in your usual lunch rotation, and used the same values as your earlier paneer wraps. I haven't added a second lunch, so nothing is counted twice.\n\nWas the paneer wrap right? If you ate something else or had a second lunch, tell me what and I'll fix it.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 69198,
+    "tokens_cache_made": 15838,
+    "tokens_out": 497,
+    "first_text_ms": 15702,
+    "seconds": 16.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {
+     "derived": false
+    },
+    "ok": false,
+    "why": "The last turn made no card.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 16.3,
+  "error": null
+ }
+]

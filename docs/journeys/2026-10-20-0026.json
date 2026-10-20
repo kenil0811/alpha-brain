@@ -1,0 +1,46 @@
+[
+ {
+  "name": "helpers_side_by_side",
+  "title": "Two sources compared, each read by a helper alongside",
+  "steps": [
+   {
+    "seed": "table leads_north with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "table leads_south with 3 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "compare my two lead sources side by side: how many leads each has and their total value; have a helper read each one",
+    "ok": true,
+    "reply": "I've given Leads North and Leads South each to their own helper. I'll put the counts and total values side by side once both report back.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 41864,
+    "tokens_cache_made": 13721,
+    "tokens_out": 528,
+    "first_text_ms": 8790,
+    "routed": "a new item",
+    "routed_by": "judge: Needs helpers to read two lead sources and compare them, which is multi-step work that goes beyond a single quick turn.",
+    "seconds": 20.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer says Leads North has 2 leads worth 42,000 in total and Leads South has 3 leads worth 58,000 in total (or the same in other words). Fails if a count or total is wrong.",
+     "facts": "Leads North: Acme Tools 12,000 and Birch Labs 30,000 (2 leads, 42,000). Leads South: Cedar Foods 8,000, Delta Freight 45,000, Elm Studio 5,000 (3 leads, 58,000)."
+    },
+    "ok": false,
+    "why": "The answer only says helpers were sent to read each source and gives no lead counts or total values, so it doesn't report 2 leads/42,000 for North or 3 leads/58,000 for South.",
+    "seconds": 9.4
+   }
+  ],
+  "seconds": 30.3,
+  "error": null
+ }
+]

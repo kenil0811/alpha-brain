@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from claude_agent_sdk import (
@@ -342,9 +342,11 @@ def test_a_turns_options_gate_the_two_hands(tmp_path: Path) -> None:
     assert opts.permission_mode == "default" and opts.can_use_tool is allow
     assert "permission-prompts" not in opts.extra_args  # the prompts are the callback's
     assert opts.allowed_tools == ["mcp__alpha__world_query", "mcp__alpha__ask_person",
-                                  "WebSearch", "WebFetch", "Bash", "Glob", "Grep"]
+                                  "WebSearch", "WebFetch", "Bash", "Glob", "Grep", "Agent", "Task"]
+    assert "Agent" not in opts.disallowed_tools  # subagents (A2)
     judge = engine.options_for(request(tmp_path, kind="judge"))
     assert judge.permission_mode == "dontAsk" and judge.can_use_tool is None
+    assert "Agent" in judge.disallowed_tools and "Task" in judge.disallowed_tools
 
 
 def test_removing_several_rows_is_one_card_and_the_item_says_it_waits(tmp_path: Path) -> None:
@@ -428,14 +430,22 @@ def test_the_models_own_files_and_shell_are_gated_by_place(tmp_path: Path) -> No
     assert isinstance(outside, PermissionResultDeny) and "granted" in outside.message
     assert isinstance(decide("Write", {"file_path": str(own / "x.md"), "content": "y"}),
                       PermissionResultAllow)
-    refused = decide("Write", {"file_path": str(granted / "b.txt"), "content": "y"})
-    assert isinstance(refused, PermissionResultDeny) and "own directory" in refused.message
+    # A4 (Q98): writes follow the grants, as reads do; never under a .claude folder
+    assert isinstance(decide("Write", {"file_path": str(granted / "b.txt"), "content": "y"}),
+                      PermissionResultAllow)
+    refused = decide("Write", {"file_path": "/tmp/elsewhere/b.txt", "content": "y"})
+    assert isinstance(refused, PermissionResultDeny) and "granted" in refused.message
+    settings = decide("Write", {"file_path": str(granted / ".claude" / "settings.json"),
+                                "content": "{}"})
+    assert isinstance(settings, PermissionResultDeny) and ".claude" in settings.message
     net = decide("SandboxNetworkAccess", {"host": "example.com"})
     assert isinstance(net, PermissionResultDeny) and "act_outward" in net.message
-    # the whole Mac switched on: reads anywhere, writes still inside
+    # the whole Mac switched on: reads and writes anywhere, still never under .claude
     grants.set_whole_mac(world, True)
     assert isinstance(decide("Read", {"file_path": "/etc/hosts"}), PermissionResultAllow)
-    assert isinstance(decide("Edit", {"file_path": "/etc/hosts"}), PermissionResultDeny)
+    assert isinstance(decide("Edit", {"file_path": "/tmp/elsewhere/c.txt"}), PermissionResultAllow)
+    assert isinstance(decide("Edit", {"file_path": str(Path.home() / ".claude" / "x.json")}),
+                      PermissionResultDeny)
     # the options: the SDK's own hands outright, Read/Write/Edit through the callback, the
     # sandbox on, the folders added, the module's directory the cwd
     options = engine.options_for(req, None, hands=["world_query"], can_use=can_use, cwd=own,
@@ -499,3 +509,53 @@ def test_a_turn_that_ends_on_a_deferred_card_says_it_waits(tmp_path: Path,
                                                         input={}))
     out = asyncio.run(engine.run_async(request(tmp_path), client_factory=factory([deferred])))
     assert out.ok and out.reply == engine.DEFERRED and out.session_id == "s-1"
+
+
+def test_a_subagents_removal_is_not_deferred_but_asked_by_the_callback(tmp_path: Path) -> None:
+    """A2 (20 Oct 2026): a deferred call's yes resumes the conversation, never the subagent that
+    made it, so a subagent's removal reaches the permission callback instead, which puts the
+    same card and waits in memory; the main thread's removal is still deferred (P3 item 7)."""
+    from alpha.world.world import World
+
+    world = World(tmp_path / "world.sqlite")
+    req = request(tmp_path, persist=True, kind="turn")
+    hook: Any = engine.removal_hook(req, world)
+    call = {"tool_input": {"table": "apples", "id": "r1", "revision": 1, "remove": True}}
+    from_subagent = asyncio.run(hook({**call, "agent_id": "a1"}, "tu_1", cast(Any, None)))
+    assert from_subagent == {}
+    assert running.plain_tool("Agent", {"description": "Count the pears"}) == (
+        "Working on part of it alongside: Count the pears")
+
+
+def test_a_removal_that_names_no_row_is_refused_before_any_card(tmp_path: Path) -> None:
+    """20 Oct 2026: a call without the row's revision put a card and then failed; it is refused
+    in the hand's own words first, in the conversation's hook and in the callback alike."""
+    from alpha.world.world import World
+
+    world = World(tmp_path / "world.sqlite")
+    req = request(tmp_path, persist=True, kind="turn")
+    hook: Any = engine.removal_hook(req, world)
+    unready = {"tool_input": {"table": "apples", "id": "r1", "remove": True}}
+    out = asyncio.run(hook(unready, "tu_2", cast(Any, None)))
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+    can_use: Any = engine.permission_for(req, world)
+    refused: Any = asyncio.run(can_use("mcp__alpha__world_change",
+                                  {"table": "apples", "id": "r1", "remove": True}, None))
+    assert getattr(refused, "message", "") == engine.UNREADY
+    assert world.journal.recent(5, kinds=["asked"]) == []
+
+
+def test_a_subagent_runs_in_the_turn_not_in_the_background() -> None:
+    """A2 (20 Oct 2026): a helper left in the background never reported back, the turn's
+    process having ended; its call is made to run in the foreground."""
+    out: Any = asyncio.run(engine.in_the_turn(
+        {"tool_input": {"description": "Read leads", "prompt": "Count the rows"}}, "tu_1",
+        cast(Any, None)))
+    made = out["hookSpecificOutput"]
+    assert made["updatedInput"] == {"description": "Read leads", "prompt": "Count the rows",
+                                    "run_in_background": False}
+    assert made["permissionDecision"] == "allow"
+    assert asyncio.run(engine.in_the_turn({"tool_input": {"run_in_background": False}}, "tu_2",
+                                          cast(Any, None))) == {}
+    hooks = engine._hooks(request(Path("/tmp"), kind="turn"))
+    assert hooks["PreToolUse"][0].matcher == "Agent|Task"

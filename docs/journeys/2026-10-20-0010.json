@@ -1,0 +1,43 @@
+[
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "I've saved this on Vikas Badami's page: you had coffee on the morning of 19 Oct, he's moving to Bangalore in November and he wants to co-found something in fintech.\n\nI wasn't sure about one thing. Is he the same person as \"Vikas 114\" in your contacts (+91 94959 50729), the Vikas you were supposed to reply to on WhatsApp? If he is, I'll put the two together so everything about him is in one place.",
+    "steps": 9,
+    "tokens_input": 12,
+    "tokens_cache_read": 168973,
+    "tokens_cache_made": 19980,
+    "tokens_out": 1739,
+    "first_text_ms": 19214,
+    "seconds": 19.5
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "Here's what I have on Vikas Badami:\n\n- **Coffee yesterday morning (19 Oct):** you met him for coffee.\n- **Moving to Bangalore next month (November).**\n- **Wants to co-found a fintech startup** and is interested in doing it with you.\n- **WhatsApp reply:** you had a task to reply to him on WhatsApp by 6 pm yesterday. It's marked done.\n\nThat's all I know so far. I don't have any messages, emails or calendar meetings with him, so I can't tell what you two talked about or whether you've agreed on next steps for the fintech idea.\n\nI still need one answer from you: is he the same person as \"Vikas 114",
+    "steps": 5,
+    "tokens_input": 6,
+    "tokens_cache_read": 74492,
+    "tokens_cache_made": 13113,
+    "tokens_out": 725,
+    "first_text_ms": 9161,
+    "seconds": 9.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": true,
+    "why": "The answer says Vikas is moving to Bangalore next month and wants to co-found a fintech startup, and its other details (the coffee, the WhatsApp task, the possible duplicate contact 'Vikas 114') plausibly come from the entity and task records Alpha already had, so they don't look invented.",
+    "seconds": 6.5
+   }
+  ],
+  "seconds": 35.7,
+  "error": null
+ }
+]

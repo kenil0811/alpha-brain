@@ -1,0 +1,22 @@
+name: write_in_a_granted_folder
+title: "A file is written into a folder the person granted"
+why: >
+  Engine reach A4 (Q98, 20 Oct 2026): writes follow the person's grants, as reads do; before,
+  Alpha wrote only in its own directory and the person's folders were read, never written.
+fresh: true
+steps:
+  - connect_folder: {name: Exports, files: {"README.txt": "Exports go here."}}
+  - seed:
+      kind: table
+      name: books
+      title: Books
+      fields:
+        - {name: title, kind: text}
+        - {name: author, kind: text}
+      title_field: title
+      rows:
+        - {title: Dune, author: Frank Herbert}
+        - {title: Piranesi, author: Susanna Clarke}
+  - say: "save my Books table as a CSV file in my Exports folder"
+checks:
+  - file_in_folder: {folder: Exports, name_matches: "\\.csv$", contains: [Dune, Piranesi, Herbert]}

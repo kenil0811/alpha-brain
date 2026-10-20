@@ -1,0 +1,44 @@
+[
+ {
+  "name": "helpers_side_by_side",
+  "title": "Two sources compared, each read by a helper alongside",
+  "steps": [
+   {
+    "seed": "table leads_north with 2 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "seed": "table leads_south with 3 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "compare my two lead sources side by side: how many leads each has and their total value; have a helper read each one",
+    "ok": true,
+    "reply": "South has more leads and the larger total.\n\n| | Leads North | Leads South |\n|---|---|---|\n| Leads | 2 | 3 |\n| Total value | 42,000 | 58,000 |\n| Average per lead | 21,000 | about 19,300 |\n| Largest lead | Birch Labs (30,000) | Delta Freight (45,000) |\n\n- **North:** Acme Tools 12,000 and Birch Labs 30,000.\n- **South:** Cedar Foods 8,000, Delta Freight 45,000 and Elm Studio 5,000.\n\nTogether they come to 5 leads worth 100,000. Every value is filled in and is a number.\n\nA helper read each list on its own, and nothing was changed.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 41928,
+    "tokens_cache_made": 13779,
+    "tokens_out": 778,
+    "first_text_ms": 21054,
+    "seconds": 24.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer says Leads North has 2 leads worth 42,000 in total and Leads South has 3 leads worth 58,000 in total (or the same in other words). Fails if a count or total is wrong.",
+     "facts": "Leads North: Acme Tools 12,000 and Birch Labs 30,000 (2 leads, 42,000). Leads South: Cedar Foods 8,000, Delta Freight 45,000, Elm Studio 5,000 (3 leads, 58,000)."
+    },
+    "ok": true,
+    "why": "The answer says Leads North has 2 leads worth 42,000 and Leads South has 3 leads worth 58,000, which matches the person's data.",
+    "seconds": 3.2
+   }
+  ],
+  "seconds": 27.4,
+  "error": null
+ }
+]

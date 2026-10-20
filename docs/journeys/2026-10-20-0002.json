@@ -1,0 +1,10 @@
+[
+ {
+  "name": "doc_repairs_a_reader",
+  "title": "Doc repairs a reader that broke, and the run goes on",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: There is no reader 'kendall_capital'. Readers: []."
+ }
+]

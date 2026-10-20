@@ -1,0 +1,53 @@
+[
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "seed": "table deals with 5 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "These are the three deals in your tracker with the highest asking price:\n\n1. **Greenline Landscaping** (Bristol): asking 1,200,000, revenue 900,000\n2. **Harbour Car Wash** (Leeds): asking 850,000, revenue 410,000\n3. **Bright Smile Dental Lab** (Bath): asking 640,000, revenue 380,000\n\nThe tracker doesn't record a currency, so the amounts are shown as entered.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 65258,
+    "tokens_cache_made": 13024,
+    "tokens_out": 386,
+    "first_text_ms": 6098,
+    "routed": "Home",
+    "routed_by": "judge: A one-turn lookup and numbered list from the deal tracker, with nothing left standing and no open items to continue.",
+    "seconds": 12.9
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**Harbour Car Wash**, Leeds\n\n- **Asking price:** 850,000\n- **Revenue:** 410,000. That puts the asking price at about 2.1× revenue, which is higher than the other deals. Greenline is about 1.3× and Bright Smile about 1.7×.\n- **Notes:** It has two bays, and the owner is retiring.\n\nThat's all the tracker has on it, and it was added tonight. It doesn't have profit, years trading, the lease or property terms, or a link to the listing. The profit figure would tell you most about whether the price is fair. If you have the listing or any figures, send them over and I'll add them.",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 53822,
+    "tokens_cache_made": 963,
+    "tokens_out": 339,
+    "first_text_ms": 5703,
+    "seconds": 8.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer is about Harbour Car Wash, the second deal in the previous list, and adds detail: the price-to-revenue ratio compared with the other deals, notes, and what the tracker is missing. It doesn't list the deals again or ask which one was meant.",
+    "seconds": 5.0
+   }
+  ],
+  "seconds": 26.6,
+  "error": null
+ }
+]

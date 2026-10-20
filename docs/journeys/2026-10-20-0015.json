@@ -1,0 +1,36 @@
+[
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Monday 19 Oct) you mentioned Vikas twice:\n\n1. **Just after midnight:** \"remind me that i promised vikas the financial model by friday.\" I noted it, but I can't find a task or reminder for it. Nothing will remind you before Friday 23 Oct.\n2. **In the morning:** \"Add to Tasks: i have to reply to Vikas on Whatsapp today evening by 6pm.\" I added it as **Reply to Vikas on WhatsApp**, due Monday by 6pm, and the reminder went off at 6pm. That task is now marked done.\n\nThere was also a mix-up. The task was mistakenly handed to your Deal Analyst, which blocked it because it isn't about a dea",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 71164,
+    "tokens_cache_made": 18097,
+    "tokens_out": 839,
+    "first_text_ms": 10897,
+    "seconds": 11.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer says that yesterday (Mon 19 Oct, just after midnight) the person said they had promised Vikas the financial model by Friday, which is exactly what the rubric requires, and its other details add to that point without contradicting it.",
+    "seconds": 5.4
+   }
+  ],
+  "seconds": 16.9,
+  "error": null
+ }
+]

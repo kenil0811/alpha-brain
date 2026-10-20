@@ -1,0 +1,36 @@
+name: helpers_side_by_side
+title: "Two sources compared, each read by a helper alongside"
+why: >
+  Engine reach A2 (Q98, 20 Oct 2026): a turn may start subagents (the SDK's Agent), which have
+  the turn's hands, hooks and the permission callback. Asked for two sources side by side, the
+  answer is right whether or not it used helpers; the spike showed they work.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: leads_north
+      title: Leads North
+      fields:
+        - {name: company, kind: text}
+        - {name: value, kind: number}
+      title_field: company
+      rows:
+        - {company: Acme Tools, value: 12000}
+        - {company: Birch Labs, value: 30000}
+  - seed:
+      kind: table
+      name: leads_south
+      title: Leads South
+      fields:
+        - {name: company, kind: text}
+        - {name: value, kind: number}
+      title_field: company
+      rows:
+        - {company: Cedar Foods, value: 8000}
+        - {company: Delta Freight, value: 45000}
+        - {company: Elm Studio, value: 5000}
+  - say: "compare my two lead sources side by side: how many leads each has and their total value; have a helper read each one"
+checks:
+  - judge:
+      rubric: "Passes if the answer says Leads North has 2 leads worth 42,000 in total and Leads South has 3 leads worth 58,000 in total (or the same in other words). Fails if a count or total is wrong."
+      facts: "Leads North: Acme Tools 12,000 and Birch Labs 30,000 (2 leads, 42,000). Leads South: Cedar Foods 8,000, Delta Freight 45,000, Elm Studio 5,000 (3 leads, 58,000)."

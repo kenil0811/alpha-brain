@@ -1,0 +1,42 @@
+[
+ {
+  "name": "scout_picks_the_day",
+  "title": "Scout looks across the world and picks what deserves attention today",
+  "steps": [
+   {
+    "agent": "Scout",
+    "ok": true,
+    "result": "2 picks for today (a pattern in your data, something to stop doing by hand); 12 links on the map to confirm.",
+    "problem": null,
+    "seconds": 46.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "picks",
+    "arg": {
+     "min": 1
+    },
+    "ok": true,
+    "why": "3 pick(s): Save your three-day meal loop [by_hand, less sure] → Save my three usual days as meals I can log with one word; RestoPros profit hangs on three months [pattern] → Add RestoPros to my Deal list with its yearly income and profit from the P&L; Links worth confirming [link, less sure] → confirm them on the map.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 46.9,
+  "error": null
+ }
+]

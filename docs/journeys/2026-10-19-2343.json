@@ -1,0 +1,36 @@
+[
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Sunday, just before midnight) you said: **\"remind me that i promised Vikas the financial model by Friday.\"** I noted it, so the model is due to Vikas by **Friday 23 October**.\n\nThat was the only thing you said about Vikas yesterday. I can't find a task or timed reminder for it, though, so nothing will nudge you before Friday. Should I add one, for example on Thursday morning?\n\nSeparately, today you asked me to add a task to reply to Vikas on WhatsApp by 6pm.",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 69360,
+    "tokens_cache_made": 16369,
+    "tokens_out": 619,
+    "first_text_ms": 11699,
+    "seconds": 12.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer says the person promised Vikas the financial model by Friday and places it yesterday (Sunday just before midnight), matching the journal entry from 18 Oct; the extra details about Friday 23 October and the WhatsApp task come from records Alpha already had, not invention.",
+    "seconds": 5.2
+   }
+  ],
+  "seconds": 17.4,
+  "error": null
+ }
+]
