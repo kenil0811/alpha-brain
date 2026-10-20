@@ -86,7 +86,7 @@ none, and the copy at 14:31 still had the folder broken from 14:07.
   `core.log`.
 
 His word: "Read now shows Desktop/dev Connected with no problem and each file read once in
-Activity; commit the fix". Committed on it, with only this work's lines of `STATE.md` and
+Activity; commit the fix". Committed on it as `6debc8f`, with only this work's lines of `STATE.md` and
 `log/README.md` (another session's section C edits there are left to it).
 
 ## Seen on the way, not changed
