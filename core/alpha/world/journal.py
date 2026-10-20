@@ -173,9 +173,11 @@ class Journal:
         return [entry(r) for r in reversed(rows)]
 
     def search(self, text: str, limit: int = 10, *, since: str | None = None,
-               until: str | None = None) -> list[dict[str, Any]]:
+               until: str | None = None,
+               not_threads: set[str] | None = None) -> list[dict[str, Any]]:
         """Full-text search over what happened, most relevant first, recent as tie-break;
-        `since`/`until` narrow it to a window (a sentence that names a day)."""
+        `since`/`until` narrow it to a window (a sentence that names a day); `not_threads`
+        leaves those threads' lines out."""
         query = fts_query(text)
         if query is None:
             return []
@@ -187,6 +189,10 @@ class Journal:
         if until:
             window += " AND j.at < ?"
             args.append(until)
+        if not_threads:
+            window += (" AND (j.thread IS NULL OR j.thread NOT IN"
+                       f" ({','.join('?' * len(not_threads))}))")
+            args.extend(sorted(not_threads))
         rows = self.store.all(
             "SELECT j.*, snippet(journal_fts, 0, '[', ']', '…', 12) AS snip"
             " FROM journal_fts JOIN journal j ON j.rowid = journal_fts.rowid"

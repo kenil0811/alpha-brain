@@ -1,0 +1,66 @@
+[
+ {
+  "name": "what_did_you_do_there",
+  "title": "Section C · after a piece of work's outcome, \"what did you do there\" is answered from its own journal",
+  "steps": [
+   {
+    "seed": "table listings with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the background, go through my Listings one by one and work out each one's asking price per location. When you're done, tell me only which one is cheapest per location. Carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I'm working out the asking price per location for each of your four listings in the background. When it's finished I'll tell you which one is cheapest.\n\nWe can keep talking in the meantime. What would you like to do next?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52849,
+    "tokens_cache_made": 11128,
+    "tokens_out": 545,
+    "first_text_ms": 15095,
+    "seconds": 19.0
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 12.0
+   },
+   {
+    "say": "What exactly did you do there, step by step?",
+    "ok": true,
+    "reply": "Here's what happened, step by step, as recorded in the journal:\n\n1. **Started the work in the background.** You asked me to work out each listing's asking price per location and tell you only the cheapest. I handed it to a piece of work running alongside our conversation so we could keep talking. I told it to read all four listings, divide asking price by number of locations, watch for messy values (currency symbols, \"k\"/\"m\", commas, text, blanks, zero locations), not guess if a value was missing, and not change anything.\n\n2. **Read your Listings table.** It pulled all four rows: business, ask",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 89836,
+    "tokens_cache_made": 11290,
+    "tokens_out": 962,
+    "first_text_ms": 19733,
+    "seconds": 23.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 piece(s): Price per location for listings (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": {
+     "work_journal": true,
+     "rubric": "The answer says what was done, step by step, and agrees with the work's journal and the conversation's lines about it shown above: it goes beyond the work's final outcome (which listing is cheapest per location) to the steps the work took, and it claims no step those lines do not show.\n"
+    },
+    "ok": true,
+    "why": "The answer goes beyond naming the cheapest listing: it walks through the steps the journal shows (starting the background work, reading the listings rows with their value types, checking each field's type and unit, dividing, then reporting), and the ranking and tie check it adds follow directly from that division rather than inventing new steps.",
+    "seconds": 7.0
+   }
+  ],
+  "seconds": 61.6,
+  "error": null
+ }
+]

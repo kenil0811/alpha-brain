@@ -49,7 +49,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         title), `fields` (table_name, field, kind, title, unit, choices, relation, required: a
         table's fields are `SELECT * FROM fields WHERE table_name = '...'`), `journal` (at,
         kind, actor, text, module, thread, data: what was said on a day is one query on its
-        `at`), `facts` (subject,
+        `at`; what a piece of work beside you did, step by step, and its outcome is one query
+        on its `thread`), `facts` (subject,
         predicate, value, valid_from, valid_to), `people` (id, name, emails, phones, profiles,
         organisations, sources, last_contact, in_90_days: everyone, merged across sources),
         `organisations` (id, name, domains, people), `interactions` (person, at, channel,

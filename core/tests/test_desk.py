@@ -173,7 +173,7 @@ def test_work_runs_beside_the_desk_and_its_outcome_is_the_desks_reply(world: Wor
         assert world.modules.thread(tid)["state"] == "working"
         # the desk sees the work beside it in its turn layer (C6)
         layer = layers.turn_layer(world, "and?", thread=home)
-        assert "WORK BESIDE YOU" in layer and "task task_1" in layer
+        assert "WORK RUNNING BESIDE YOU" in layer and "task task_1" in layer
         finish(cli)
         # its shell ran in the foreground: one completion, never an early one (the spike)
         assert cli.answers["call_2"]["hookSpecificOutput"]["updatedInput"][
@@ -182,8 +182,10 @@ def test_work_runs_beside_the_desk_and_its_outcome_is_the_desks_reply(world: Wor
         assert done
         outcome = [e for e in world.journal.recent(20, thread=tid) if e["data"].get("outcome")]
         assert outcome[0]["text"].startswith("Two deals are new")
+        # its steps are its own calls, in the window's words; its progress note (the task's
+        # own description) is none (C6)
         steps = [e for e in world.journal.recent(20, thread=tid) if e["data"].get("step")]
-        assert [e["text"] for e in steps] == ["Reading the deals"]
+        assert [(e["text"], e["data"]["tool"]) for e in steps] == [("Running: sleep 5", "Bash")]
         # the desk's own words on it, in the stream, carrying the work's id
         reply = until(lambda: [e for e in world.journal.recent(10, thread=home)
                                if e["kind"] == "replied" and tid in (e["data"].get("work") or [])])
@@ -341,3 +343,99 @@ def test_the_desk_allows_a_host_any_module_lists(world: World) -> None:
         assert isinstance(out, PermissionResultAllow)
     finally:
         d.close()
+
+
+def test_the_desks_layer_holds_outcomes_since_its_last_turn_and_none_of_their_steps(
+        world: World) -> None:
+    """C6: the desk knows the work beside it by its outcomes only. Work running is a line with
+    its task's id; work finished since the desk's last turn is its outcome, whole; finished
+    earlier today, a line; older than a day, nothing. Its steps and what it wrote are never in
+    the layer (not as news, not as matches): they are the journal under its thread."""
+    home = world.modules.home_thread()["id"]
+    world.modules.set_session(home, "s-desk", tools="t")
+
+    def work(title: str, task: str, state: str) -> str:
+        tid = str(world.modules.open_thread(title, "work")["id"])
+        world.modules.set_session(tid, task, tools=desk.WORK)
+        world.modules.update_thread(tid, state=state, last_line=f"{title}, its last line")
+        return tid
+
+    def outcome(tid: str, text: str) -> None:
+        world.journal.append("replied", text, actor="alpha", thread=tid,
+                             data={"work": tid, "outcome": True})
+
+    old = work("Old research", "task_0", "done")
+    outcome(old, "Old outcome: three listings.")
+    with world.store.tx() as db:
+        db.execute("UPDATE threads SET updated_at = ? WHERE id = ?",
+                   ("2026-01-01T00:00:00+00:00", old))
+    earlier = work("Rates check", "task_1", "done")
+    world.journal.append("did", "Reading the rate sheets", actor="alpha", thread=earlier,
+                         data={"work": earlier, "step": True})
+    outcome(earlier, "Rates are flat this week.")
+    world.journal.append("said", "how are the rates", actor="person", thread=home)
+    world.journal.append("replied", "The rates check is back: flat.", actor="alpha",
+                         thread=home, data={"work": [earlier]})
+    fresh = work("Broker emails", "task_2", "done")
+    world.journal.append("did", "Searching the broker emails", actor="alpha", thread=fresh,
+                         data={"work": fresh, "step": True})
+    world.journal.append("made", "Made the table Brokers for the broker emails",
+                         actor="alpha", thread=fresh)
+    outcome(fresh, "Two brokers wrote:\n- Poe Group, a car wash\n- Sunbelt, a bakery")
+    running = work("Deal research", "task_3", "working")
+    sentence = "what did the broker emails say"
+    said = world.journal.append("said", sentence, actor="person", thread=home)
+    layer = layers.turn_layer(world, sentence, thread=home, said=said)
+    assert (f"WORK RUNNING BESIDE YOU\n- Deal research (thread {running}, task task_3,"
+            " working): Deal research, its last line") in layer
+    assert (f"- Broker emails (thread {fresh}, task task_2, done). Its outcome:\n"
+            "  Two brokers wrote:\n  - Poe Group, a car wash\n  - Sunbelt, a bakery") in layer
+    assert f"- Rates check (thread {earlier}, task task_1, done)" in layer
+    assert "Rates are flat this week." not in layer  # told already, in the desk's session
+    assert "Old research" not in layer and "Old outcome" not in layer
+    # nothing of the work's own journal: not its steps, not what it wrote, not as a match
+    assert "Searching the broker emails" not in layer and "Made the table Brokers" not in layer
+    assert "Reading the rate sheets" not in layer
+
+
+def test_a_compaction_in_a_turn_on_finished_work_is_kept_like_any_other(world: World) -> None:
+    """B6 at the desk (C6): Claude Code compacts in a turn it took on finished work, with no
+    sentence of the person's in flight. The compaction is still told what to keep and given the
+    start layer again, and Home's checkpoint is written afresh, apart from the desk's session."""
+    global DESK
+    import alpha.runtime.agents.watson as watson
+
+    SCRIPTS.clear()
+    SCRIPTS["hello"] = [said_text("Hello."), result("Hello.")]
+    apart: list[TurnRequest] = []
+
+    def stateless(req: TurnRequest) -> RunResult:
+        apart.append(req)
+        return RunResult(ok=True, reply='{"decisions": [], "open": "the deal research"}')
+
+    DESK = desk.Desk(world.path, client_factory=FakeCLI, apart=stateless)
+    home = world.modules.home_thread()["id"]
+    seen: dict[str, Any] = {}
+
+    async def compacts(cli: FakeCLI) -> None:
+        seen["guidance"] = (await cli.hook("PreCompact", {"trigger": "auto"})).get(
+            "systemMessage")
+        seen["again"] = (await cli.hook("SessionStart", {"source": "compact"})).get(
+            "hookSpecificOutput", {}).get("additionalContext")
+
+    try:
+        assert turn.ask(world, "hello", thread=home, runner=DESK.run, conversation=True).ok
+        cli = FakeCLI.made[-1]
+        asyncio.run_coroutine_threadsafe(cli.turn(
+            "<task-notification>\n<task-id>task_9</task-id>\n</task-notification>",
+            [compacts, said_text("The work is done."), result("The work is done.")]),
+            DESK.loop).result()
+        until(lambda: apart)
+        assert seen["guidance"] and "WHO THE PERSON IS" in str(seen["again"])
+        assert apart[0].kind == "judge" and apart[0].turn_id == home
+        note = until(lambda: world.knowledge.find_note(f"conversation:{home}",
+                                                       watson.CHECKPOINT))
+        assert "Open: the deal research" in note["body"]
+        assert cli.queried == ["hello"]  # the checkpoint ran apart, never in the desk
+    finally:
+        DESK.close()

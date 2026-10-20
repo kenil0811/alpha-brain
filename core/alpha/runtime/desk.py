@@ -59,8 +59,10 @@ from claude_agent_sdk.types import (
     TaskUpdatedMessage,
 )
 
+from alpha.context import layers
 from alpha.runtime import engine, route
-from alpha.runtime.running import LIVE, SILENCE_S, RunResult, TurnRequest
+from alpha.runtime import turn as turns
+from alpha.runtime.running import LIVE, SILENCE_S, RunResult, TurnRequest, plain_tool
 from alpha.world import grants
 from alpha.world.modfiles import skills_at
 from alpha.world.world import World
@@ -91,6 +93,10 @@ class Turn:
                                                             "first": ""})
     started_at: float = field(default_factory=time.time)
     said: str | None = None  # the journal line that began it (a work turn's `did`)
+    # A turn on finished work has no sentence's request; its own stands for one in the hooks,
+    # so a compaction in it keeps what it should, is given the start layer again and has
+    # Home's checkpoint written afresh, as in any session (B6; C6)
+    own: TurnRequest | None = None
 
 
 class Desk:
@@ -325,7 +331,8 @@ class Desk:
         """A request standing for the call being asked about: the desk's turn, or the work's."""
         world = self._world()
         turn = self._now()
-        base = turn.req if turn and turn.req else TurnRequest(
+        held = (turn.req or turn.own) if turn else None
+        base = held or TurnRequest(
             sentence="", system="", world_path=self.world_path,
             turn_id=turn.said if turn and turn.said else "desk",
             thread_id=world.modules.home_thread()["id"], persist=True)
@@ -389,6 +396,8 @@ class Desk:
                     desk.shells[tool_use_id] = agent
             if agent:
                 desk._thread_of(agent)  # work's thread, opened by its first call if need be
+                if name != "ToolSearch":  # finding a tool is the harness's, not a step
+                    desk._work_step(agent, name, call)
             if name in ("Agent", "Task") and not agent and tool_use_id:
                 # work the desk starts: where it came from, for its thread
                 turn = desk.turns[0] if desk.turns else None
@@ -537,17 +546,27 @@ class Desk:
                                        "turn": origin.get("turn")})
 
     def _task_progress(self, m: TaskProgressMessage) -> None:
+        """Work still going. Its description is the task's own (its title, seen 20 Oct 2026),
+        so its steps are its calls (`_work_step`), not these."""
         thread = self.work.get(m.task_id)
-        if thread is None or not m.description:
+        if thread is not None and self._world().modules.thread(thread)["state"] != "working":
+            self._world().modules.update_thread(thread, state="working")
+
+    def _work_step(self, task: str, name: str, call: dict[str, Any]) -> None:
+        """One call the work makes, journaled under its thread in the words the window uses:
+        what it did, step by step, is that thread's journal (C2; C6's "what did you do
+        there")."""
+        thread = self.work.get(task)
+        if thread is None:
             return
         world = self._world()
-        if world.modules.thread(thread).get("last_line") == m.description:
-            return
-        world.modules.update_thread(thread, state="working", last_line=m.description)
-        world.journal.append("did", m.description, actor="alpha", thread=thread,
-                             module=self.origin.get(m.task_id, {}).get("module"),
-                             data={"work": thread, "task": m.task_id, "step": True,
-                                   "turn": self.origin.get(m.task_id, {}).get("turn")})
+        words = plain_tool(name, call)
+        world.modules.update_thread(thread, state="working", last_line=words)
+        world.journal.append("did", words, actor="alpha", thread=thread,
+                             module=self.origin.get(task, {}).get("module"),
+                             data={"work": thread, "task": task, "step": True,
+                                   "tool": name.removeprefix("mcp__alpha__"),
+                                   "turn": self.origin.get(task, {}).get("turn")})
 
     def _task_ended(self, task: str, status: str, summary: str) -> None:
         thread = self.work.get(task)
@@ -579,7 +598,9 @@ class Desk:
         said = world.journal.append(
             "did", "Work finished: " + ("; ".join(titles) if titles else "a piece of work"),
             actor="alpha", thread=home, data={"work": threads, "tasks": tasks})
-        turn = Turn(keys=[said, f"desk:{uuid.uuid4().hex[:8]}"], tasks=tasks, said=said)
+        turn = Turn(keys=[said, f"desk:{uuid.uuid4().hex[:8]}"], tasks=tasks, said=said,
+                    own=TurnRequest(sentence="", system="", world_path=self.world_path,
+                                    turn_id=said, thread_id=home, persist=True))
         LIVE.add_handle(turn.keys, self._stop_handle)
         self.turns.append(turn)
 
@@ -598,6 +619,17 @@ class Desk:
         elif not result.ok and not result.stopped:
             world.journal.append("failed", f"That didn't work: {result.error}", actor="alpha",
                                  thread=home, data={**data, "error": result.error})
+        if turn.own is not None and "compacted" in turn.own.injected:
+            # Home's checkpoint written afresh, apart from the desk's session and its reader
+            threading.Thread(target=self._after_compaction, args=(home,), daemon=True).start()
+
+    def _after_compaction(self, home: str) -> None:
+        world = self._world()
+        for keep in turns.AFTER_COMPACTION:
+            try:
+                keep(world, home, runner=self.apart or route.run)
+            except Exception:
+                log.exception("after the compaction of %s", home)
 
 
 class _Current:
@@ -609,6 +641,11 @@ class _Current:
         self._desk = desk
 
     def __getattr__(self, name: str) -> Any:
+        turn = self._desk._now()
+        if name == "start_layer" and turn and turn.own and not turn.own.start_layer:
+            # a turn on finished work is given the start layer only when a compaction asks
+            turn.own.start_layer = layers.start_layer(self._desk._world(),
+                                                      thread=turn.own.thread_id)
         return getattr(self._desk._req_for(None), name)
 
 

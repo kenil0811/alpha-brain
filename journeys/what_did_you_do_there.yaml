@@ -1,0 +1,37 @@
+name: what_did_you_do_there
+title: "Section C · after a piece of work's outcome, \"what did you do there\" is answered from its own journal"
+why: >
+  Section C, C6 (20 Oct 2026): the desk knows the work beside it by its outcome only, a
+  paragraph; the work's steps are never in the desk's context. Asked what exactly it did, the
+  desk reads the work's own journal (world_query on `journal` by the work's thread) and answers
+  from it. The judge is given that journal: an answer naming steps the journal shows, beyond
+  the outcome, was read there.
+fresh: true
+steps:
+  - seed:
+      kind: table
+      name: listings
+      title: Listings
+      module: Deals
+      fields:
+        - {name: business, kind: text}
+        - {name: asking_price, kind: number}
+        - {name: locations, kind: number}
+      title_field: business
+      rows:
+        - {business: "Harbour Car Wash", asking_price: 850000, locations: 4}
+        - {business: "Corner Print Shop", asking_price: 210000, locations: 1}
+        - {business: "Lakeside Bakery", asking_price: 450000, locations: 3}
+        - {business: "Sunbelt Laundry", asking_price: 990000, locations: 6}
+  - say: "In the background, go through my Listings one by one and work out each one's asking price per location. When you're done, tell me only which one is cheapest per location. Carry on talking with me meanwhile."
+  - wait_for_work: {seconds: 600}
+  - say: "What exactly did you do there, step by step?"
+checks:
+  - work: {count: 1}
+  - judge:
+      work_journal: true
+      rubric: >
+        The answer says what was done, step by step, and agrees with the work's journal and
+        the conversation's lines about it shown above: it goes beyond the work's final outcome
+        (which listing is cheapest per location) to the steps the work took, and it claims no
+        step those lines do not show.

@@ -284,6 +284,12 @@ def _map(world: World, module: str | None) -> list[str]:
     return held or ["- Nothing yet: no modules, no tables."]
 
 
+def _desk_work(world: World) -> set[str]:
+    """The threads of the work run beside the desk (section C)."""
+    return {r["id"] for r in world.store.all(
+        "SELECT id FROM threads WHERE session_tools = 'desk-work'")}
+
+
 def _indented(text: str) -> list[str]:
     return [f"  {line}" for line in text.strip().splitlines()]
 
@@ -304,6 +310,8 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
     row = world.modules.thread(thread) if thread else None
     home = world.modules.home_thread()
     chat = row or home
+    # at the desk the work beside it is known by its outcome only, never its transcript (C6)
+    work = _desk_work(world) if chat["kind"] == "home" else set()
     if chat.get("session_ref"):
         # The model's session carries this conversation; the world may have moved meanwhile.
         last_row = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
@@ -314,7 +322,7 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
             for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
                                                      "noticed"]):
                 if e["at"] > last_at and e["thread"] != chat["id"] \
-                        and not e["data"].get("step"):
+                        and e["thread"] not in work and not e["data"].get("step"):
                     delta.append(f"- {when(e['at'])} {e['kind']}: {one_line(e['text'], 200)}")
         if delta:
             sections.append(("SINCE YOUR LAST TURN HERE (elsewhere, meanwhile)",
@@ -364,8 +372,8 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
     window = day_named(sentence)
     lines = []
     for hit in world.journal.mark_removed(world.journal.search(
-            sentence, TURN_MATCHES + 1,
-            since=window[0] if window else None, until=window[1] if window else None)):
+            sentence, TURN_MATCHES + 1, since=window[0] if window else None,
+            until=window[1] if window else None, not_threads=work)):
         if hit["id"] == said:
             continue
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
@@ -395,22 +403,48 @@ def turn_layer(world: World, sentence: str, *, module: str | None = None,
                 lines.append(f"- Its notes (NOTES.md, {page['title']}):")
                 lines += _indented(page["body"])
             sections.append(("THIS SENTENCE CAME FROM A MODULE'S PAGE", lines))
-        # The work beside the desk: what runs now (a message reaches it by its task's id) and
-        # what finished since the desk's last turn, one line each, never a transcript (C6).
+        # The work beside the desk (C6): what runs now, one line each (a message reaches it
+        # by its task's id); what finished since the desk's last turn, its outcome whole, a
+        # paragraph; what finished earlier in the last day, one line; older, nothing. Its
+        # steps are never here: the journal holds them under its thread.
+        # compared in the order lines were written (two in one second keep it), each found on
+        # the thread's index (`+kind` keeps the planner off the kind's)
+        desk_last = world.store.one(
+            "SELECT rowid AS n, at FROM journal WHERE thread = ? AND +kind = 'replied' AND"
+            " actor = 'alpha' ORDER BY at DESC, rowid DESC LIMIT 1", (home["id"],))
+        last_turn = int(desk_last["n"]) if desk_last else 0
         since = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
-        lines = []
-        for t in world.modules.items(limit=40):
-            if t.get("session_tools") != "desk-work":
+        running, finished, earlier = [], [], []
+        for t in world.store.all(
+                "SELECT * FROM threads WHERE kind = 'work' AND session_tools = 'desk-work'"
+                " AND (state IN ('open', 'working', 'needs_you') OR updated_at >= ?)"
+                " ORDER BY created_at", (since,)):
+            head = f"- {t['title']} (thread {t['id']}, task {t['session_ref']}," \
+                   f" {str(t['state']).replace('_', ' ')})"
+            if t["state"] in ("open", "working", "needs_you"):
+                running.append(head + (f": {one_line(t['last_line'], 160)}"
+                                       if t["last_line"] else ""))
                 continue
-            if t["state"] in ("done", "stopped") and t["updated_at"] < since:
-                continue
-            line = f"- {t['title']} (thread {t['id']}, task {t.get('session_ref')}," \
-                   f" {t['state'].replace('_', ' ')})"
-            lines.append(line + (f": {one_line(t['last_line'], 160)}" if t.get("last_line")
-                                 else ""))
-        if lines:
-            sections.append(("WORK BESIDE YOU (running, or finished in the last day; what it"
-                             " did is in the journal under its thread)", lines[:TURN_ELSEWHERE]))
+            outcome = world.store.one(
+                "SELECT rowid AS n, text FROM journal WHERE thread = ? AND +kind = 'replied'"
+                " AND json_extract(data, '$.outcome') ORDER BY at DESC, rowid DESC LIMIT 1",
+                (t["id"],))
+            if outcome and int(outcome["n"]) > last_turn:
+                finished += [head + ". Its outcome:", *_indented(str(outcome["text"]))]
+            elif not outcome and (desk_last is None or str(t["updated_at"]) > desk_last["at"]):
+                finished.append(head + (f": {one_line(t['last_line'], 200)}"
+                                        if t["last_line"] else ""))
+            else:
+                earlier.append(head)
+        if running:
+            sections.append(("WORK RUNNING BESIDE YOU", running))
+        if finished:
+            sections.append(("WORK FINISHED SINCE YOUR LAST TURN (its outcome; what it did,"
+                             " step by step, is the journal under its thread)", finished))
+        if earlier:
+            sections.append(("WORK FINISHED EARLIER TODAY (you told the person its outcome;"
+                             " the journal under its thread has it)",
+                             earlier[-TURN_ELSEWHERE:]))
 
     return _joined(sections)
 

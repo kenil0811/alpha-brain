@@ -1074,8 +1074,24 @@ class Run:
                  " in SQL, and a read leaves no step in the journal: an answer that agrees with"
                  " what is true here was read, not invented.\n\n"
                  if isinstance(arg, dict) and arg.get("facts") else "")
+        # 20 Oct 2026 (C6): what a piece of work beside the desk did is its own journal, its
+        # steps and its outcome; the desk holds only the outcome and reads the steps with one
+        # query, which leaves no step either. An answer about the work is judged against them.
+        worked = ""
+        if isinstance(arg, dict) and arg.get("work_journal"):
+            home = self.world.modules.home_thread()["id"]
+            for t in self._work():
+                # its own journal, and the desk's part in it (starting it, its words on it)
+                lines = self.world.journal.recent(200, thread=t["id"]) + [
+                    e for e in self.world.journal.recent(200, thread=home)
+                    if t["id"] in str(e["data"].get("work") or "")]
+                worked += (f"The work \"{t['title']}\" from its own journal, and the"
+                           " conversation's lines about it, oldest first:\n")
+                worked += "\n".join(
+                    f"- {e['at'][11:19]} {e['kind']}: {' '.join(e['text'].split())[:400]}"
+                    for e in sorted(lines, key=lambda e: e["at"])) + "\n\n"
         prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}{truth}'
-                  f"The answer:\n{self.last_reply}\n\nThe rubric: {rubric}")
+                  f"{worked}The answer:\n{self.last_reply}\n\nThe rubric: {rubric}")
         result = self.runner(running.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))

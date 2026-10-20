@@ -1,0 +1,66 @@
+[
+ {
+  "name": "what_did_you_do_there",
+  "title": "Section C · after a piece of work's outcome, \"what did you do there\" is answered from its own journal",
+  "steps": [
+   {
+    "seed": "table listings with 4 row(s)",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "In the background, go through my Listings one by one and work out each one's asking price per location. When you're done, tell me only which one is cheapest per location. Carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started working through your four Listings in the background. When it's finished I'll tell you only which one is cheapest per location.\n\nIn the meantime, what else can I help with?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52856,
+    "tokens_cache_made": 10984,
+    "tokens_out": 387,
+    "first_text_ms": 7559,
+    "seconds": 14.3
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 4.0
+   },
+   {
+    "say": "What exactly did you do there, step by step?",
+    "ok": true,
+    "reply": "Step by step, this is what happened with your price-per-location question:\n\n1. **Started the work in the background.** You asked me to go through your Listings and keep talking with you meanwhile, so I gave the job to a helper working beside our conversation. I told it to read every row in Listings, divide asking price by locations for each one, flag anything missing, zero or messy without making up values, and change nothing.\n\n2. **Read the four listings.** All of them had clean numbers. Nothing was missing, nothing had zero locations, and nothing needed adjusting.\n\n3. **Worked out price per ",
+    "steps": 3,
+    "tokens_input": 6,
+    "tokens_cache_read": 89866,
+    "tokens_cache_made": 10779,
+    "tokens_out": 762,
+    "first_text_ms": 9862,
+    "seconds": 13.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "work",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 piece(s): Asking price per location (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": {
+     "work_journal": true,
+     "rubric": "The answer says what the work did, step by step, and those steps agree with the work's own journal shown above: it goes beyond the work's final outcome (which listing is cheapest per location), and it claims no step that journal does not show.\n"
+    },
+    "ok": false,
+    "why": "The answer claims steps the journal doesn't show: a background helper, comparing the results, telling the person only the winner, and taking 'about ten seconds'; the journal's reply actually gave the full table, so 'only the winner' contradicts it.",
+    "seconds": 5.4
+   }
+  ],
+  "seconds": 37.6,
+  "error": null
+ }
+]

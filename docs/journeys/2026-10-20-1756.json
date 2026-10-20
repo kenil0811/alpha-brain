@@ -1,0 +1,64 @@
+[
+ {
+  "name": "compaction_keeps_what_was_made",
+  "title": "A conversation compacted still knows what it made",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "Your food log is set up in a new **Food** module, with a chart of calories per day next to it.\n\nTo add something, just tell me what you ate, like \"two eggs and toast for breakfast\" or \"had a latte at 3\". I'll log the time and meal, and estimate calories, protein, carbs and fat. I'll mark those numbers as estimates unless you give me the real ones, for example from a label.\n\nWhat have you eaten today so far?",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 123292,
+    "tokens_cache_made": 14861,
+    "tokens_out": 877,
+    "first_text_ms": 10051,
+    "seconds": 14.2
+   },
+   {
+    "say": "log two boiled eggs for breakfast",
+    "ok": true,
+    "reply": "I've logged two boiled eggs as today's breakfast. That's about **155 kcal**, with 12.6 g protein, 1.1 g carbs and 10.6 g fat.\n\nThe numbers are standard USDA values for large eggs, about 50 g each. You didn't give a time, so I put it at 8:00 this morning. Tell me if your eggs were a different size or you ate at another time and I'll change it.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 124036,
+    "tokens_cache_made": 8619,
+    "tokens_out": 940,
+    "first_text_ms": 10190,
+    "seconds": 14.4
+   },
+   {
+    "compact": "Home",
+    "ok": true,
+    "detail": "compacted; the start layer given again",
+    "seconds": 15.1
+   },
+   {
+    "say": "what have we set up for tracking my food so far, and what's logged in it?",
+    "ok": true,
+    "reply": "You have one **Food** module, with a single table, the **Food log**. Each entry can hold:\n\n- what you ate and how much\n- when you ate it, and the meal (breakfast, lunch, dinner, snack or drink)\n- calories, protein, carbs and fat\n- any notes\n\n**What's logged so far:** one entry.\n\n| When | Meal | Food | Amount | Calories | Protein | Carbs | Fat |\n|---|---|---|---|---|---|---|---|\n| Today, ~8:00 | Breakfast | Boiled eggs | 2 eggs | 155 kcal | 12.6 g | 1.1 g | 10.6 g |\n\nThe nutrition numbers are standard USDA values for large eggs. The 8:00 time is my guess.\n\nTo add more, just say what you ate, li",
+    "steps": 4,
+    "tokens_input": 6,
+    "tokens_cache_read": 92534,
+    "tokens_cache_made": 8734,
+    "tokens_out": 723,
+    "first_text_ms": 8269,
+    "seconds": 8.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the answer names the food tracking table (or its module) that was made in this conversation and says the two boiled eggs for breakfast are logged in it. Fails if it says nothing was made, asks what the person means, or invents entries.",
+     "facts": "In this conversation Alpha made a food log table (in a Food or Nutrition module) and logged two boiled eggs for breakfast today. Nothing else is logged."
+    },
+    "ok": true,
+    "why": "The answer names the Food module and its Food log table, and says the one logged entry is two boiled eggs at breakfast today; this matches what is true and invents no other entries.",
+    "seconds": 4.4
+   }
+  ],
+  "seconds": 56.3,
+  "error": null
+ }
+]
