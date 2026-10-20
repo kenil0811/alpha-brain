@@ -60,6 +60,11 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - measured: input per turn is not lower (against before S1, `track_then_log` −11% and +17%; against after S1, every turn +7% to +72%), and first words vary as much between two runs as between before and after. Section A gave reach, not speed.
     - Found: a plain answer in Home to a question Alpha asked in prose is asked "Which is this about?" (routing, section C).
   - **Next:** section C (routing) when he sends it. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+- **The files sync's UNIQUE(path) failure, fixed on his yes, accepted and committed** ([`log/2026-10-20-files-sync-unique-path.md`](log/2026-10-20-files-sync-unique-path.md)):
+  - the cause: two syncs of his `~/Desktop/dev` overlapped (a walk takes 8 s, the watcher starts another 2 s after a change), and the second inserted a file the first had just read in; each failure cut that sync short and showed the folder broken;
+  - `_save` reads the path's row inside its write's transaction, a removal is a conditional write, and a file another watched folder reads stays that folder's (his choice);
+  - restarted on his word at 14:23 BST (the core alone, same port). No sync ran until 14:37: the desktop check started at 14:06 wrote into `desktop/.check` twice a second, and the watcher's 2 s wait never ended (below);
+  - his Read now at 14:37: the folder Connected with no problem, 20 changed files read once each, and the watcher syncing again after; no new line in `core.log`. His word: "commit the fix". Committed.
 - **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2 to S5 are committed (above).
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
@@ -125,12 +130,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, engine reach S5 built)
+## Numbers (`just stats`, 20 Oct, the files sync fix built)
 
-- 448 core tests, 240 desktop tests; lint and types clean.
+- 450 core tests, 240 desktop tests; lint and types clean.
 - 70 tools; 58 journeys defined.
-- Core 29,499 lines, tests 11,690, desktop 21,542.
-- 307 commits before S5.
+- Core 29,521 lines, tests 11,774, desktop 21,542.
+- 310 commits before the files sync fix.
 
 ## What is built, against the design's order of work
 
@@ -171,6 +176,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 - Columbo's cost is now one small judgement per candidate about once an hour, plus only the ways it names (Q51); whether System One's "needs no check" is too eager or too shy is for Kenil's real days to show, in its run lines.
 - Columbo's verdict is one small model's reading: on the same turn of Kenil's (a copy), the world's judge agreed once and once found that Alpha's answer said six exports while listing five. A difference that names no field marks no row; the words land in Activity. How often it is right is what its notes will show.
 - The earlier near miss on a label (fat 14 g against 13.4 g) was a rounding apart, which the judge's rules now say is not a difference.
+- A watched folder is synced on every change under it, including `.git`, `node_modules`, `.venv`, `.check` and build output that the walk skips, so in his `~/Desktop/dev` every commit or build starts an 8 s walk, which goes through those folders before dropping them. A writer there that never pauses for 2 s stops every sync: the desktop check's `desktop/.check` did from 14:07 BST on 20 Oct. A file deleted between the walk and its read fails that whole sync (not seen in his log yet).
 
 ## Pending, in order
 

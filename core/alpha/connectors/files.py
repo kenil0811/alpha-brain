@@ -3,6 +3,7 @@
 A watched folder is a connection. Syncing walks it, reads every new or changed document into
 the world (text extracted; the file itself is never changed), makes each one a `document`
 entity keyed by its path, and journals what it saw. A file that disappears is marked removed.
+A file another watched folder already reads stays that folder's document.
 While the core runs, FSEvents (through watchdog) triggers the same sync for the folder.
 """
 
@@ -319,11 +320,13 @@ class Files:
         if not root.is_dir():
             raise Problem(f"The folder {root} is gone.")
         store = self.world.store
+        # every document under the folder, whichever folder reads it: '/' sorts just before
+        # '0', so the range is the paths starting with "<root>/" (on the path's own index)
         known = {
             r["path"]: r
             for r in store.all(
-                "SELECT id, path, modified_at, removed_at FROM documents WHERE connection = ?",
-                (conn["id"],),
+                "SELECT id, path, connection, modified_at, removed_at FROM documents"
+                " WHERE path > ? AND path < ?", (f"{root}/", f"{root}0"),
             )
         }
         counts = {"added": 0, "changed": 0, "removed": 0, "unreadable": 0}
@@ -335,6 +338,8 @@ class Files:
                 continue
             modified = _mtime(path)
             prior = known.get(key)
+            if prior and prior["connection"] != conn["id"]:
+                continue  # another folder's document already: one file, one document
             if prior and prior["modified_at"] == modified and prior["removed_at"] is None:
                 continue
             try:
@@ -343,13 +348,17 @@ class Files:
                 counts["unreadable"] += 1
                 log.info("%s", e)
                 continue
-            self._save(conn, path, text, modified, prior, structure)
-            counts["changed" if prior else "added"] += 1
+            done = self._save(conn, path, text, modified, structure)
+            if done:
+                counts[done] += 1
         for path_str, prior in known.items():
-            if path_str not in seen and prior["removed_at"] is None:
-                with store.tx() as db:
-                    db.execute("UPDATE documents SET removed_at = ? WHERE id = ?",
-                               (now(), prior["id"]))
+            if path_str in seen or prior["connection"] != conn["id"] or prior["removed_at"]:
+                continue
+            with store.tx() as db:  # another sync of the folder may have marked it already
+                gone = db.execute(
+                    "UPDATE documents SET removed_at = ? WHERE id = ? AND removed_at IS NULL",
+                    (now(), prior["id"])).rowcount
+            if gone:
                 self.world.journal.append(
                     "saw", f"{Path(path_str).name} was removed from {root.name}.",
                     data={"document": prior["id"]}, source="connector:files",
@@ -358,12 +367,24 @@ class Files:
         return counts
 
     def _save(self, conn: dict[str, Any], path: Path, text: str, modified: str,
-              prior: sqlite3.Row | None, structure: dict[str, Any] | None = None) -> None:
+              structure: dict[str, Any] | None = None) -> str | None:
+        """Keep what was read of one file. Whether it is new is read again inside the write's
+        transaction, not taken from the list made before the walk: another sync may have read
+        the file since (two syncs of his ~/Desktop/dev overlapped on 20 Oct 2026, and the
+        second's INSERT failed on UNIQUE(path)). Returns "added" or "changed", or None when
+        there was nothing to keep: this version is kept already, or the file is another
+        folder's document."""
         entity = self.world.entities.resolve("document", path.name, {"path": str(path)})["entity"]
         stamp = now()
         size = path.stat().st_size
         digest, shape = file_hash(path), json.dumps(structure) if structure else None
         with self.world.store.tx() as db:
+            prior = db.execute(
+                "SELECT id, connection, modified_at, removed_at FROM documents WHERE path = ?",
+                (str(path),)).fetchone()
+            if prior and (prior["connection"] != conn["id"] or (
+                    prior["modified_at"] == modified and prior["removed_at"] is None)):
+                return None
             if prior:
                 db.execute(
                     "UPDATE documents SET title = ?, text = ?, size = ?, modified_at = ?,"
@@ -389,6 +410,7 @@ class Files:
             data={"document": did, "path": str(path)}, entity_ids=[entity["id"]],
             source="connector:files",
         )
+        return "changed" if prior else "added"
 
     # ---- taking a file in: fetched from a connection, or given by the person ----
 

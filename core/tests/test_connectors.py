@@ -80,6 +80,90 @@ def test_office_documents_are_read(world: World, tmp_path: Path) -> None:
     assert "Harbourline" in files.read("targets.xlsx")["text"]
 
 
+def test_two_syncs_of_one_folder_at_once(world: World, tmp_path: Path,
+                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """A second sync of a folder starting while the first still walks it: the watcher's timer
+    starts one 2 s after the last change, and a walk of his ~/Desktop/dev takes 8 s. Both read
+    the folder's documents before walking, so both saw a new file as new, and the second's
+    INSERT failed on UNIQUE(path): the whole folder's sync failed and the connection showed
+    broken (his core log, 20 Oct 2026). Here the second sync runs inside the first's walk."""
+    import alpha.connectors.files as files_module
+
+    folder = tmp_path / "dev"
+    folder.mkdir()
+    (folder / "STATE.md").write_text("The state, as of the morning.")
+    files = Files(world)
+    conn = files.watch(str(folder))
+    assert files.sync()["added"] == 1
+    (folder / "2026-10-20-1307.md").write_text("A journey's report.")
+    (folder / "STATE.md").unlink()
+
+    walk = files_module._walk
+    other: dict[str, Any] = {}
+
+    def walk_while_another_syncs(root: Path) -> list[Path]:
+        found = walk(root)
+        if not other:
+            other["started"] = True
+            other["sync"] = files.sync()
+        return found
+
+    monkeypatch.setattr(files_module, "_walk", walk_while_another_syncs)
+    first = files.sync()
+    assert other["sync"]["added"] == 1 and other["sync"]["removed"] == 1
+    assert first["folders"] == 1  # the first sync finished too
+    assert first["added"] == first["removed"] == 0  # the other sync did both already
+    assert Connections(world.store).get(conn["id"])["status"] == "connected"
+    assert len(world.store.all("SELECT path FROM documents")) == 2
+    said = [e["text"] for e in world.journal.recent(20)]
+    assert said.count("Read 2026-10-20-1307.md in dev (3 words).") == 1
+    assert sum("STATE.md was removed" in t for t in said) == 1
+
+
+def test_a_file_another_folder_reads_stays_with_it(world: World, tmp_path: Path,
+                                                   monkeypatch: pytest.MonkeyPatch) -> None:
+    """A folder watched inside one already watched: its files stay the inner folder's
+    documents (one file, one document; Kenil, 20 Oct 2026), even one the inner folder reads
+    while the outer one walks. Before, the outer sync failed on UNIQUE(path)."""
+    import alpha.connectors.files as files_module
+
+    outer = tmp_path / "dev"
+    inner = outer / "alpha" / "docs"
+    inner.mkdir(parents=True)
+    (outer / "README.md").write_text("The dev folder.")
+    (inner / "STATE.md").write_text("Alpha's state.")
+    files = Files(world)
+    inner_conn = files.watch(str(inner))
+    assert files.sync(str(inner))["added"] == 1
+    outer_conn = files.watch(str(outer))
+    assert files.sync(str(outer))["added"] == 1  # README.md alone
+    (inner / "log.md").write_text("A new entry.")
+
+    walk = files_module._walk
+    other: dict[str, Any] = {}
+
+    def walk_while_the_inner_folder_syncs(root: Path) -> list[Path]:
+        found = walk(root)
+        if root == outer and not other:
+            other["sync"] = files.sync(str(inner))
+        return found
+
+    monkeypatch.setattr(files_module, "_walk", walk_while_the_inner_folder_syncs)
+    result = files.sync(str(outer))
+    assert other["sync"]["added"] == 1
+    assert result["folders"] == 1 and result["added"] == result["changed"] == 0
+    (inner / "STATE.md").unlink()
+    assert files.sync(str(outer))["removed"] == 0  # the inner folder's to mark
+    assert files.sync(str(inner))["removed"] == 1
+    held = {r["path"]: r["connection"] for r in world.store.all(
+        "SELECT path, connection FROM documents")}
+    assert held == {str(outer / "README.md"): outer_conn["id"],
+                    str(inner / "STATE.md"): inner_conn["id"],
+                    str(inner / "log.md"): inner_conn["id"]}
+    for conn in (outer_conn, inner_conn):
+        assert Connections(world.store).get(conn["id"])["status"] == "connected"
+
+
 def test_watch_refuses_home_and_missing(world: World) -> None:
     with pytest.raises(Problem, match="home folder"):
         Files(world).watch("~")
