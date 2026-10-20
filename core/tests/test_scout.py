@@ -19,7 +19,8 @@ from alpha.world.world import World
 
 
 def with_scout(world: World) -> dict[str, Any]:
-    return next(a for a in builtin.ensure(world) if a["kind"] == "scout")
+    made = next(a for a in builtin.ensure(world) if a["kind"] == "scout")
+    return world.agents.update(made["id"], state="on")  # made paused (A11); the person sets it on
 
 
 def material(world: World) -> dict[str, Any]:
@@ -144,6 +145,21 @@ def test_the_days_picks_land_on_home_and_only_the_costly_one_in_needs_you(world:
     assert look_and_run(world, "scout", runner=runner) is None
     notes = world.knowledge.find_note(f"agent:{me['id']}", "Notes")
     assert notes and "## coming up" in notes["body"] and "1 shown" in notes["body"]
+
+
+def test_scout_made_paused_picks_for_the_day_once_set_going(world: World) -> None:
+    """A11's proof: paused, the day's opening wakes nothing; set going, the next tick picks for
+    that day, the opening having come before it was set going."""
+    m = material(world)
+    made = next(a for a in builtin.ensure(world) if a["kind"] == "scout")
+    assert not made["on"]
+    runner = fake(m)
+    a_day_of_turns(world)
+    scout.note_opened(world)  # Home's first poll of the day
+    assert look_and_run(world, "scout", runner=runner) is None and runner.seen == []
+    world.agents.update(made["id"], state="on")  # the person sets it going
+    out = look_and_run(world, "scout", runner=runner)
+    assert out and out["last_result"].startswith("2 picks for today")
 
 
 def test_take_and_not_now_are_the_persons_decisions_and_a_decline_holds(world: World) -> None:

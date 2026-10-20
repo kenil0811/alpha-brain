@@ -40,7 +40,8 @@ def said(world: World, text: str) -> str:
 
 
 def with_columbo(world: World) -> dict[str, Any]:
-    return next(a for a in builtin.ensure(world) if a["kind"] == "columbo")
+    made = next(a for a in builtin.ensure(world) if a["kind"] == "columbo")
+    return world.agents.update(made["id"], state="on")  # made paused (A11); the person sets it on
 
 
 def world_way(req: TurnRequest) -> bool:

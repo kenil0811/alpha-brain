@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 20 October 2026, midday.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
+**As of 20 October 2026, afternoon.** The direction changed on 17 Oct; all six slices (1, 2a, 2b, 3, 4, 5, 6) are built, and slice 7 (pages) with 7b (clean pages) on top:
 - **The prompt and the context (B1–B8; Q99): steps 0 to 3 accepted in his app and committed** ([`log/2026-10-19-prompt-and-context-step1.md`](log/2026-10-19-prompt-and-context-step1.md), [`log/2026-10-19-prompt-and-context-step2.md`](log/2026-10-19-prompt-and-context-step2.md); [`design/prompt-and-context-proposal.md`](design/prompt-and-context-proposal.md)).
   - **Found first:** a resumed SDK session kept its first turn's system prompt, so since 17 Oct every turn after a conversation's first had a stale pre-pack. Now `snapshot` is off and the prompt is fixed.
   - **Steps 0–1 (`8d88bbe`):**
@@ -50,8 +50,12 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - A10 (Q105): an agent's run resumes its own item's session (one turn at a time per item, the lock shared with typed sentences), and is no longer refused `reader_run`, `page_to_table` or `procedure_save`; acting outward still waits for the person's yes.
     - Journeys: both new ones pass, and the agent journeys and `reminder_fires` pass on the resumed sessions.
     - His look in the app: a Pass button changed Ohio Plumbing; a live USD/GBP tile on the page; Deal Analyst's three runs resumed one session, with no start layer given again. His word: "lokos good". Committed as `42d2f16`.
-  - **Next:** S5 (A11, three agents off by default). Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
-- **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2, S3 and S4 are committed (above); S5 is left.
+  - **Engine reach S5 (A11, Q106), accepted and committed** ([`log/2026-10-20-engine-reach-s5.md`](log/2026-10-20-engine-reach-s5.md); [`design/engine-reach-s5-proposal.md`](design/engine-reach-s5-proposal.md), his "yes" to both questions):
+    - Columbo, Sherlock and Scout are made paused; a world made before it has them paused once when it opens, with one Activity line; one turned on afterwards stays on.
+    - One of Alpha's own set going again looks back to the start of that day, never further; `@Name` and Run now still run a paused agent.
+    - Journeys: the first-day ones on fresh worlds and `scout_picks_the_day` on a copy pass. His world took the one-time pause at the 12:46 restart; `@Sherlock` answered while paused. His word: "looks fine". Committed.
+  - **Next:** section A's acceptance (Q98): the first-day journeys (`gmail_last_week` and `sync_from_words` on his say), his four sentences in the app, tokens and first words against before S1. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+- **Engine reach (A1–A12; Q98), S1 committed** (`a2aa1fa`, on his word; [`log/2026-10-19-engine-reach-s1.md`](log/2026-10-19-engine-reach-s1.md)): sessions survive all but a change of hand names, carrying the checkpoint; `world_query` names its total; tool search on. S2 to S5 are committed (above).
 - **P8 and P9 built: people for real, and the Mac's contacts** ([`log/2026-10-19-p8-p9-people-and-contacts.md`](log/2026-10-19-p8-p9-people-and-contacts.md); Q97, [`design/people-and-contacts-proposal.md`](design/people-and-contacts-proposal.md); committed as `e340f78` on his word).
   - **Phones** are kept in E.164; a number without its country is read as the country most of his numbers are in, with no setting.
   - **A table's rows are people** by any of their keys.
@@ -116,12 +120,12 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, engine reach S4 built)
+## Numbers (`just stats`, 20 Oct, engine reach S5 built)
 
-- 443 core tests, 240 desktop tests; lint and types clean.
+- 448 core tests, 240 desktop tests; lint and types clean.
 - 70 tools; 58 journeys defined.
-- Core 29,452 lines, tests 11,590, desktop 21,542.
-- 305 commits before S4.
+- Core 29,499 lines, tests 11,690, desktop 21,542.
+- 307 commits before S5.
 
 ## What is built, against the design's order of work
 
@@ -144,7 +148,7 @@ Codex CLI can be chosen in Settings, but from 3 to 8 Oct Codex's own approval ga
 call to Alpha's tools, so it stays off until it passes a real tool call (pending).
 
 **Runs for real, on Kenil's Mac:**
-- **His world since the reset of 18 Oct** (read-only, that night): no custom agents, one module (Nutrition). Before it, five agents named 15 Oct: LinkedIn Connections, Deal Tracker (15 broker sites) and Job Boards ran daily; Nutrition Check-in weekly; Gmail from Vikas paused. Each run is a row with a verdict judged by code. The app has run on the agents substrate since 15 Oct evening. **Watson** made its first real run on 16 Oct (the refiling). **Doc** (12:05 UTC), **Columbo** (14:23 UTC, `a_7af7af61aa59`) and **Sherlock** (16:05 UTC, `a_ec03d24ae3a2`) and **Scout** (evening, `a_4c19d48a592f`) are in Kenil's world since the app's restarts of 16 Oct, each with its cursor at the journal's end; their first real runs are the next broken thing, the next number Alpha works out, the next interview for a new kind of work, and the first Home poll of the day for Scout's picks. Columbo's page and the Agents tab were looked at in the app itself after the rebuild.
+- **His world since the reset of 18 Oct** (read-only, that night): no custom agents, one module (Nutrition). Before it, five agents named 15 Oct: LinkedIn Connections, Deal Tracker (15 broker sites) and Job Boards ran daily; Nutrition Check-in weekly; Gmail from Vikas paused. Each run is a row with a verdict judged by code. The app has run on the agents substrate since 15 Oct evening. **Watson** made its first real run on 16 Oct (the refiling). **Doc** (12:05 UTC), **Columbo** (14:23 UTC, `a_7af7af61aa59`) and **Sherlock** (16:05 UTC, `a_ec03d24ae3a2`) and **Scout** (evening, `a_4c19d48a592f`) are in Kenil's world since the app's restarts of 16 Oct, each with its cursor at the journal's end; their first real runs are the next broken thing, the next number Alpha works out, the next interview for a new kind of work, and the first Home poll of the day for Scout's picks. Since S5 (20 Oct) Columbo, Sherlock and Scout are paused until he turns them on. Columbo's page and the Agents tab were looked at in the app itself after the rebuild.
 - **The rest:** questions over the tables, drafts and sends with previews (an email sent for real by the gmail_send journey on 14 Oct), files in and out, the car wash workflow built from its page with its parts filling rows (11 Oct, and again in the workflow_build journey on 14 Oct; Kenil removed the Car Wash module on 16 Oct).
 - **Proven by tests only:** the calendar connect, and Claude Code's Install and Sign in on a fresh Mac.
 - **Proven in a clean room** (9 Oct): the shipped app. The friend's own first run is the acceptance.
@@ -165,7 +169,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 
 ## Pending, in order
 
-- **Now:** engine reach ([`design/engine-reach-proposal.md`](design/engine-reach-proposal.md)): S5 (A11, three agents off by default), proposed in writing first; S1–S4 are committed. Section B is done (steps 0–4 committed). Then section C (routing), still to be written. The stale journeys to rework or retire. P4/P10 of Vikas's projects stay parked.
+- **Now:** engine reach ([`design/engine-reach-proposal.md`](design/engine-reach-proposal.md)): S1–S5 are all committed. Next is section A's acceptance (Q98), on his say for the journeys that read his accounts. Section B is done (steps 0–4 committed). Then section C (routing), still to be written. The stale journeys to rework or retire. P4/P10 of Vikas's projects stay parked.
 
 0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built and accepted 17 Oct**; (2a) the end of the gate: **built and accepted 17 Oct night**; left: `sync_from_words` as a journey on his say, `vague_tracker` on its new rule; (2b) agreed 17 Oct ([`design/harness-slice-2b-proposal.md`](design/harness-slice-2b-proposal.md)): step 1 skills as directories **built**; step 2 the hands **built**; step 3 the permission callback **built**; step 4 the CLI route and the skills tables removed **built and 2b accepted**; left in 2b's words: the SDK's own shell and files in a turn (with the granted folders, slice 6) and `defer` across restarts; (2) the fifteen tools and the end of the gate; (3) conversations and work items: **built 18 Oct** ([`design/harness-slice-3-proposal.md`](design/harness-slice-3-proposal.md), Q75, Q76), Kenil's acceptance in the app open; left in 3: agents' runs as resumed sessions, the Mac notification, several items folding into one Home line, a move button in the window; (4) triggers and the quieter agents; (5) modules as directories and kits: **built 18 Oct** (the window's part with 6); (6) the window's simplification: **built 18 Oct** (the core and the window; the full desktop sweep's hang still to look at); (7) pages the model draws (Q82): **built 18 Oct**; (7b) clean pages (Q83: the kit, the overview rule, the look before done): **built 18 Oct**, Kenil's run open; held: the React catalogue tier, a dark look, Versions for pages and agents' files. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
 

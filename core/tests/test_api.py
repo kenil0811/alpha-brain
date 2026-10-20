@@ -281,7 +281,8 @@ def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(
     from alpha.mcp.tools import Tools
     from alpha.runtime.agents import builtin, columbo, look_and_run
 
-    builtin.ensure(world)
+    made = builtin.ensure(world)
+    world.agents.update(next(a["id"] for a in made if a["kind"] == "columbo"), state="on")
     building(world).collection_create("food_log", "Food log",
                                       [{"name": "item", "kind": "text"},
                                        {"name": "kcal", "kind": "number"}])

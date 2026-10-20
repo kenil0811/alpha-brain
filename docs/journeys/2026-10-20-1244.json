@@ -1,0 +1,51 @@
+[
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's back-end category. It checks every 12 hours and tells you which roles are new and which have been taken down. The 6 roles listed today are in **Job Search → Back-end jobs**:\n\n| Role | Company | Pay | Where you can work from | Posted |\n|---|---|---|---|---|\n| Distribution Engineer | Vertex Marketing Group | $50k–75k | Anywhere | today |\n| Senior Backend Developer (Python) | Proxify AB | — | Anywhere | 19 Oct |\n| Senior Backend Developer (Node.js / Nest.js) | Proxify AB | — | Anywhere | 19 Oct |\n| Staff Software Engineer, Revenue Systems | Squarespace | — | An",
+    "steps": 14,
+    "tokens_input": 22,
+    "tokens_cache_read": 427933,
+    "tokens_cache_made": 28607,
+    "tokens_out": 5380,
+    "first_text_ms": 35422,
+    "seconds": 99.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 7 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "6 rows in backend_jobs (6)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 99.4,
+  "error": null
+ }
+]

@@ -1,0 +1,42 @@
+[
+ {
+  "name": "scout_picks_the_day",
+  "title": "Scout looks across the world and picks what deserves attention today",
+  "steps": [
+   {
+    "agent": "Scout",
+    "ok": true,
+    "result": "3 picks for today (a pattern in your data, something to stop doing by hand).",
+    "problem": null,
+    "seconds": 41.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "picks",
+    "arg": {
+     "min": 1
+    },
+    "ok": true,
+    "why": "3 pick(s): Your lunch repeats on a cycle [by_hand, less sure] → Fill in each day's lunch from my rotation for me to confirm; RestoPros profit sits in three months [pattern] → Check RestoPros' August 2025 income against the spreadsheet and list which months are unusual; No deal has earnings yet [pattern] → Add an earnings (SDE) column to the deal list.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 41.2,
+  "error": null
+ }
+]

@@ -28,7 +28,16 @@ from typing import Any
 
 from alpha.config import settings
 from alpha.world.skills import Skills, slug
-from alpha.world.store import MIGRATED_MAY, Problem, Store, dumps, loads, new_id, now
+from alpha.world.store import (
+    MIGRATED_MAY,
+    Problem,
+    Store,
+    dumps,
+    loads,
+    local_midnight_utc,
+    new_id,
+    now,
+)
 
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 EVERY = re.compile(r"^every\s+(\d+)\s*(m|min|minutes?|h|hours?|d|days?)$")
@@ -322,6 +331,14 @@ class Agents:
                  (done or "").strip() or current.get("done"),
                  dumps(list(stage)) if stage is not None else dumps(current["stage"]), aid),
             )
+            if on and not current["on"] and current["kind"] != "custom":
+                # one of Alpha's own set going again looks back to the start of that day,
+                # never further: what came while it was paused is not its business (A11, Q106)
+                db.execute(
+                    "UPDATE agents SET cursor = MAX(cursor, COALESCE("
+                    "(SELECT MIN(rowid) - 1 FROM journal WHERE at >= ?),"
+                    " (SELECT MAX(rowid) FROM journal), 0)) WHERE id = ?",
+                    (local_midnight_utc(), aid))
             if events is not None:
                 fresh = kept_lines(events)
                 same = fresh == kept_lines(current["events"])
