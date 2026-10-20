@@ -1,0 +1,96 @@
+[
+ {
+  "name": "go_ahead",
+  "title": "Section C · \"go ahead\" in words says yes to every host's card open at that moment",
+  "steps": [
+   {
+    "say": "Start a helper in the background, as a piece of work beside us, that uses a short Python script (not WebFetch) to read https://jsonplaceholder.typicode.com/todos/1 and tell me its title. Don't run the script yourself; carry on talking with me meanwhile.",
+    "ok": true,
+    "reply": "I've started a helper in the background. It will write a small Python script to fetch that address and read out the title. I'll tell you the title when it reports back.\n\nThat site isn't on the list of addresses my scripts are allowed to reach yet. If it gets blocked, a card may pop up asking you to allow it. Saying yes lets the helper finish.\n\nIn the meantime, what would you like to talk about?",
+    "steps": 2,
+    "tokens_input": 4,
+    "tokens_cache_read": 52636,
+    "tokens_cache_made": 10754,
+    "tokens_out": 471,
+    "first_text_ms": 6760,
+    "seconds": 13.1
+   },
+   {
+    "wait_for_card": 1,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach jsonplaceholder.typicode.com? Reading from it only: an",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I've allowed my scripts to reach that site. That permission covers reading it, and anything that would send something there still comes to you first.\n\nThe helper's first try was blocked because the permission wasn't in place yet, so I've asked it to run the script again. I'll give you the title when it reports back.",
+    "steps": 4,
+    "tokens_input": 8,
+    "tokens_cache_read": 134846,
+    "tokens_cache_made": 4351,
+    "tokens_out": 558,
+    "first_text_ms": 9200,
+    "seconds": 9.2
+   },
+   {
+    "wait_for_work": 1,
+    "ok": true,
+    "detail": "all ended, each with the desk's words on it",
+    "seconds": 6.0
+   },
+   {
+    "say": "Start two helpers in the background at once, as two pieces of work beside us: one uses a short Python script (not WebFetch) to read https://httpbin.org/json and tell me its slideshow title, the other uses a short Python script (not WebFetch) to read https://api.github.com/zen and tell me what it says. Don't run the scripts yourself.",
+    "ok": true,
+    "reply": "I've started two helpers in the background, both running at the same time:\n\n- **One** reads httpbin.org and will give you the slideshow title.\n- **The other** reads GitHub's \"zen\" address and will tell you what it says.\n\nMy scripts aren't allowed to reach either site yet, so you'll probably get a card for each one. If you say yes to both, I'll have each helper run its script again and pass on what they find.",
+    "steps": 3,
+    "tokens_input": 4,
+    "tokens_cache_read": 75492,
+    "tokens_cache_made": 2427,
+    "tokens_out": 753,
+    "first_text_ms": 9543,
+    "seconds": 16.3
+   },
+   {
+    "wait_for_card": 2,
+    "ok": true,
+    "detail": "Let Alpha's scripts reach httpbin.org? Reading from it only: anything sent still; Let Alpha's scripts reach api.github.com? Reading from it only: anything sent st",
+    "seconds": 0.0
+   },
+   {
+    "say": "go ahead",
+    "ok": true,
+    "reply": "I've allowed my scripts to reach both httpbin.org and api.github.com, for reading only. Both helpers are running their scripts again, and I'll pass on the slideshow title and GitHub's message when they report back.",
+    "steps": 5,
+    "tokens_input": 6,
+    "tokens_cache_read": 127380,
+    "tokens_cache_made": 1768,
+    "tokens_out": 687,
+    "first_text_ms": 7851,
+    "seconds": 7.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "answered_in_words",
+    "arg": {
+     "count": 3
+    },
+    "ok": true,
+    "why": "3 answered in words: Yes, always (\"go ahead\"); Yes, always (\"go ahead\"); Yes, always (\"go ahead\").",
+    "seconds": 0.0
+   },
+   {
+    "check": "yes_cards_open",
+    "arg": {
+     "count": 0
+    },
+    "ok": true,
+    "why": "0 yes card(s) open.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 52.5,
+  "error": null
+ }
+]

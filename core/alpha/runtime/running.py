@@ -160,6 +160,9 @@ class RunResult:
     # server not there, the call refused), as against a tool answering with a plain problem.
     tools_called: int = 0
     tools_failed: int = 0
+    # The work beside the desk this reply also tells of (section C): its threads, for the
+    # stream's chip on the reply.
+    work: list[str] = field(default_factory=list)
 
 
 def tools_verdict(result: RunResult, called: int, failed: int, first: str) -> RunResult:

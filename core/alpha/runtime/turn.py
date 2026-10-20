@@ -287,6 +287,8 @@ def ask(
         "first_text_ms": getattr(result, "first_text_ms", None),
         # what the turn read and wrote, in tokens (A8 and B8 are measured by it)
         **tokens_of(result),
+        # work beside the desk that finished during the turn, told of in its reply (section C)
+        **({"work": result.work} if result.work else {}),
     }
     if result.ok:
         replied = world.journal.append(

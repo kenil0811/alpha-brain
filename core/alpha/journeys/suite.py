@@ -871,7 +871,9 @@ class Run:
     def check_work(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """Work beside the desk (section C, C2's proof): how many pieces ran (`count`), each
         ended with its outcome on its thread and the desk's words on it in Home carrying its
-        id; `answered_while_running`: a reply to the person came while the first piece ran."""
+        id; `answered_while_running`: a sentence the person said while the first piece ran,
+        other than the one that started it, got its reply (in its own turn, or in the turn
+        that also told the work's outcome, when the work finished while it ran: Q113)."""
         work = self._work()
         words = "; ".join(f"{t['title']} ({t['state']})" for t in work) or "none"
         if "count" in arg and len(work) < int(arg["count"]):
@@ -883,12 +885,17 @@ class Run:
             first = min(work, key=lambda t: t["created_at"])
             ended = self._outcome_reply(first["id"])
             home = self.world.modules.home_thread()["id"]
-            between = [e for e in self.world.journal.recent(200, thread=home)
-                       if e["kind"] == "replied" and not e["data"].get("work")
-                       and first["created_at"] < e["at"] < (ended or {}).get("at", "~")]
-            if not between:
-                return False, f"Nothing was answered while {first['title']} ran."
-            words += f"; answered meanwhile: {between[-1]['text'][:80]}"
+            lines = self.world.journal.recent(200, thread=home)
+            began = next((e["data"].get("turn") for e in lines if e["kind"] == "did"
+                          and e["data"].get("work") == first["id"]), None)
+            meanwhile = [e["id"] for e in lines if e["kind"] == "said"
+                         and e["actor"] == "person" and e["id"] != began
+                         and first["created_at"] < e["at"] <= (ended or {}).get("at", "~")]
+            answered = [e for e in lines if e["kind"] == "replied"
+                        and e["data"].get("turn") in meanwhile]
+            if not answered:
+                return False, f"Nothing said while {first['title']} ran was answered."
+            words += f"; answered meanwhile: {answered[0]['text'][:80]}"
         return True, f"{len(work)} piece(s): {words}."
 
     def check_opened(self, arg: dict[str, Any]) -> tuple[bool, str]:

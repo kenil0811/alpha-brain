@@ -76,6 +76,9 @@ TASK_ID = re.compile(r"<task-id>\s*([^<\s]+)\s*</task-id>")
 # the session's id for work the desk started (a thread's `session_tools`): never resumed as a
 # conversation, stopped with a line when the core starts again
 WORK = "desk-work"
+# A sentence the person typed while a turn of the desk runs waits for its end (the spike of
+# 20 Oct 2026): the words the window shows meanwhile.
+FINISHING = "Alpha is finishing what it was saying"
 # the SDK's own hand for messaging running work (C0's question c)
 MESSAGE = "SendMessage"
 
@@ -97,6 +100,11 @@ class Turn:
     # so a compaction in it keeps what it should, is given the start layer again and has
     # Home's checkpoint written afresh, as in any session (B6; C6)
     own: TurnRequest | None = None
+    # Sentences Claude Code took into this turn, its prompt hook firing while it ran (sent in
+    # the instant it began a turn of its own): this turn's reply is their answer, since they
+    # get no turn and no result of their own (the spike of 20 Oct 2026)
+    riders: list[Turn] = field(default_factory=list)
+    withdrawn: bool = False  # the person's Stop while it waited for the boundary: never sent
 
 
 class Desk:
@@ -129,6 +137,7 @@ class Desk:
         self.origin: dict[str, dict[str, Any]] = {}  # a task's id → the turn and module asking
         self.last_message = time.time()
         self.home: str | None = None  # Home's thread, read once on the desk's thread
+        self.sending = asyncio.Lock()  # one sentence at a time goes to the boundary and is sent
 
     # ---- from the core's threads ----
 
@@ -187,16 +196,26 @@ class Desk:
             self.client = None
             return engine.outcome_of(None, failure=str(e), tools={}, stopped=False,
                                      stalled=False, first_text_at=None, started_at=time.time())
-        # the start layer only for a session's first sentence: a resumed one holds it
-        req = replace(req, resume=None if self.fresh else (self.session or req.resume),
-                      injected=req.injected)
         done: asyncio.Future[RunResult] = self.loop.create_future()
         turn = Turn(keys=engine._keys(req), req=req, done=done)
-        LIVE.add_handle(turn.keys, self._stop_handle)
-        self.sent.append(turn)
-        self.last_message = time.time()
+
+        def stop() -> None:  # the person's Stop, from any thread
+            self.loop.call_soon_threadsafe(self._stop_turn, turn)
+
+        LIVE.add_handle(turn.keys, stop)
         try:
-            await self.client.query(req.sentence)
+            async with self.sending:
+                if not await self._at_boundary(turn):
+                    LIVE.remove_handle(turn.keys)
+                    return engine.outcome_of(None, failure=None, tools=turn.tools, stopped=True,
+                                             stalled=False, first_text_at=None,
+                                             started_at=turn.started_at)
+                # the start layer only for a session's first sentence: a resumed one holds it
+                req = turn.req = replace(req, resume=None if self.fresh else (
+                    self.session or req.resume), injected=req.injected)
+                self.sent.append(turn)
+                self.last_message = time.time()
+                await self.client.query(req.sentence)
             while not done.done():
                 await asyncio.wait({done}, timeout=5)
                 quiet = time.time() - self.last_message
@@ -227,6 +246,48 @@ class Desk:
         for queue in (self.sent, self.turns):
             if turn in queue:
                 queue.remove(turn)
+        for running in self.turns:
+            if turn in running.riders:
+                running.riders.remove(turn)
+
+    async def _at_boundary(self, turn: Turn) -> bool:
+        """Wait until no turn of the desk runs: a sentence sent while one runs is taken into it
+        at its next step, with no turn and no result of its own, and the model reads it as
+        something a tool injected (the spike of 20 Oct 2026). Claude Code's own turn on
+        finished work is usually a few seconds. False when the person withdrew it meanwhile."""
+        told = False
+        while (self.turns or self.sent) and not turn.withdrawn:
+            if not told:
+                LIVE.note(turn.keys, doing=FINISHING)
+                told = True
+            await asyncio.sleep(0.1)
+            if (self.turns or self.sent) and time.time() - self.last_message > SILENCE_S \
+                    and not engine.PENDING.waiting(self.loop):
+                log.warning("the desk's own turn went silent for %ss", SILENCE_S)
+                await self._drop_client()
+                assert turn.req is not None
+                await self._ensure(turn.req)
+        return not turn.withdrawn
+
+    def _stop_turn(self, turn: Turn) -> None:
+        """The person's Stop on their sentence: running, or taken into the turn running, the
+        turn is interrupted; still waiting for the boundary, it is withdrawn and the turn
+        running (Claude Code's own) goes on."""
+        if turn in self.turns or turn in self.sent or any(turn in t.riders for t in self.turns):
+            self._interrupt()
+        else:
+            turn.withdrawn = True
+
+    def _end_all(self, failure: str) -> None:
+        """Every turn waiting on the client ends, saying why: its stream is gone."""
+        for turn in [*self.turns, *self.sent]:
+            for t in (turn, *turn.riders):
+                if t.done is not None and not t.done.done():
+                    t.done.set_result(engine.outcome_of(
+                        None, failure=failure, tools=t.tools, stopped=False, stalled=False,
+                        first_text_at=None, started_at=t.started_at))
+        self.turns.clear()
+        self.sent.clear()
 
     def _interrupt(self) -> None:
         if self.client is not None:
@@ -237,6 +298,9 @@ class Desk:
         self.loop.call_soon_threadsafe(self._interrupt)
 
     async def _drop_client(self) -> None:
+        # the turns it was to settle end with it: one left queued would take the next
+        # client's first result
+        self._end_all("The conversation's process ended.")
         if self.reader is not None:
             self.reader.cancel()
             self.reader = None
@@ -365,15 +429,25 @@ class Desk:
         async def sentence_given(input_data: Any, tool_use_id: str | None,
                                  context: HookContext) -> SyncHookJSONOutput:
             prompt = str((input_data or {}).get("prompt") or "")
+            # A prompt whose hook fires while a turn runs was taken into that turn: it gets no
+            # turn and no result of its own (the spike of 20 Oct 2026)
+            running = desk.turns[0] if desk.turns else None
             if prompt.lstrip().startswith(NOTIFIED):
-                desk._work_turn(TASK_ID.findall(prompt))
+                if running is not None:
+                    desk._work_folded(running, TASK_ID.findall(prompt))
+                else:
+                    desk._work_turn(TASK_ID.findall(prompt))
                 return {}
             if not desk.sent:
                 log.warning("the desk began a turn nobody sent")
-                desk._work_turn([])
+                if running is None:
+                    desk._work_turn([])
                 return {}
             turn = desk.sent.popleft()
-            desk.turns.append(turn)
+            if running is not None:
+                running.riders.append(turn)
+            else:
+                desk.turns.append(turn)
             req = turn.req
             assert req is not None
             given = [req.turn_layer] if req.resume else [req.start_layer, req.turn_layer]
@@ -447,14 +521,7 @@ class Desk:
         except Exception as e:
             log.warning("the desk's stream ended: %s", e)
         # the stream ended: every turn waiting on it ends too, and the next sentence connects
-        for turn in [*self.turns, *self.sent]:
-            if turn.done is not None and not turn.done.done():
-                turn.done.set_result(engine.outcome_of(
-                    None, failure="The conversation's process ended.", tools=turn.tools,
-                    stopped=False, stalled=False, first_text_at=None,
-                    started_at=turn.started_at))
-        self.turns.clear()
-        self.sent.clear()
+        self._end_all("The conversation's process ended.")
         self.client = None
 
     def _absorb(self, message: Any) -> None:
@@ -486,7 +553,8 @@ class Desk:
         if turn is None:
             return
         on_step = turn.req.on_step if turn.req else None
-        final = engine.absorb(message, turn.keys, turn.tools, on_step)
+        keys = [*turn.keys, *(k for rider in turn.riders for k in rider.keys)]
+        final = engine.absorb(message, keys, turn.tools, on_step)
         if isinstance(final, ResultMessage):
             self.turns.popleft()
             self._turn_ended(turn, final)
@@ -497,11 +565,20 @@ class Desk:
         result = engine.outcome_of(final, failure=None, tools=turn.tools, stopped=stopped,
                                    stalled=False, first_text_at=first_text_at,
                                    started_at=turn.started_at)
+        # work that finished during the turn is told in its reply: the reply carries its id
+        threads = [self.work[t] for t in turn.tasks if t in self.work]
+        told = replace(result, work=threads) if threads else result
+        for rider in turn.riders:
+            LIVE.remove_handle(rider.keys)
+            if rider.done is not None and not rider.done.done():
+                rider.done.set_result(told)
         if turn.done is not None:
             if not turn.done.done():
-                turn.done.set_result(result)
+                turn.done.set_result(told)
             return
-        self._work_reported(turn, result)
+        # Claude Code's own turn: its words are the desk's, unless a sentence of the person's
+        # was taken into it, whose reply they are (journaled once, by that sentence's turn)
+        self._work_reported(turn, result, journal=not turn.riders)
 
     # ---- work beside the desk ----
 
@@ -589,34 +666,45 @@ class Desk:
                                        "status": status,
                                        "turn": self.origin.get(task, {}).get("turn")})
 
-    def _work_turn(self, tasks: list[str]) -> None:
-        """Claude Code took a turn of the desk on finished work: the stream says which."""
+    def _finished(self, tasks: list[str]) -> str:
+        """The stream's line saying which work finished."""
         world = self._world()
         home = world.modules.home_thread()["id"]
         threads = [self.work[t] for t in tasks if t in self.work]
         titles = [world.modules.thread(t)["title"] for t in threads]
-        said = world.journal.append(
+        return world.journal.append(
             "did", "Work finished: " + ("; ".join(titles) if titles else "a piece of work"),
             actor="alpha", thread=home, data={"work": threads, "tasks": tasks})
+
+    def _work_folded(self, running: Turn, tasks: list[str]) -> None:
+        """Work that finished while a turn ran, told inside it: that turn's reply tells of it
+        (case E of the spike of 20 Oct 2026)."""
+        self._finished(tasks)
+        running.tasks.extend(t for t in tasks if t not in running.tasks)
+
+    def _work_turn(self, tasks: list[str]) -> None:
+        """Claude Code took a turn of the desk on finished work: the stream says which."""
+        home = self._world().modules.home_thread()["id"]
+        said = self._finished(tasks)
         turn = Turn(keys=[said, f"desk:{uuid.uuid4().hex[:8]}"], tasks=tasks, said=said,
                     own=TurnRequest(sentence="", system="", world_path=self.world_path,
                                     turn_id=said, thread_id=home, persist=True))
         LIVE.add_handle(turn.keys, self._stop_handle)
         self.turns.append(turn)
 
-    def _work_reported(self, turn: Turn, result: RunResult) -> None:
+    def _work_reported(self, turn: Turn, result: RunResult, *, journal: bool = True) -> None:
         """The desk's own words on finished work, in the stream as its reply (C2)."""
         world = self._world()
         home = world.modules.home_thread()["id"]
         threads = [self.work[t] for t in turn.tasks if t in self.work]
         data = {"turn": turn.said, "work": threads, "session_id": result.session_id,
                 "duration_ms": result.duration_ms}
-        if result.ok and result.reply.strip():
+        if journal and result.ok and result.reply.strip():
             world.journal.append("replied", result.reply, actor="alpha", thread=home,
                                  data=data)
             world.modules.update_thread(home, last_line=result.reply.strip().splitlines()[0]
                                         [:200])
-        elif not result.ok and not result.stopped:
+        elif journal and not result.ok and not result.stopped:
             world.journal.append("failed", f"That didn't work: {result.error}", actor="alpha",
                                  thread=home, data={**data, "error": result.error})
         if turn.own is not None and "compacted" in turn.own.injected:

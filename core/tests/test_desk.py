@@ -439,3 +439,144 @@ def test_a_compaction_in_a_turn_on_finished_work_is_kept_like_any_other(world: W
         assert cli.queried == ["hello"]  # the checkpoint ran apart, never in the desk
     finally:
         DESK.close()
+
+
+NOTE_1 = "<task-notification>\n<task-id>task_1</task-id>\n</task-notification>"
+
+
+def ask_within(world: World, sentence: str, seconds: float = 10) -> Any:
+    """A sentence to the desk that must come back well inside the silence limit: a phantom
+    turn made the next sentence wait it out (section C's acceptance, 20 Oct 2026)."""
+    import threading as th
+
+    home = world.modules.home_thread()["id"]
+    out: dict[str, Any] = {}
+    asker = th.Thread(target=lambda: out.update(r=turn.ask(
+        world, sentence, thread=home, runner=DESK.run, conversation=True)), daemon=True)
+    asker.start()
+    asker.join(seconds)
+    if "r" not in out:
+        raise AssertionError(f"{sentence!r} was not answered within {seconds} s")
+    return out["r"]
+
+
+def test_work_told_inside_the_persons_turn_is_that_turns_and_leaves_no_phantom(
+        world: World) -> None:
+    """Case E of the spike: the work finished while the person's turn ran; its notification's
+    prompt hook fired inside that turn, which gave the one result. The reply tells of the work
+    and carries its id; the next sentence gets its own result at once."""
+    global DESK
+
+    async def finished_inside(cli: FakeCLI) -> None:
+        await cli.out.put(TaskNotificationMessage(
+            subtype="task_notification", data={}, task_id="task_1", status="completed",
+            output_file="", summary="Two deals are new.", uuid="u3", session_id="s-desk"))
+        await cli.hook("UserPromptSubmit", {"prompt": NOTE_1})
+
+    SCRIPTS.clear()
+    SCRIPTS["look into which deals are new"] = START
+    SCRIPTS["how many eggs have I logged"] = [
+        finished_inside, said_text("Six eggs. And the deals are back: two are new."),
+        result("Six eggs. And the deals are back: two are new.")]
+    SCRIPTS["what is two and two"] = [said_text("Four."), result("Four.")]
+    DESK = desk.Desk(world.path, client_factory=FakeCLI)
+    home = world.modules.home_thread()["id"]
+    try:
+        assert ask_within(world, "look into which deals are new").ok
+        tid = until(lambda: next((t["id"] for t in world.modules.items()
+                                  if t.get("session_tools") == desk.WORK), None))
+        eggs = ask_within(world, "how many eggs have I logged")
+        assert eggs.reply.endswith("two are new.")
+        replied = world.journal.read(eggs.replied)
+        assert replied["data"]["work"] == [tid]  # its chip in the stream
+        assert any(e["text"] == "Work finished: Deal research"
+                   for e in world.journal.recent(20, thread=home))
+        assert ask_within(world, "what is two and two", seconds=5).reply == "Four."
+        assert not DESK.turns and not DESK.sent
+    finally:
+        DESK.close()
+
+
+def test_a_sentence_typed_during_the_desks_own_turn_waits_for_its_end(world: World) -> None:
+    """Case D of the spike: sent while Claude Code's own turn on finished work ran, a sentence
+    was taken into it and read as something injected. It now waits for that turn's end, the
+    window saying so, then goes as a turn of its own."""
+    global DESK
+    import threading as th
+
+    from alpha.runtime.running import LIVE
+
+    release = asyncio.Event()
+
+    async def held(cli: FakeCLI) -> None:
+        await release.wait()
+
+    SCRIPTS.clear()
+    SCRIPTS["look into which deals are new"] = START
+    SCRIPTS["what is two and two"] = [said_text("Four."), result("Four.")]
+    DESK = desk.Desk(world.path, client_factory=FakeCLI)
+    try:
+        assert ask_within(world, "look into which deals are new").ok
+        cli = FakeCLI.made[-1]
+        asyncio.run_coroutine_threadsafe(cli.out.put(TaskNotificationMessage(
+            subtype="task_notification", data={}, task_id="task_1", status="completed",
+            output_file="", summary="Two deals are new.", uuid="u3", session_id="s-desk")),
+            DESK.loop).result()
+        DESK.loop.call_soon_threadsafe(lambda: DESK.loop.create_task(cli.turn(NOTE_1, [
+            held, said_text("The deal research is back: two are new."),
+            result("The deal research is back: two are new.")])))
+        until(lambda: DESK.turns)  # Claude Code's own turn runs
+        out: dict[str, Any] = {}
+        sender = th.Thread(target=lambda: out.update(r=ask_within(world, "what is two and two")),
+                           daemon=True)
+        sender.start()
+        waiting = until(lambda: next((p for k, p in LIVE.progress.items()
+                                      if p.get("doing") == desk.FINISHING), None))
+        assert waiting and "what is two and two" not in cli.queried  # not sent yet
+        DESK.loop.call_soon_threadsafe(release.set)
+        sender.join(12)
+        assert "r" in out, "the waiting sentence was never answered"
+        assert out["r"].reply == "Four." and cli.queried[-1] == "what is two and two"
+        home = world.modules.home_thread()["id"]
+        replies = [e["text"] for e in world.journal.recent(20, thread=home)
+                   if e["kind"] == "replied"]
+        assert "The deal research is back: two are new." in replies and "Four." in replies
+    finally:
+        DESK.close()
+
+
+class BeganItsOwnCLI(FakeCLI):
+    """Claude Code began its own turn on finished work in the instant the desk sent: the
+    sentence's prompt hook fires inside that turn, which gives the one result."""
+
+    async def query(self, prompt: str) -> None:
+        self.queried.append(prompt)
+        if prompt != "what is two and two":
+            await super().query(prompt)
+            return
+
+        async def taken_in(cli: FakeCLI) -> None:
+            await cli.hook("UserPromptSubmit", {"prompt": prompt})
+
+        asyncio.get_running_loop().create_task(self.turn(NOTE_1, [
+            taken_in, said_text("Four. Also, the deal research is back: two are new."),
+            result("Four. Also, the deal research is back: two are new.")]))
+
+
+def test_a_sentence_taken_into_the_desks_own_turn_is_answered_by_it_once(
+        world: World) -> None:
+    global DESK
+    SCRIPTS.clear()
+    SCRIPTS["look into which deals are new"] = START
+    DESK = desk.Desk(world.path, client_factory=BeganItsOwnCLI)
+    home = world.modules.home_thread()["id"]
+    try:
+        assert ask_within(world, "look into which deals are new").ok
+        out = ask_within(world, "what is two and two")
+        assert out.reply == "Four. Also, the deal research is back: two are new."
+        replies = [e for e in world.journal.recent(20, thread=home) if e["kind"] == "replied"
+                   and e["text"].startswith("Four.")]
+        assert len(replies) == 1  # journaled once, as the sentence's reply
+        assert not DESK.turns and not DESK.sent
+    finally:
+        DESK.close()
