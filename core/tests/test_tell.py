@@ -103,7 +103,7 @@ def test_the_agents_own_tell_keeps_the_instruction_too(world: World) -> None:
     # stopped on the agent: the instruction goes from ALPHA.md with it
     stop = "stop telling me about listing watch"
     said = world.journal.append("said", stop, actor="person", thread=home)
-    Tools(world, turn=said, thread=home).agent_keep(id=agent["id"], tell="", quote=stop)
+    Tools(world, turn=said, thread=home).agent_keep(id=agent["id"], tell_off=True, quote=stop)
     assert not world.agents.get(agent["id"])["tell"]
     assert TELL not in world.knowledge.instructions()
     agent_runner.run(world, agent["id"], runner=runner)
@@ -118,3 +118,24 @@ def test_a_tell_needs_the_persons_own_words(world: World) -> None:
         id=agent["id"], tell="Tell me whenever Deal Watch finds something",
         quote="tell me whenever deal watch finds something")
     assert out.get("error") and not world.agents.get(agent["id"])["tell"]
+
+
+def test_a_tell_with_no_words_is_refused_and_sets_nothing(world: World) -> None:
+    """His "Stop telling me about Job Watcher" (20 Oct 2026): the hand's words said `tell ""`
+    stops it, the model passed the two quote marks, and they were kept as an instruction and
+    as the agent's tell. Stopping is now tell_off; a tell with no words is refused where
+    instructions are kept, before anything is set."""
+    agent = world.agents.create("Look at my deals", name="Deal Watch")
+    home = world.modules.home_thread()["id"]
+    words = "stop telling me about deal watch"
+    said = world.journal.append("said", words, actor="person", thread=home)
+    tools = Tools(world, turn=said, thread=home)
+    for bad in ('""', "  ", "- ."):
+        out = tools.agent_keep(id=agent["id"], tell=bad, quote=words)
+        assert out.get("error") == "An instruction needs words.", bad
+    assert not world.agents.get(agent["id"])["tell"] and world.knowledge.instructions() == []
+    both = tools.agent_keep(id=agent["id"], tell="Tell me about Deal Watch", tell_off=True,
+                            quote=words)
+    assert "one of them" in str(both.get("error"))
+    assert tools.agent_keep(id=agent["id"], tell_off=True, quote=words)["note"] == \
+        "Its runs were not being told."

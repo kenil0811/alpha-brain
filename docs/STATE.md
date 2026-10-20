@@ -77,7 +77,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
     - **C5 accepted and committed** (`0c6d77a`) ([`log/2026-10-20-section-c-c5.md`](log/2026-10-20-section-c-c5.md)): agents' runs stay out of the stream unless a standing instruction about the agent asks to be told (`agents.tell`); then each run's outcome is a line under its name. Q111: the first `tell_me` failed because the model changed the agent instead of keeping an instruction, so `agent_keep` now takes `tell` with his words and keeps the same instruction in ALPHA.md. His look: Job Watcher's run came to the conversation under its name; stopping it was not tried. His word: "ok it looks good".
     - **C6 accepted and committed** (`b4462c9`; [`log/2026-10-20-section-c-c6.md`](log/2026-10-20-section-c-c6.md)): the desk knows the work beside it by outcomes only. Its per-turn layer lists work running (a line), work finished since its last turn (the outcome whole, a paragraph) and earlier today (a line); nothing older, and nothing of a work's own journal, not even as a match. "What did you do there" is one `world_query` on the work's journal, which now holds each call the work made (before, only the SDK's progress lines, which repeat the work's title). A compaction in a turn the desk takes on finished work now gives the start layer again and writes Home's checkpoint afresh, as in any other turn.
     - Next: C7, then section C's acceptance.
-  - **Next:** C7 (removals and migration, `two_things_at_once` rewritten). Open from his C6 look: stopping an agent's telling through `agent_keep` (Q111) took the model 12 steps, because `tell ""` was passed as two quote marks. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
+  - **Next:** C7 (removals and migration, `two_things_at_once` rewritten). From his C6 look, accepted and committed (Q112, [`log/2026-10-20-tell-off.md`](log/2026-10-20-tell-off.md)): stopping an agent's telling is `agent_keep`'s `tell_off`, and an instruction with no words is refused; `tell_me` proves the stop (8 s, one turn); in his app the stop took one turn, 12 s. Open from A: his CSV and JSON sentences, LinkedIn signed in in Alpha's browser then `sync_from_words`. Rework or retire the stale journeys. His three "feels dumb" sentences come separately.
 - **Files sync kept the core busy, fixed on his yes, accepted and committed** (`1116ff1`) ([`log/2026-10-20-files-sync-cpu.md`](log/2026-10-20-files-sync-cpu.md)): his pages stuck loading after the C5 restart. The core sat at 200% CPU in overlapping syncs of his `~/Desktop/dev`: each walk went into `node_modules`, `.venv`, `.git` and `alpha-v2/.data` before dropping them (9.4 s), and any change anywhere in the folder started another. Now the walk passes skipped folders by (0.44 s, the same 3,965 documents), a change no sync would see starts none, and the watcher runs one sync of a folder at a time. The core was restarted alone at 17:14 BST: 0.2% CPU, pages answer in milliseconds, and a new file is read about 3 s after it is written. His look: "ok it looks good".
 - **The files sync's UNIQUE(path) failure, fixed on his yes, accepted and committed** ([`log/2026-10-20-files-sync-unique-path.md`](log/2026-10-20-files-sync-unique-path.md)):
   - the cause: two syncs of his `~/Desktop/dev` overlapped (a walk takes 8 s, the watcher starts another 2 s after a change), and the second inserted a file the first had just read in; each failure cut that sync short and showed the folder broken;
@@ -149,9 +149,9 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 20 Oct, C6 built)
+## Numbers (`just stats`, 20 Oct, C6 committed, Q112 built)
 
-- 469 core tests, 240 desktop tests; lint and types clean.
+- 470 core tests, 240 desktop tests; lint and types clean.
 - 70 tools; 61 journeys defined.
 - Core 30,355 lines, tests 12,375, desktop 21,380.
 - 316 commits before C5.

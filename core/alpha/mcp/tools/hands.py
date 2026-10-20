@@ -671,7 +671,8 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
                    name: str | None = None,
                    stage: list[str] | None = None,
                    on: list[dict[str, Any]] | None = None,
-                   tell: str | None = None, quote: str | None = None) -> dict[str, Any]:
+                   tell: str | None = None, tell_off: bool = False,
+                   quote: str | None = None) -> dict[str, Any]:
         """Make or change an agent of the person's. New: name (what the person calls it, two or
         three words: "Deal Analyst"), title (the sentence the person would say: "Every Monday
         at 08:00, sync my LinkedIn connections and tell me who is new"), and schedule when it
@@ -695,10 +696,12 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         The agent's page shows its runs and verdicts; its runs stay there unless the person asks
         to be told of them ("tell me whenever it finds something"): tell is that ask as one
         sentence and quote their exact words from this message; each run's outcome then comes
-        to the conversation, kept as a standing instruction that, removed, stops it (tell ""
-        with quote stops it)."""
-        if tell is not None and not quote:
-            return {"error": "tell needs the person's quote from this message."}
+        to the conversation, kept as a standing instruction that, removed, stops it. When they
+        ask to stop being told: tell_off true, with quote."""
+        if (tell is not None or tell_off) and not quote:
+            return {"error": "tell and tell_off need the person's quote from this message."}
+        if tell is not None and tell_off:
+            return {"error": "tell starts the telling and tell_off stops it: one of them."}
         if id:
             changes = (state, schedule, brief, title, name, steps, stage, on)
             agent = (self.agent_update(id, state=state, schedule=schedule, brief=brief,
@@ -710,12 +713,13 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         else:
             agent = self.agent_create(title, schedule or "", brief=brief or "", steps=steps,
                                       module=module, goal=goal, name=name, stage=stage, on=on)
-        if tell is None or _bad(agent):
+        if (tell is None and not tell_off) or _bad(agent):
             return agent
-        if not tell.strip() and not agent.get("tell"):
+        if tell_off and not agent.get("tell"):
             return {**agent, "note": "Its runs were not being told."}
-        told = (self._untell(agent["tell"], str(quote)) if not tell.strip()
-                else self._tell(agent["id"], tell, str(quote)))
+        # a tell with no words is refused where instructions are kept, before any is set
+        told = (self._untell(agent["tell"], str(quote)) if tell_off
+                else self._tell(agent["id"], str(tell), str(quote)))
         return told if _bad(told) else {**agent, **told}
 
     # ---- acting outward ----

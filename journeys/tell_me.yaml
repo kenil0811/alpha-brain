@@ -7,7 +7,10 @@ why: >
   `about` the agent, which sets the agent's `tell` by code, never by reading prose. A run before
   the instruction adds nothing to the stream; one after it adds one line under the agent's name.
   Q111 (20 Oct): the ask said to the agent itself (agent_keep tell, with the person's words)
-  is the same instruction, so either path the model takes passes.
+  is the same instruction, so either path the model takes passes. Then the stop (20 Oct, from
+  Kenil's "Stop telling me about Job Watcher", which kept two quote marks as an instruction):
+  asked to stop, the telling ends, the instruction leaves ALPHA.md, and the next run tells
+  nothing.
 fresh: true
 steps:
   - seed:
@@ -34,6 +37,14 @@ steps:
   - say: "From now on, tell me here whenever Listing Watch finds a new listing."
   - add_row: {table: listings, values: {business: "Lakeside Bakery", asking_price: 450000}}
   - agent: "Listing Watch"
+  - say: "Stop telling me about Listing Watch."
+  - add_row: {table: listings, values: {business: "Sunbelt Laundry", asking_price: 990000}}
+  - agent: "Listing Watch"
 checks:
   - told: {count: 1}
   - journal: {kind: changed, contains: "runs now come to the conversation"}
+  - journal: {kind: changed, contains: "runs stay on its own page again"}
+  - judge:
+      rubric: >
+        The answer says the telling of Listing Watch's runs has stopped, plainly, without
+        mentioning a stray, blank or empty instruction having to be cleaned up.

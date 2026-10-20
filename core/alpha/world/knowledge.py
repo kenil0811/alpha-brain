@@ -117,7 +117,8 @@ class Knowledge:
 
     def add_instruction(self, sentence: str, source: str) -> dict[str, Any]:
         sentence = " ".join(sentence.split())
-        if not sentence:
+        if not any(c.isalnum() for c in sentence):
+            # two quote marks once stood in ALPHA.md as an instruction (20 Oct 2026)
             raise Problem("An instruction needs words.")
         current = self.instructions()
         if sentence not in current:
